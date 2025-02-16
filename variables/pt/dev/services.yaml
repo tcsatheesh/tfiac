@@ -1,0 +1,7 @@
+resource_group_name: "stcwe-rg-app-01"
+location: "westeurope"
+
+key_vault_name: "stcwekv01"
+enable_telemetry: true
+purge_protection_enabled: false
+public_network_access_enabled: false
