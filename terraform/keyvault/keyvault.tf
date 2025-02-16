@@ -36,6 +36,14 @@ locals {
 
 provider "azurerm" {
   features {}
+  alias           = "services"
+  subscription_id = local.services.subscription_id
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "vnet"
+  subscription_id = local.vnet.virtual_network_subscription_id
 }
 
 provider "azurerm" {
@@ -55,6 +63,7 @@ provider "azurerm" {
 data "azurerm_client_config" "this" {}
 
 data "azurerm_subnet" "this" {
+  provider             = azurerm.vnet
   name                 = local.vnet.subnet_name
   virtual_network_name = local.vnet.virtual_network_name
   resource_group_name  = local.vnet.virtual_network_resource_group_name
@@ -74,6 +83,7 @@ data "azurerm_log_analytics_workspace" "this" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
+  provider = azurerm.services
   location = local.services.location
   name     = local.services.resource_group_name
 }
