@@ -31,12 +31,10 @@ locals {
   log      = yamldecode(file("../../variables/global/${var.env_type}/log.yaml"))
   vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
   services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
-  # features = yamldecode(file("variables/${var.market}/${var.environment}/features.yaml"))
 }
 
 provider "azurerm" {
   features {}
-  alias           = "services"
   subscription_id = local.services.subscription_id
 }
 
@@ -47,8 +45,7 @@ provider "azurerm" {
 }
 
 provider "azurerm" {
-  features {
-  }
+  features {}
   alias           = "log_analytics_workspace"
   subscription_id = local.log.log_analytics_workspace_subscription_id
 }
@@ -83,7 +80,6 @@ data "azurerm_log_analytics_workspace" "this" {
 
 # This is required for resource modules
 resource "azurerm_resource_group" "this" {
-  provider = azurerm.services
   location = local.services.location
   name     = local.services.resource_group_name
 }
