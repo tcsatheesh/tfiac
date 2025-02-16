@@ -27,7 +27,7 @@ variable "dns_resource_group_name" {
   type = string
 }
 variable "private_dns_zone_name" {
-  type = string
+  type    = string
   default = "privatelink.vaultcore.azure.net"
 }
 variable "public_network_access_enabled" {
@@ -38,16 +38,14 @@ variable "purge_protection_enabled" {
   type    = bool
   default = false
 }
-variable log_analytics_workspace_name {
+variable "log_analytics_workspace_name" {
   type = string
 }
 variable "log_analytics_workspace_subscription_id" {
   type = string
-  
 }
 variable "log_analytics_workspace_resource_group_name" {
   type = string
-  
 }
 
 terraform {
@@ -67,13 +65,13 @@ provider "azurerm" {
 provider "azurerm" {
   features {
   }
-  alias = "log_analytics_workspace"
+  alias           = "log_analytics_workspace"
   subscription_id = var.log_analytics_workspace_subscription_id
 }
 
 provider "azurerm" {
   features {}
-  alias = "private_dns"
+  alias           = "private_dns"
   subscription_id = var.dns_subscription_id
 }
 
@@ -118,7 +116,7 @@ module "keyvault" {
   public_network_access_enabled = var.public_network_access_enabled
   private_endpoints = {
     primary = {
-      name                         = format("%s_%s", "pe", "var.key_vault_name")
+      name                          = format("%s_%s", "pe", "var.key_vault_name")
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
       subnet_resource_id            = data.azurerm_subnet.this.id
       resource_group_name           = var.virtual_network_resource_group_name
