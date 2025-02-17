@@ -110,7 +110,7 @@ module "keyvault" {
   }
   diagnostic_settings = {
     to_la = {
-      name                  = "to-la"
+      name                  = format("tola_%s", local.services.key_vault_name)
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }
