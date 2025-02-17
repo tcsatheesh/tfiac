@@ -34,7 +34,12 @@ locals {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    key_vault {
+        purge_soft_delete_on_destroy    = true
+        recover_soft_deleted_key_vaults = false
+      }
+    }
   subscription_id = local.services.subscription_id
 }
 
@@ -80,8 +85,7 @@ data "azurerm_log_analytics_workspace" "this" {
 
 # This is the module call
 module "keyvault" {
-  source = "Azure/avm-res-keyvault-vault/azurerm"
-  # source             = "Azure/avm-res-keyvault-vault/azurerm"
+  source                        = "Azure/avm-res-keyvault-vault/azurerm"
   name                          = local.services.key_vault_name
   enable_telemetry              = local.services.enable_telemetry
   location                      = local.services.location
