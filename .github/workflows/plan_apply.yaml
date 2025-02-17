@@ -15,6 +15,11 @@ on:
         description: 'Service to deploy'
         required: true
         type: string
+    secrets: [
+      AZURE_CLIENT_ID, 
+      AZURE_SUBSCRIPTION_ID, 
+      AZURE_TENANT_ID
+    ]
 
 #Special permissions required for OIDC authentication
 permissions:
