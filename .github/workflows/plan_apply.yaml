@@ -64,11 +64,11 @@ jobs:
       run: |
         cd terraform/keyvault
         terraform init \
-        -backend-config=`"subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"` \
-        -backend-config=`"resource_group_name=stcwe-rg-tfs-01"` \
-        -backend-config=`"storage_account_name=stcwetfstate01"` \
-        -backend-config=`"container_name=tfstate"` \
-        -backend-config=`"key=${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/keyvault.tfstate"`
+        -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+        -backend-config="resource_group_name=stcwe-rg-tfs-01" \
+        -backend-config="storage_account_name=stcwetfstate01" \
+        -backend-config="container_name=tfstate" \
+        -backend-config="key=${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/keyvault.tfstate"
 
     # Checks that all Terraform configuration files adhere to a canonical format
     # Will fail the build if not
