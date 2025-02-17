@@ -1,27 +1,24 @@
-variable "virtual_network_resource_group_name" {
+variable "market" {
   type = string
 }
-variable "virtual_network_name" {
+variable "environment" {
   type = string
 }
-variable "subnet_name" {
-  type = string
-}
-variable "location" {
-  type = string
-}
-variable "enable_telemetry" {
-  type = bool
-  default = true
-}
-variable "virtual_network_address_space" {
-  type = list(string)
-}
-variable "subnet_address_prefixes" {
-  type = list(string)
-  
+variable "env_type" {
+  type    = string
+  default = "npd"
+  validation {
+    condition     = var.env_type == "prd" || var.env_type == "npd"
+    error_message = "env_type must be either prd or npd"
+  }
 }
 
+locals {
+  dns      = yamldecode(file("../../variables/global/prd/dns.yaml"))
+  log      = yamldecode(file("../../variables/global/${var.env_type}/log.yaml"))
+  vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
+  services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
+}
 
 terraform {
   required_version = ">= 1.9, < 2.0"
@@ -46,8 +43,8 @@ provider "azurerm" {
 }
 
 data "azurerm_virtual_network" "this" {
-  name                = var.virtual_network_name
-  resource_group_name = var.virtual_network_resource_group_name
+  name                = local.vnet.virtual_network_name
+  resource_group_name = local.vnet.virtual_network_resource_group_name
 }
 
 module "avm-res-network-subnet" {
@@ -56,6 +53,6 @@ module "avm-res-network-subnet" {
   virtual_network = {
     resource_id = data.azurerm_virtual_network.this.id
   }
-  name             = var.subnet_name
-  address_prefixes = var.subnet_address_prefixes
+  name             = local.vnet.subnet_name
+  address_prefixes = local.vnet.subnet_address_prefixes
 }
