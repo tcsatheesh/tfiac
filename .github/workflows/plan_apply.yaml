@@ -15,7 +15,6 @@ on:
         description: 'Service to deploy'
         required: true
         type: string
-    secrets: inherit
 
 #Special permissions required for OIDC authentication
 permissions:
