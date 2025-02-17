@@ -17,6 +17,9 @@ on:
       environment:
         description: 'Environment to deploy to'
         required: true
+      az_svc:
+        description: 'Service to deploy'
+        required: true
 
 #Special permissions required for OIDC authentication
 permissions:
@@ -62,19 +65,19 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         terraform init \
         -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
         -backend-config="resource_group_name=stcwe-rg-tfs-01" \
         -backend-config="storage_account_name=stcwetfstate01" \
         -backend-config="container_name=tfstate" \
-        -backend-config="key=${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/keyvault.tfstate"
+        -backend-config="key=${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.az_svc }}.tfstate"
 
     # Checks that all Terraform configuration files adhere to a canonical format
     # Will fail the build if not
     - name: Terraform Format
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         terraform fmt -check
 
     # Generates an execution plan for Terraform
@@ -82,7 +85,7 @@ jobs:
     - name: Terraform Plan
       id: tf-plan
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         export exitcode=0
         terraform plan \
         -var market=${{ github.event.inputs.market }} \
@@ -103,13 +106,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: tfplan
-        path: terraform/keyvault/tfplan
+        path: terraform/${{ github.event.inputs.az_svc }}/tfplan
         
     # Create string output of Terraform Plan
     - name: Create String Output
       id: tf-plan-string
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         TERRAFORM_PLAN=$(terraform show -no-color tfplan)
         
         delimiter="$(openssl rand -hex 8)"
@@ -128,7 +131,7 @@ jobs:
       env:
         SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
       
     # If this is a PR post the changes
@@ -174,23 +177,23 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         terraform init \
         -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
         -backend-config="resource_group_name=stcwe-rg-tfs-01" \
         -backend-config="storage_account_name=stcwetfstate01" \
         -backend-config="container_name=tfstate" \
-        -backend-config="key=${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/keyvault.tfstate"
+        -backend-config="key=${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.az_svc }}.tfstate"
 
     # Download saved plan from artifacts  
     - name: Download Terraform Plan
       uses: actions/download-artifact@v4
       with:
         name: tfplan
-        path: terraform/keyvault
+        path: terraform/${{ github.event.inputs.az_svc }}
 
     # Terraform Apply
     - name: Terraform Apply
       run: |
-        cd terraform/keyvault
+        cd terraform/${{ github.event.inputs.az_svc }}
         terraform apply -auto-approve tfplan
