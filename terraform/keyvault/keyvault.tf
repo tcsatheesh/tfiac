@@ -13,6 +13,14 @@ variable "env_type" {
   }
 }
 
+locals {
+  dns      = yamldecode(file("../../variables/global/prd/dns.yaml"))
+  log      = yamldecode(file("../../variables/global/${var.env_type}/log.yaml"))
+  vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
+  services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
+  tfbackend = yamldecode(file("../../variables/global/${var.env_type}/tfs.yaml"))
+}
+
 terraform {
   required_version = "~> 1.9"
   required_providers {
@@ -21,16 +29,12 @@ terraform {
       version = ">= 3.71"
     }
   }
-}
-
-# var.vnet_environment == "prd" ? "prd" : "npd"
-
-
-locals {
-  dns      = yamldecode(file("../../variables/global/prd/dns.yaml"))
-  log      = yamldecode(file("../../variables/global/${var.env_type}/log.yaml"))
-  vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
-  services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
+  backend "azurerm" {
+    resource_group_name   = local.tfbackend.tf_backend_resource_group_name
+    storage_account_name  = local.tfbackend.tf_backend_storage_account_name
+    container_name        = local.tfbackend.tf_backend_container_name
+    key                   = "keyvault.tfstate"
+  }
 }
 
 provider "azurerm" {
