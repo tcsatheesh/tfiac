@@ -34,7 +34,7 @@ terraform {
     resource_group_name   = "stcwe-rg-tfs-01"
     storage_account_name  = "stcwetfstate01"
     container_name        = "tfstate"
-    key                   = "${market}/${environment}/keyvault.tfstate"
+    key                   = "${var.market}/${var.environment}/keyvault.tfstate"
   }
 }
 
