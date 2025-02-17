@@ -1,17 +1,20 @@
 name: 'Terraform Plan/Apply'
 
 on: 
-  workflow_run:
+  workflow_call:
     inputs:
       market:
         description: 'Market to deploy to'     
         required: true
+        type: string
       environment:
         description: 'Environment to deploy to'
         required: true
+        type: string
       az_svc:
         description: 'Service to deploy'
         required: true
+        type: string
 
 #Special permissions required for OIDC authentication
 permissions:
