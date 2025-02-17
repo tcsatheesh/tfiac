@@ -22,7 +22,6 @@ jobs:
   deploy-landing-storage:
     name: Deploy Landing Storage
     uses: ./.github/workflows/storage.yaml
-    needs: deploy-keyvault
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}

@@ -5,6 +5,10 @@ location: "westeurope"
 enable_telemetry: true
 
 key_vault_name: "stcwekv01"
+purge_protection_enabled: false
+public_network_access_enabled: false
+
+
 landing_storage_account_name: "stcwestg01"
 aml_storage_account_name: "stcwestg02"
 function_app_storage_account_name: "stcwestg03"
