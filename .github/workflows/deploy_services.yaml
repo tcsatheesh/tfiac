@@ -1,0 +1,20 @@
+name: 'Terraform Deploy Services'
+
+on: 
+  workflow_run:
+    inputs:
+      market:
+        description: 'Market to deploy to'     
+        required: true
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+
+jobs:
+  deploy-keyvault:
+    name: 'Deploy Keyvault'
+    uses: ./plan_apply.yaml@master
+    with:
+      market: ${{ github.event.inputs.market }}
+      environment: ${{ github.event.inputs.environment }}
+      az_svc: keyvault

@@ -1,15 +1,7 @@
 name: 'Terraform Plan/Apply'
 
-# on:
-#   push:
-#     branches:
-#     - master
-#   pull_request:
-#     branches:
-#     - master
-
 on: 
-  workflow_dispatch:
+  workflow_run:
     inputs:
       market:
         description: 'Market to deploy to'     
