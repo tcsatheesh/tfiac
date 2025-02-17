@@ -21,7 +21,7 @@ jobs:
     secrets: inherit
   deploy-landing-storage:
     name: Deploy Landing Storage
-    uses: ./.github/workflows/plan_apply.yaml
+    uses: ./.github/workflows/storage.yaml
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
