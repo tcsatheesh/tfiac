@@ -18,7 +18,6 @@ locals {
   log      = yamldecode(file("../../variables/global/${var.env_type}/log.yaml"))
   vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
   services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
-  tfbackend = yamldecode(file("../../variables/global/${var.env_type}/tfs.yaml"))
 }
 
 terraform {
