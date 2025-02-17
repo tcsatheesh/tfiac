@@ -30,10 +30,11 @@ terraform {
     }
   }
   backend "azurerm" {
-    resource_group_name   = local.tfbackend.tf_backend_resource_group_name
-    storage_account_name  = local.tfbackend.tf_backend_storage_account_name
-    container_name        = local.tfbackend.tf_backend_container_name
-    key                   = "keyvault.tfstate"
+    subscription_id       = "883c9081-23ed-4674-95c5-45c74834e093"
+    resource_group_name   = "stcwe-rg-tfs-01"
+    storage_account_name  = "stcwetfstate01"
+    container_name        = "tfstate"
+    key                   = "${market}/${environment}/keyvault.tfstate"
   }
 }
 
