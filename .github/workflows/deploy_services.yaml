@@ -1,21 +1,30 @@
-name: 'Terraform Deploy Services'
+name: Terraform Deploy Services
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       market:
-        description: 'Market to deploy to'     
+        description: Market to deploy to
         required: true
       environment:
-        description: 'Environment to deploy to'
+        description: Environment to deploy to
         required: true
 
 jobs:
   deploy-keyvault:
-    name: 'Deploy Keyvault'
+    name: Deploy Keyvault
     uses: ./.github/workflows/plan_apply.yaml
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
       az_svc: keyvault
+    secrets: inherit
+  deploy-landing-storage:
+    name: Deploy Landing Storage
+    uses: ./.github/workflows/plan_apply.yaml
+    with:
+      market: ${{ github.event.inputs.market }}
+      environment: ${{ github.event.inputs.environment }}
+      az_svc: storage
+      storage_type: landing
     secrets: inherit

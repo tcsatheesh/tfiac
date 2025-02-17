@@ -2,7 +2,11 @@ subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
 resource_group_name: "stcwe-rg-app-01"
 location: "westeurope"
 
-key_vault_name: "stcwekv01"
 enable_telemetry: true
-purge_protection_enabled: false
-public_network_access_enabled: false
+
+key_vault_name: "stcwekv01"
+landing_storage_account_name: "stcwestg01"
+aml_storage_account_name: "stcwestg02"
+function_app_storage_account_name: "stcwestg03"
+logic_app_storage_account_name: "stcwestg04"
+
