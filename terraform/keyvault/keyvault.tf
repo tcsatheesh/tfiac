@@ -78,12 +78,6 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = local.log.log_analytics_workspace_resource_group_name
 }
 
-# This is required for resource modules
-resource "azurerm_resource_group" "this" {
-  location = local.services.location
-  name     = local.services.resource_group_name
-}
-
 # This is the module call
 module "keyvault" {
   source = "Azure/avm-res-keyvault-vault/azurerm"
