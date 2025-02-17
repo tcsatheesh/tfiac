@@ -28,13 +28,13 @@ terraform {
       version = ">= 3.71"
     }
   }
-  backend "azurerm" {
-    subscription_id       = "883c9081-23ed-4674-95c5-45c74834e093"
-    resource_group_name   = "stcwe-rg-tfs-01"
-    storage_account_name  = "stcwetfstate01"
-    container_name        = "tfstate"
-    key                   = "pt/dev/keyvault.tfstate"
-  }
+  # backend "azurerm" {
+  #   subscription_id       = "883c9081-23ed-4674-95c5-45c74834e093"
+  #   resource_group_name   = "stcwe-rg-tfs-01"
+  #   storage_account_name  = "stcwetfstate01"
+  #   container_name        = "tfstate"
+  #   key                   = "pt/dev/keyvault.tfstate"
+  # }
 }
 
 provider "azurerm" {
