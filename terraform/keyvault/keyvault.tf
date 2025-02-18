@@ -79,7 +79,7 @@ data "azurerm_subnet" "this" {
 
 data "azurerm_private_dns_zone" "this" {
   provider            = azurerm.private_dns
-  name                = local.dns.keyvault_private_dns_zone_name
+  name                = local.dns.domain_names["keyvault"]
   resource_group_name = local.dns.dns_resource_group_name
 }
 
