@@ -30,7 +30,7 @@ provider "azurerm" {
   subscription_id = local.services.subscription_id
 }
 
-module "keyvault" {
+module "vnet" {
   source   = "../../modules/vnet"
   dns      = local.dns
   log      = local.log
