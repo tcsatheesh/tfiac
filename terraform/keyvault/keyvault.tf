@@ -52,7 +52,7 @@ provider "azurerm" {
 provider "azurerm" {
   features {}
   alias           = "vnet"
-  subscription_id = local.vnet.virtual_network_subscription_id
+  subscription_id = local.vnet.vnet_subscription_id
 }
 
 provider "azurerm" {
@@ -73,8 +73,8 @@ data "azurerm_client_config" "this" {}
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
   name                 = local.vnet.subnet_name
-  virtual_network_name = local.vnet.virtual_network_name
-  resource_group_name  = local.vnet.virtual_network_resource_group_name
+  vnet_name = local.vnet.vnet_name
+  resource_group_name  = local.vnet.vnet_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "this" {
@@ -105,7 +105,7 @@ module "keyvault" {
       name                          = format("%s_%s", "pe", local.services.key_vault_name)
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
       subnet_resource_id            = data.azurerm_subnet.this.id
-      resource_group_name           = local.vnet.virtual_network_resource_group_name
+      resource_group_name           = local.vnet.vnet_resource_group_name
     }
   }
   diagnostic_settings = {

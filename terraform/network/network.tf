@@ -52,7 +52,7 @@ provider "azurerm" {
 
 # This is required for resource modules
 data "azurerm_resource_group" "this" {
-  name = local.vnet.virtual_network_resource_group_name
+  name = local.vnet.vnet_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "this" {
@@ -70,9 +70,9 @@ data "azurerm_log_analytics_workspace" "this" {
 # Creating a virtual network with a unique name, telemetry settings, and in the specified resource group and location.
 module "vnet" {
   source              = "Azure/avm-res-network-virtualnetwork/azurerm"
-  name                = local.vnet.virtual_network_name
+  name                = local.vnet.vnet_name
   enable_telemetry    = local.vnet.enable_telemetry
-  resource_group_name = local.vnet.virtual_network_resource_group_name
-  location            = local.vnet.virtual_network_location
-  address_space       = local.vnet.virtual_network_address_space
+  resource_group_name = local.vnet.vnet_resource_group_name
+  location            = local.vnet.vnet_location
+  address_space       = local.vnet.vnet_address_space
 }

@@ -42,16 +42,16 @@ provider "azurerm" {
   }
 }
 
-data "azurerm_virtual_network" "this" {
-  name                = local.vnet.virtual_network_name
-  resource_group_name = local.vnet.virtual_network_resource_group_name
+data "azurerm_vnet" "this" {
+  name                = local.vnet.vnet_name
+  resource_group_name = local.vnet.vnet_resource_group_name
 }
 
 module "avm-res-network-subnet" {
   source = "Azure/avm-res-network-virtualnetwork/azurerm//modules/subnet"
 
-  virtual_network = {
-    resource_id = data.azurerm_virtual_network.this.id
+  vnet = {
+    resource_id = data.azurerm_vnet.this.id
   }
   name             = local.vnet.subnet_name
   address_prefixes = local.vnet.subnet_address_prefixes

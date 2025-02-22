@@ -1,0 +1,22 @@
+name: Terraform Deploy Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: Market to deploy to
+        required: true
+      environment:
+        description: Environment to deploy to
+        required: true
+
+jobs:
+  deploy-keyvault:
+    name: Deploy Virtual Network and Subnets
+    uses: ./.github/workflows/plan_apply.yaml
+    with:
+      market: ${{ github.event.inputs.market }}
+      environment: ${{ github.event.inputs.environment }}
+      az_svc: vnet
+    secrets: inherit
+
