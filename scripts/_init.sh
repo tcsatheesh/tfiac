@@ -12,3 +12,9 @@ terraform plan \
  terraform apply \
  -var market=pt \
  -var environment=dev
+
+ terraform destroy \
+ -var market=pt \
+ -var environment=dev
+
+ 

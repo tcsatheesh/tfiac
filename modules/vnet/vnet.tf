@@ -27,10 +27,62 @@ module "vnet" {
       default_outbound_access_enabled = false
       address_prefixes                = var.vnet.dev_subnet_address_prefixes
     }
+    devFunctionApp = {
+      name                            = var.vnet.dev_function_app_subnet_name
+      default_outbound_access_enabled = false
+      address_prefixes                = var.vnet.dev_function_app_subnet_address_prefixes
+      delegation = [
+        {
+          name = "Microsoft.Web.serverFarms"
+          service_delegation = {
+            name = "Microsoft.Web/serverFarms"
+          }
+        }
+      ]
+    }
+    devLogicApp = {
+      name                            = var.vnet.dev_logic_app_subnet_name
+      default_outbound_access_enabled = false
+      address_prefixes                = var.vnet.dev_logic_app_subnet_address_prefixes
+      delegation = [
+        {
+          name = "Microsoft.Web.serverFarms"
+          service_delegation = {
+            name = "Microsoft.Web/serverFarms"
+          }
+        }
+      ]
+    }
     pre = {
       name                            = var.vnet.pre_subnet_name
       default_outbound_access_enabled = false
       address_prefixes                = var.vnet.pre_subnet_address_prefixes
+    }
+    preFunctionApp = {
+      name                            = var.vnet.pre_function_app_subnet_name
+      default_outbound_access_enabled = false
+      address_prefixes                = var.vnet.pre_function_app_subnet_address_prefixes
+      delegation = [
+        {
+          name = "Microsoft.Web.serverFarms"
+          service_delegation = {
+            name = "Microsoft.Web/serverFarms"
+          }
+        }
+      ]
+    }
+    preLogicApp = {
+      name                            = var.vnet.pre_logic_app_subnet_name
+      default_outbound_access_enabled = false
+      address_prefixes                = var.vnet.pre_logic_app_subnet_address_prefixes
+      delegation = [
+        {
+          name = "Microsoft.Web.serverFarms"
+          service_delegation = {
+            name = "Microsoft.Web/serverFarms"
+          }
+        }
+      ]
     }
   }
 }
