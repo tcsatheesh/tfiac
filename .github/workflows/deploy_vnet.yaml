@@ -23,6 +23,6 @@ jobs:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
       az_svc: vnet
-      apply: ${{ github.event.inputs.apply }}
+      apply: "${{ github.event.inputs.apply }}" # https://github.com/actions/runner/issues/1483
     secrets: inherit
 

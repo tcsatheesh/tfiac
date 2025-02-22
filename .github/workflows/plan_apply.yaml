@@ -18,8 +18,8 @@ on:
       apply:
         description: 'Apply changes'
         required: true
-        default: false
-        type: boolean
+        default: "false"
+        type: string
 
 #Special permissions required for OIDC authentication
 permissions:
@@ -153,7 +153,7 @@ jobs:
                 
   terraform-apply:
     name: 'Terraform Apply'
-    if: github.ref == 'refs/heads/master' && needs.terraform-plan.outputs.tfplanExitCode == 2 && ${{ inputs.apply }}
+    if: github.ref == 'refs/heads/master' && needs.terraform-plan.outputs.tfplanExitCode == 2 && ${{ inputs.apply == 'true' }}
     runs-on: ubuntu-latest
     environment: dev
     needs: [terraform-plan]
