@@ -1,4 +1,4 @@
-name: Terraform Deploy Services
+name: Terraform Deploy Virtual Network
 
 on:
   workflow_dispatch:
