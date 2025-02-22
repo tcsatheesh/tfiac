@@ -15,6 +15,11 @@ on:
         description: 'Service to deploy'
         required: true
         type: string
+      apply:
+        description: 'Apply changes'
+        required: false
+        default: false
+        type: boolean
 
 #Special permissions required for OIDC authentication
 permissions:
@@ -148,7 +153,7 @@ jobs:
                 
   terraform-apply:
     name: 'Terraform Apply'
-    if: github.ref == 'refs/heads/master' && needs.terraform-plan.outputs.tfplanExitCode == 2
+    if: github.ref == 'refs/heads/master' && needs.terraform-plan.outputs.tfplanExitCode == 2 && ${{ inputs.apply }}
     runs-on: ubuntu-latest
     environment: dev
     needs: [terraform-plan]

@@ -9,14 +9,20 @@ on:
       environment:
         description: Environment to deploy to
         required: true
+      apply:
+        description: Apply changes
+        required: true
+        default: false
+        type: boolean
 
 jobs:
-  deploy-keyvault:
+  deploy-vnet:
     name: Deploy Virtual Network and Subnets
     uses: ./.github/workflows/plan_apply.yaml
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
       az_svc: vnet
+      apply: ${{ github.event.inputs.apply }}
     secrets: inherit
 
