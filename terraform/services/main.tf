@@ -31,7 +31,7 @@ provider "azurerm" {
 }
 
 module "keyvault" {
-  source   = "../modules/keyvault"
+  source   = "../../modules/keyvault"
   dns      = local.dns
   log      = local.log
   vnet     = local.vnet
@@ -39,7 +39,7 @@ module "keyvault" {
 }
 
 module "landing_zone" {
-  source       = "../modules/storage"
+  source       = "../../modules/storage"
   dns          = local.dns
   log          = local.log
   vnet         = local.vnet
