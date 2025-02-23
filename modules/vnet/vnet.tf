@@ -88,6 +88,7 @@ module "vnet" {
       route_table = {
         id = azurerm_route_table.this.id
       }
+      service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.CognitiveServices"]
     }
     devFunctionApp = {
       name                            = var.vnet.dev_function_app_subnet_name
@@ -99,6 +100,7 @@ module "vnet" {
       route_table = {
         id = azurerm_route_table.this.id
       }
+      service_endpoints = ["Microsoft.Storage"]
       delegation = [
         {
           name = "Microsoft.Web.serverFarms"
@@ -118,6 +120,7 @@ module "vnet" {
       route_table = {
         id = azurerm_route_table.this.id
       }
+      service_endpoints = ["Microsoft.Storage"]
       delegation = [
         {
           name = "Microsoft.Web.serverFarms"
@@ -137,6 +140,7 @@ module "vnet" {
       route_table = {
         id = azurerm_route_table.this.id
       }
+      service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.CognitiveServices"]
     }
     preFunctionApp = {
       name                            = var.vnet.pre_function_app_subnet_name
@@ -148,6 +152,7 @@ module "vnet" {
       route_table = {
         id = azurerm_route_table.this.id
       }
+      service_endpoints = ["Microsoft.Storage"]
       delegation = [
         {
           name = "Microsoft.Web.serverFarms"
@@ -167,6 +172,7 @@ module "vnet" {
       route_table = {
         id = azurerm_route_table.this.id
       }
+      service_endpoints = ["Microsoft.Storage"]
       delegation = [
         {
           name = "Microsoft.Web.serverFarms"

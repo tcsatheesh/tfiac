@@ -30,6 +30,12 @@ provider "azurerm" {
   subscription_id = var.dns.subscription_id
 }
 
+data "azurerm_vnet" this {
+  provider            = azurerm.vnet
+  name                = var.vnet.name
+  resource_group_name = var.vnet.resource_group_name
+}
+
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
   name                 = var.services.subnet_name
@@ -49,6 +55,12 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
+resource "azurerm_private_dns_zone_virtual_network_link" "link" {
+  name                  = "openai-private-dns-zone"
+  private_dns_zone_name = data.azurerm_private_dns_zone.this.name
+  resource_group_name   = var.vnet.resource_group_name
+  virtual_network_id    = data.azurerm_vnet.this.id
+}
 
 module "openai" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
@@ -77,19 +89,14 @@ module "openai" {
   network_acls = {
     default_action = "Deny"
   }
-  # private_endpoints = {
-  #   pe_endpoint = {
-  #     name                          = "pe-${var.services.open_ai_name}"
-  #     subnet_resource_id            = data.azurerm_subnet.this.id
-  #     subresource_name              = "account"
-  #     private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
-  #     # these are optional but illustrate making well-aligned service connection & NIC names.
-  #     private_service_connection_name = "psc-${var.services.open_ai_name}"
-  #     network_interface_name          = "nic-pe-${var.services.open_ai_name}"
-  #     inherit_lock                    = false
-  #     resource_group_name             = var.vnet.resource_group_name
-  #   }
-  # }
+  private_endpoints = {
+    pe_endpoint = {
+      name                          = "pe-${var.services.open_ai_name}"
+      private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.zone.id])
+      private_service_connection_name = "psc-${var.services.open_ai_name}"
+      subnet_resource_id            = data.azurerm_subnet.this.id
+    }
+  }
   diagnostic_settings = {
     to_la = {
       name                  = format("tola_%s", var.services.open_ai_name)
