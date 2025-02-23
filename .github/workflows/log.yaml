@@ -81,9 +81,7 @@ jobs:
         cd terraform/dns
         export exitcode=0
         terraform plan \
-        -var market=${{ inputs.market }} \
-        -var environment=${{ inputs.environment }} \
-        -var storage_type=${{ inputs.storage_type }} \
+        -var environment=${{ github.events.inputs.environment }} \
         -detailed-exitcode -no-color -out tfplan || export exitcode=$?
 
         echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
