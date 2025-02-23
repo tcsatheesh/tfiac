@@ -68,7 +68,7 @@ module "aiservices" {
   }
   private_endpoints = {
     for endpoint in local.endpoints :
-    endpoint = {
+    endpoint => {
       name                          = "pe-${endpoint}-${var.services.ai_services_name}"
       subnet_resource_id            = data.azurerm_subnet.this.id
       subresource_name              = "account"
