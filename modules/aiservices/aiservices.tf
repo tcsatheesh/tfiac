@@ -83,6 +83,9 @@ module "aiservices" {
   managed_identities = {
     system_assigned = true
   }
+  network_acls = {
+    default_action = "Deny"
+  }
   private_endpoints = {
     for endpoint in local.endpoints :
     endpoint => {
