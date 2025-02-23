@@ -1,5 +1,5 @@
 locals {
-  dns      = yamldecode(file("../../variables/global/prd/dns.yaml"))
+  dns = yamldecode(file("../../variables/global/prd/dns.yaml"))
 }
 
 terraform {
@@ -28,7 +28,7 @@ provider "azurerm" {
 }
 
 module "dns" {
-  source   = "../../modules/dns"
-  dns      = local.dns
+  source = "../../modules/dns"
+  dns    = local.dns
 }
 

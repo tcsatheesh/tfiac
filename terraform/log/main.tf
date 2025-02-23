@@ -1,5 +1,5 @@
 locals {
-  log      = yamldecode(file("../../variables/global/${var.env_type}/log.yaml"))
+  log = yamldecode(file("../../variables/global/${var.environment}/log.yaml"))
 }
 
 terraform {
@@ -28,7 +28,7 @@ provider "azurerm" {
 }
 
 module "log" {
-  source   = "../../modules/log"
-  log      = local.log
+  source = "../../modules/log"
+  log    = local.log
 }
 
