@@ -8,3 +8,5 @@ domain_names:
   queue: privatelink.queue.core.windows.net
   table: privatelink.table.core.windows.net
   openai: privatelink.openai.azure.com
+  cognitiveservices: privatelink.cognitiveservices.azure.com
+  ai_services: privatelink.services.ai.azure.com

@@ -3,6 +3,11 @@ variable "log" {}
 variable "vnet" {}
 variable "services" {}
 
+
+locals {
+  endpoints = toset(["ai_services", "cognitiveservices", "openai"])
+}
+
 provider "azurerm" {
   features {
     resource_group {
@@ -37,11 +42,12 @@ data "azurerm_subnet" "this" {
   resource_group_name  = var.vnet.resource_group_name
 }
 
-# data "azurerm_private_dns_zone" "this" {
-#   provider            = azurerm.private_dns
-#   name                = var.dns.domain_names["aiservices"]
-#   resource_group_name = var.dns.resource_group_name
-# }
+data "azurerm_private_dns_zone" "this" {
+  for_each = local.endpoints
+  provider            = azurerm.private_dns
+  name                = var.dns.domain_names[each.value]
+  resource_group_name = var.dns.resource_group_name
+}
 
 
 data "azurerm_log_analytics_workspace" "this" {
@@ -60,19 +66,20 @@ module "aiservices" {
   managed_identities = {
     system_assigned = true
   }
-  # private_endpoints = {
-  #   pe_endpoint = {
-  #     name                          = "pe-${var.services.ai_services_name}"
-  #     subnet_resource_id            = data.azurerm_subnet.this.id
-  #     subresource_name              = "account"
-  #     private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
-  #     # these are optional but illustrate making well-aligned service connection & NIC names.
-  #     private_service_connection_name = "psc-${var.services.ai_services_name}"
-  #     network_interface_name          = "nic-pe-${var.services.ai_services_name}"
-  #     inherit_lock                    = false
-  #     resource_group_name             = var.vnet.resource_group_name
-  #   }
-  # }
+  private_endpoints = {
+    for endpoint in local.endpoints :
+    endpoint = {
+      name                          = "pe-${endpoint}-${var.services.ai_services_name}"
+      subnet_resource_id            = data.azurerm_subnet.this.id
+      subresource_name              = "account"
+      private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
+      # these are optional but illustrate making well-aligned service connection & NIC names.
+      private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
+      network_interface_name          = "nic-pe-${endpoint}-${var.services.ai_services_name}"
+      inherit_lock                    = false
+      resource_group_name             = var.vnet.resource_group_name
+    }
+  }
   diagnostic_settings = {
     to_la = {
       name                  = format("tola_%s", var.services.ai_services_name)
