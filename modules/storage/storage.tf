@@ -43,7 +43,7 @@ provider "azurerm" {
 provider "azurerm" {
   features {}
   alias           = "private_dns"
-  subscription_id = var.dns.dns_subscription_id
+  subscription_id = var.dns.subscription_id
 }
 
 data "azurerm_subnet" "this" {
@@ -56,8 +56,8 @@ data "azurerm_subnet" "this" {
 data "azurerm_private_dns_zone" "this" {
   for_each = local.endpoints
 
-  name                = "privatelink.${each.value}.core.windows.net"
-  resource_group_name = var.dns.dns_resource_group_name
+  name                = var.dns.domain_names[each.value]
+  resource_group_name = var.dns.resource_group_name
   provider            = azurerm.private_dns
 }
 
@@ -66,9 +66,6 @@ data "azurerm_log_analytics_workspace" "this" {
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
 }
-
-# We need this to get the object_id of the current user
-data "azurerm_client_config" "current" {}
 
 module "this" {
 
