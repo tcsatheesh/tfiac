@@ -80,18 +80,15 @@ module "aiservices" {
   managed_identities = {
     system_assigned = true
   }
-  network_acls = {
-    default_action = "Deny"
+  private_endpoints = {
+    for endpoint in local.endpoints :
+    endpoint => {
+      name                            = "pe-${endpoint}-${var.services.ai_services_name}"
+      private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this[endpoint].id])
+      private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
+      subnet_resource_id              = data.azurerm_subnet.this.id
+    }
   }
-  # private_endpoints = {
-  #   for endpoint in local.endpoints :
-  #   endpoint => {
-  #     name                            = "pe-${endpoint}-${var.services.ai_services_name}"
-  #     private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this[endpoint].id])
-  #     private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
-  #     subnet_resource_id              = data.azurerm_subnet.this.id
-  #   }
-  # }
   diagnostic_settings = {
     to_la = {
       name                  = format("tola_%s", var.services.ai_services_name)
