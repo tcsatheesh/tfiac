@@ -57,7 +57,7 @@ data "azurerm_log_analytics_workspace" "this" {
 
 resource "azurerm_private_dns_zone_virtual_network_link" "link" {
   name                  = "openai-private-dns-zone"
-  private_dns_zone_name = data.azurerm_private_dns_zone.this.name
+  private_dns_zone_name = var.dns.domain_names["openai"]
   resource_group_name   = var.vnet.resource_group_name
   virtual_network_id    = data.azurerm_vnet.this.id
 }
@@ -92,7 +92,7 @@ module "openai" {
   private_endpoints = {
     pe_endpoint = {
       name                          = "pe-${var.services.open_ai_name}"
-      private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.zone.id])
+      private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this.id])
       private_service_connection_name = "psc-${var.services.open_ai_name}"
       subnet_resource_id            = data.azurerm_subnet.this.id
     }
