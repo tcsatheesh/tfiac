@@ -91,7 +91,6 @@ module "this" {
       subnet_resource_id            = data.azurerm_subnet.this.id
       subresource_name              = endpoint
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this[endpoint].id]
-      # these are optional but illustrate making well-aligned service connection & NIC names.
       private_service_connection_name = "psc-${endpoint}-${local.storage_account_name}"
       network_interface_name          = "nic-pe-${endpoint}-${local.storage_account_name}"
       inherit_lock                    = false
