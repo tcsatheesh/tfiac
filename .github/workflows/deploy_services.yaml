@@ -9,22 +9,19 @@ on:
       environment:
         description: Environment to deploy to
         required: true
+      apply:
+        description: Apply changes
+        required: true
+        default: false
+        type: boolean
 
 jobs:
-  deploy-keyvault:
-    name: Deploy Keyvault
+  deploy-services:
+    name: Deploy Services
     uses: ./.github/workflows/plan_apply.yaml
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
-      az_svc: keyvault
-    secrets: inherit
-  deploy-landing-storage:
-    name: Deploy Landing Storage
-    uses: ./.github/workflows/storage.yaml
-    with:
-      market: ${{ github.event.inputs.market }}
-      environment: ${{ github.event.inputs.environment }}
-      az_svc: storage
-      storage_type: landing
+      az_svc: services
+      apply: "${{ github.event.inputs.apply }}" # https://github.com/actions/runner/issues/1483
     secrets: inherit

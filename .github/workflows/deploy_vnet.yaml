@@ -25,4 +25,3 @@ jobs:
       az_svc: vnet
       apply: "${{ github.event.inputs.apply }}" # https://github.com/actions/runner/issues/1483
     secrets: inherit
-
