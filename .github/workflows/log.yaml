@@ -58,7 +58,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/dns
+        cd terraform/log
         terraform init \
         -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
         -backend-config="resource_group_name=stcwe-rg-tfs-01" \
@@ -70,7 +70,7 @@ jobs:
     # Will fail the build if not
     - name: Terraform Format
       run: |
-        cd terraform/dns
+        cd terraform/log
         terraform fmt -check
 
     # Generates an execution plan for Terraform
@@ -78,7 +78,7 @@ jobs:
     - name: Terraform Plan
       id: tf-plan
       run: |
-        cd terraform/dns
+        cd terraform/log
         export exitcode=0
         terraform plan \
         -var environment=${{ github.events.inputs.environment }} \
@@ -98,13 +98,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: tfplan
-        path: terraform/dns/tfplan
+        path: terraform/log/tfplan
         
     # Create string output of Terraform Plan
     - name: Create String Output
       id: tf-plan-string
       run: |
-        cd terraform/dns
+        cd terraform/log
         TERRAFORM_PLAN=$(terraform show -no-color tfplan)
         
         delimiter="$(openssl rand -hex 8)"
@@ -123,7 +123,7 @@ jobs:
       env:
         SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
       run: |
-        cd terraform/dns
+        cd terraform/log
         echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
       
     # If this is a PR post the changes
@@ -173,7 +173,7 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/dns
+        cd terraform/log
         terraform init \
         -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
         -backend-config="resource_group_name=stcwe-rg-tfs-01" \
@@ -186,10 +186,10 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: tfplan
-        path: terraform/dns
+        path: terraform/log
 
     # Terraform Apply
     - name: Terraform Apply
       run: |
-        cd terraform/dns
+        cd terraform/log
         terraform apply -auto-approve tfplan
