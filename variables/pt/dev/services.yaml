@@ -15,10 +15,10 @@ aml_storage_account_name: "tfwestg02"
 function_app_storage_account_name: "tfwestg03"
 logic_app_storage_account_name: "tfwestg04"
 
-open_ai_location: "swedencentral"
+open_ai_location: "westeurope"
 open_ai_name: "tfweopenai01"
 
-ai_services_location: "swedencentral"
+ai_services_location: "westeurope"
 ai_services_name: "tfweaiservices01"
 
 # vnet parameters
