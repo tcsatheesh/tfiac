@@ -14,14 +14,14 @@ provider "azurerm" {
 provider "azurerm" {
   features {}
   alias           = "vnet"
-  subscription_id = var.vnet.vnet_subscription_id
+  subscription_id = var.vnet.subscription_id
 }
 
 
 provider "azurerm" {
   features {}
   alias           = "log_analytics_workspace"
-  subscription_id = var.log.log_analytics_workspace_subscription_id
+  subscription_id = var.log.subscription_id
 }
 
 provider "azurerm" {
@@ -32,9 +32,9 @@ provider "azurerm" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.vnet.subnet_name
-  virtual_network_name = var.vnet.vnet_name
-  resource_group_name  = var.vnet.vnet_resource_group_name
+  name                 = var.services.subnet_name
+  virtual_network_name = var.vnet.name
+  resource_group_name  = var.vnet.resource_group_name
 }
 
 data "azurerm_private_dns_zone" "this" {
@@ -87,7 +87,7 @@ module "openai" {
       private_service_connection_name = "psc-${var.services.open_ai_name}"
       network_interface_name          = "nic-pe-${var.services.open_ai_name}"
       inherit_lock                    = false
-      resource_group_name             = var.vnet.vnet_resource_group_name
+      resource_group_name             = var.vnet.resource_group_name
     }
   }
   diagnostic_settings = {

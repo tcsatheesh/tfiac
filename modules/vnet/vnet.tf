@@ -72,7 +72,6 @@ resource "azurerm_network_security_group" "pre_logic_app_subnet" {
 module "vnet" {
   source              = "Azure/avm-res-network-virtualnetwork/azurerm"
   name                = var.vnet.name
-  enable_telemetry    = false
   resource_group_name = var.vnet.resource_group_name
   location            = var.vnet.location
 

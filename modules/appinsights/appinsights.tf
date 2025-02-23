@@ -7,7 +7,7 @@ variable "services" {}
 provider "azurerm" {
   features {}
   alias           = "log_analytics_workspace"
-  subscription_id = var.log.log_analytics_workspace_subscription_id
+  subscription_id = var.log.subscription_id
 }
 
 data "azurerm_log_analytics_workspace" "this" {

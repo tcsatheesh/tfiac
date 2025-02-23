@@ -30,14 +30,14 @@ provider "azurerm" {
 provider "azurerm" {
   features {}
   alias           = "vnet"
-  subscription_id = var.vnet.vnet_subscription_id
+  subscription_id = var.vnet.subscription_id
 }
 
 
 provider "azurerm" {
   features {}
   alias           = "log_analytics_workspace"
-  subscription_id = var.log.log_analytics_workspace_subscription_id
+  subscription_id = var.log.subscription_id
 }
 
 provider "azurerm" {
@@ -48,9 +48,9 @@ provider "azurerm" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.vnet.subnet_name
-  virtual_network_name = var.vnet.vnet_name
-  resource_group_name  = var.vnet.vnet_resource_group_name
+  name                 = var.services.subnet_name
+  virtual_network_name = var.vnet.name
+  resource_group_name  = var.vnet.resource_group_name
 }
 
 data "azurerm_private_dns_zone" "this" {
@@ -81,12 +81,11 @@ module "this" {
   min_tls_version                         = "TLS1_2"
   shared_access_key_enabled               = false
   public_network_access_enabled           = false
-  enable_telemetry                        = true
   private_endpoints_manage_dns_zone_group = true
   #create a private endpoint for each endpoint type
   private_endpoints = {
     for endpoint in local.endpoints :
-    pe_endpoint => {
+    endpoint => {
       # the name must be set to avoid conflicting resources.
       name                          = "pe-${endpoint}-${local.storage_account_name}"
       subnet_resource_id            = data.azurerm_subnet.this.id
@@ -96,7 +95,7 @@ module "this" {
       private_service_connection_name = "psc-${endpoint}-${local.storage_account_name}"
       network_interface_name          = "nic-pe-${endpoint}-${local.storage_account_name}"
       inherit_lock                    = false
-      resource_group_name             = var.vnet.vnet_resource_group_name
+      resource_group_name             = var.vnet.resource_group_name
     }
   }
   containers = {
