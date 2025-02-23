@@ -17,7 +17,7 @@ data "azurerm_log_analytics_workspace" "this" {
 }
 
 resource "azurerm_application_insights" "this" {
-  name                = var.servies.app_insights_name
+  name                = var.services.app_insights_name
   location            = var.services.location
   resource_group_name = var.services.resource_group_name
   workspace_id        = data.azurerm_log_analytics_workspace.this.id
