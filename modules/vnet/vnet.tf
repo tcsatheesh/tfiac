@@ -31,7 +31,7 @@ resource "azurerm_route_table" "this" {
   route {
     name           = "firewall-appliance"
     address_prefix = var.firewall.ip
-    next_hop_type  = "VirtualAppliance "
+    next_hop_type  = "VirtualAppliance"
   }
 }
 
