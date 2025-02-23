@@ -64,7 +64,7 @@ jobs:
         -backend-config="resource_group_name=stcwe-rg-tfs-01" \
         -backend-config="storage_account_name=stcwetfstate01" \
         -backend-config="container_name=tfstate" \
-        -backend-config="key=global/${{ github.events.inputs.environment }}//log.tfstate"
+        -backend-config="key=global/${{ github.event.inputs.environment }}//log.tfstate"
 
     # Checks that all Terraform configuration files adhere to a canonical format
     # Will fail the build if not
@@ -81,7 +81,7 @@ jobs:
         cd terraform/log
         export exitcode=0
         terraform plan \
-        -var environment=${{ github.events.inputs.environment }} \
+        -var environment=${{ github.event.inputs.environment }} \
         -detailed-exitcode -no-color -out tfplan || export exitcode=$?
 
         echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
