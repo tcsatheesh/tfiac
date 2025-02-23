@@ -56,9 +56,10 @@ data "azurerm_log_analytics_workspace" "this" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "link" {
+  provider              = azurerm.private_dns
   name                  = "openai-private-dns-zone"
   private_dns_zone_name = var.dns.domain_names["openai"]
-  resource_group_name   = var.vnet.resource_group_name
+  resource_group_name   = var.dns.resource_group_name
   virtual_network_id    = data.azurerm_virtual_network.this.id
 }
 
