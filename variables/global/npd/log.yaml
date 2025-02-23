@@ -1,3 +1,3 @@
-log_analytics_workspace_name: "stcwe-law-01"
-log_analytics_workspace_subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
-log_analytics_workspace_resource_group_name: "stcwe-rg-law-01"
+workspace_name: "stcwe-law-01"
+subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
+resource_group_name: "stcwe-rg-law-01"

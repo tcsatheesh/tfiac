@@ -63,8 +63,8 @@ data "azurerm_private_dns_zone" "this" {
 
 data "azurerm_log_analytics_workspace" "this" {
   provider            = azurerm.log_analytics_workspace
-  name                = var.log.log_analytics_workspace_name
-  resource_group_name = var.log.log_analytics_workspace_resource_group_name
+  name                = var.log.workspace_name
+  resource_group_name = var.log.resource_group_name
 }
 
 # We need this to get the object_id of the current user
