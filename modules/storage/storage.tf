@@ -86,7 +86,7 @@ module "this" {
   #create a private endpoint for each endpoint type
   private_endpoints = {
     for endpoint in local.endpoints :
-    endpoint => {
+    pe_endpoint => {
       # the name must be set to avoid conflicting resources.
       name                          = "pe-${endpoint}-${local.storage_account_name}"
       subnet_resource_id            = data.azurerm_subnet.this.id

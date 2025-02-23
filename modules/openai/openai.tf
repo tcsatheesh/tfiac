@@ -79,13 +79,13 @@ module "openai" {
   }
   private_endpoints = {
     pe_endpoint = {
-      name                          = "pe-${endpoint}-${local.services.open_ai_name}"
+      name                          = "pe-${local.services.open_ai_name}"
       subnet_resource_id            = data.azurerm_subnet.this.id
       subresource_name              = "account"
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
       # these are optional but illustrate making well-aligned service connection & NIC names.
-      private_service_connection_name = "psc-${endpoint}-${local.services.open_ai_name}"
-      network_interface_name          = "nic-pe-${endpoint}-${local.services.open_ai_name}"
+      private_service_connection_name = "psc-${local.services.open_ai_name}"
+      network_interface_name          = "nic-pe-${local.services.open_ai_name}"
       inherit_lock                    = false
       resource_group_name             = var.vnet.vnet_resource_group_name
     }

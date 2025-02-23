@@ -1,16 +1,20 @@
 subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
-resource_group_name: "stcwe-rg-app-01"
+resource_group_name: "tf-rg-app-01"
 location: "westeurope"
 
 enable_telemetry: true
 
-key_vault_name: "stcwekv01"
+key_vault_name: "tfwekv01"
 purge_protection_enabled: false
 public_network_access_enabled: false
 
+landing_storage_account_name: "tfwestg01"
+aml_storage_account_name: "tfwestg02"
+function_app_storage_account_name: "tfwestg03"
+logic_app_storage_account_name: "tfwestg04"
 
-landing_storage_account_name: "stcwestg01"
-aml_storage_account_name: "stcwestg02"
-function_app_storage_account_name: "stcwestg03"
-logic_app_storage_account_name: "stcwestg04"
+openai_location: "swedencentral"
+openai_name: "tfweopenai01"
 
+ai_services_location: "swedencentral"
+ai_services_name: "tfweaiservices01"

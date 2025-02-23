@@ -56,8 +56,8 @@ module "keyvault" {
   purge_protection_enabled      = var.services.purge_protection_enabled
   public_network_access_enabled = var.services.public_network_access_enabled
   private_endpoints = {
-    primary = {
-      name                          = format("%s_%s", "pe", var.services.key_vault_name)
+    pe_endpoint = {
+      name                          = "pe-${var.services.key_vault_name}"
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
       subnet_resource_id            = data.azurerm_subnet.this.id
       resource_group_name           = var.vnet.vnet_resource_group_name
@@ -65,7 +65,7 @@ module "keyvault" {
   }
   diagnostic_settings = {
     to_la = {
-      name                  = format("tola_%s", var.services.key_vault_name)
+      name                  = "tola_${var.services.key_vault_name}"
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }
