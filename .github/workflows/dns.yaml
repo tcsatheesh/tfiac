@@ -167,7 +167,7 @@ jobs:
         -backend-config="resource_group_name=stcwe-rg-tfs-01" \
         -backend-config="storage_account_name=stcwetfstate01" \
         -backend-config="container_name=tfstate" \
-        -backend-config="key=${{ inputs.market }}/${{ inputs.environment }}/dns.tfstate"
+        -backend-config="key=global/dns.tfstate"
 
     # Download saved plan from artifacts  
     - name: Download Terraform Plan
