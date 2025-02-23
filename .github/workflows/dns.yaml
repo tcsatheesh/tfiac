@@ -2,6 +2,12 @@ name: 'Terraform Deploy DNS'
 
 on: 
   workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply changes'
+        required: true
+        default: false
+        type: boolean
 
 
 #Special permissions required for OIDC authentication
@@ -137,7 +143,11 @@ jobs:
                 
   terraform-apply:
     name: 'Terraform Apply'
-    if: github.ref == 'refs/heads/master' && needs.terraform-plan.outputs.tfplanExitCode == 2
+    if: |
+      github.ref == 'refs/heads/master' 
+      && needs.terraform-plan.outputs.tfplanExitCode == 2
+      && github.event.inputs.apply
+
     runs-on: ubuntu-latest
     environment: dev
     needs: [terraform-plan]
