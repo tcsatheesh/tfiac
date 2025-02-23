@@ -38,32 +38,32 @@ resource "azurerm_route_table" "this" {
 resource "azurerm_network_security_group" "dev_subnet" {
   location            = var.vnet.location
   name                = "nsg-${var.vnet.dev_subnet_name}"
-  resource_group_name = var.vent.resource_group_name
+  resource_group_name = var.vnet.resource_group_name
 }
 resource "azurerm_network_security_group" "dev_function_app_subnet" {
   location            = var.vnet.location
   name                = "nsg-${var.vnet.dev_function_app_subnet_name}"
-  resource_group_name = var.vent.resource_group_name
+  resource_group_name = var.vnet.resource_group_name
 }
 resource "azurerm_network_security_group" "dev_logic_app_subnet" {
   location            = var.vnet.location
   name                = "nsg-${var.vnet.dev_logic_app_subnet_name}"
-  resource_group_name = var.vent.resource_group_name
+  resource_group_name = var.vnet.resource_group_name
 }
 resource "azurerm_network_security_group" "pre_subnet" {
   location            = var.vnet.location
   name                = "nsg-${var.vnet.pre_subnet_name}"
-  resource_group_name = var.vent.resource_group_name
+  resource_group_name = var.vnet.resource_group_name
 }
 resource "azurerm_network_security_group" "pre_function_app_subnet" {
   location            = var.vnet.location
   name                = "nsg-${var.vnet.pre_function_app_subnet_name}"
-  resource_group_name = var.vent.resource_group_name
+  resource_group_name = var.vnet.resource_group_name
 }
 resource "azurerm_network_security_group" "pre_logic_app_subnet" {
   location            = var.vnet.location
   name                = "nsg-${var.vnet.pre_logic_app_subnet_name}"
-  resource_group_name = var.vent.resource_group_name
+  resource_group_name = var.vnet.resource_group_name
 }
 
 
