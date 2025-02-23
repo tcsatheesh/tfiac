@@ -1,5 +1,5 @@
 subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
-resource_group_name: "tf-rg-net-01"
+resource_group_name: "tfwe-rg-net-01"
 name: "tf-vnet-01"
 location: "westeurope"
 address_space: ["10.0.0.0/16"]
