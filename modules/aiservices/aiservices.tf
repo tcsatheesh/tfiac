@@ -66,19 +66,19 @@ module "aiservices" {
   managed_identities = {
     system_assigned = true
   }
-  private_endpoints = {
-    for endpoint in local.endpoints :
-    endpoint => {
-      name                          = "pe-${var.services.ai_services_name}"
-      subnet_resource_id            = data.azurerm_subnet.this.id
-      subresource_name              = "account"
-      private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this[endpoint].id]
-      private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
-      network_interface_name          = "nic-pe-${var.services.ai_services_name}"
-      inherit_lock                    = false
-      resource_group_name             = var.vnet.resource_group_name
-    }
-  }
+  # private_endpoints = {
+  #   for endpoint in local.endpoints :
+  #   endpoint => {
+  #     name                          = "pe-${var.services.ai_services_name}"
+  #     subnet_resource_id            = data.azurerm_subnet.this.id
+  #     subresource_name              = "account"
+  #     private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this[endpoint].id]
+  #     private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
+  #     network_interface_name          = "nic-pe-${var.services.ai_services_name}"
+  #     inherit_lock                    = false
+  #     resource_group_name             = var.vnet.resource_group_name
+  #   }
+  # }
   diagnostic_settings = {
     to_la = {
       name                  = format("tola_%s", var.services.ai_services_name)
