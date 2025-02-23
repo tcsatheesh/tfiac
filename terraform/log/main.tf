@@ -27,7 +27,7 @@ provider "azurerm" {
   subscription_id = local.dns.subscription_id
 }
 
-module "keyvault" {
+module "log" {
   source   = "../../modules/log"
   log      = local.log
 }
