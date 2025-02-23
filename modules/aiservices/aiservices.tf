@@ -5,7 +5,7 @@ variable "services" {}
 
 
 locals {
-  endpoints = toset(["ai_services", "cognitiveservices", "openai"])
+  endpoints = toset(["aiservices", "cognitiveservices", "openai"])
 }
 
 provider "azurerm" {
