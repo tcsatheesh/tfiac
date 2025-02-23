@@ -77,19 +77,19 @@ module "openai" {
   network_acls = {
     default_action = "Deny"
   }
-  private_endpoints = {
-    pe_endpoint = {
-      name                          = "pe-${var.services.open_ai_name}"
-      subnet_resource_id            = data.azurerm_subnet.this.id
-      subresource_name              = "account"
-      private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
-      # these are optional but illustrate making well-aligned service connection & NIC names.
-      private_service_connection_name = "psc-${var.services.open_ai_name}"
-      network_interface_name          = "nic-pe-${var.services.open_ai_name}"
-      inherit_lock                    = false
-      resource_group_name             = var.vnet.resource_group_name
-    }
-  }
+  # private_endpoints = {
+  #   pe_endpoint = {
+  #     name                          = "pe-${var.services.open_ai_name}"
+  #     subnet_resource_id            = data.azurerm_subnet.this.id
+  #     subresource_name              = "account"
+  #     private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this.id]
+  #     # these are optional but illustrate making well-aligned service connection & NIC names.
+  #     private_service_connection_name = "psc-${var.services.open_ai_name}"
+  #     network_interface_name          = "nic-pe-${var.services.open_ai_name}"
+  #     inherit_lock                    = false
+  #     resource_group_name             = var.vnet.resource_group_name
+  #   }
+  # }
   diagnostic_settings = {
     to_la = {
       name                  = format("tola_%s", var.services.open_ai_name)
