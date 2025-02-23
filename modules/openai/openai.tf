@@ -30,7 +30,7 @@ provider "azurerm" {
   subscription_id = var.dns.subscription_id
 }
 
-data "azurerm_vnet" this {
+data "azurerm_virtual_network" this {
   provider            = azurerm.vnet
   name                = var.vnet.name
   resource_group_name = var.vnet.resource_group_name
@@ -59,7 +59,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "link" {
   name                  = "openai-private-dns-zone"
   private_dns_zone_name = var.dns.domain_names["openai"]
   resource_group_name   = var.vnet.resource_group_name
-  virtual_network_id    = data.azurerm_vnet.this.id
+  virtual_network_id    = data.azurerm_virtual_network.this.id
 }
 
 module "openai" {
