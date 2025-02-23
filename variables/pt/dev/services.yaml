@@ -4,6 +4,10 @@ location: "westeurope"
 
 enable_telemetry: true
 
+app_insights_name: "tfweai01"
+internet_ingestion_enabled : true
+internet_query_enabled : true
+
 key_vault_name: "tfwekv01"
 purge_protection_enabled: false
 public_network_access_enabled: false
@@ -18,3 +22,4 @@ openai_name: "tfweopenai01"
 
 ai_services_location: "swedencentral"
 ai_services_name: "tfweaiservices01"
+
