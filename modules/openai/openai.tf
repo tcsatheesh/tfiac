@@ -97,6 +97,8 @@ module "openai" {
       private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this.id])
       private_service_connection_name = "psc-${var.services.open_ai_name}"
       subnet_resource_id            = data.azurerm_subnet.this.id
+      network_interface_name          = "nic-pe-${var.services.open_ai_name}"
+      resource_group_name             = var.vnet.resource_group_name
     }
   }
   diagnostic_settings = {
