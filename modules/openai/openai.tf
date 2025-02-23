@@ -73,20 +73,20 @@ module "openai" {
   managed_identities = {
     system_assigned = true
   }
-  cognitive_deployments = {
-    "gpt-4o-mini" = {
-      name = "gpt-4o-mini"
-      model = {
-        format  = "OpenAI"
-        name    = "gpt-4o-mini"
-        version = "2024-07-18"
-      }
-      scale = {
-        type  = "Standard"
-        count = 100
-      }
-    }
-  }
+  # cognitive_deployments = {
+  #   "gpt-4o-mini" = {
+  #     name = "gpt-4o-mini"
+  #     model = {
+  #       format  = "OpenAI"
+  #       name    = "gpt-4o-mini"
+  #       version = "2024-07-18"
+  #     }
+  #     scale = {
+  #       type  = "Standard"
+  #       count = 100
+  #     }
+  #   }
+  # }
   network_acls = {
     default_action = "Deny"
   }
