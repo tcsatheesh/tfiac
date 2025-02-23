@@ -35,6 +35,12 @@ provider "azurerm" {
   subscription_id = var.dns.subscription_id
 }
 
+data "azurerm_virtual_network" "this" {
+  provider            = azurerm.vnet
+  name                = var.vnet.name
+  resource_group_name = var.vnet.resource_group_name
+}
+
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
   name                 = var.services.subnet_name
@@ -43,17 +49,25 @@ data "azurerm_subnet" "this" {
 }
 
 data "azurerm_private_dns_zone" "this" {
-  for_each = local.endpoints
+  for_each            = local.endpoints
   provider            = azurerm.private_dns
   name                = var.dns.domain_names[each.value]
   resource_group_name = var.dns.resource_group_name
 }
 
-
 data "azurerm_log_analytics_workspace" "this" {
   provider            = azurerm.log_analytics_workspace
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "link" {
+  for_each              = local.endpoints
+  provider              = azurerm.private_dns
+  name                  = "${each.key}-${var.services.ai_services_name}"
+  private_dns_zone_name = var.dns.domain_names[each.key]
+  resource_group_name   = var.dns.resource_group_name
+  virtual_network_id    = data.azurerm_virtual_network.this.id
 }
 
 module "aiservices" {
@@ -66,19 +80,18 @@ module "aiservices" {
   managed_identities = {
     system_assigned = true
   }
-  # private_endpoints = {
-  #   for endpoint in local.endpoints :
-  #   endpoint => {
-  #     name                          = "pe-${var.services.ai_services_name}"
-  #     subnet_resource_id            = data.azurerm_subnet.this.id
-  #     subresource_name              = "account"
-  #     private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this[endpoint].id]
-  #     private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
-  #     network_interface_name          = "nic-pe-${var.services.ai_services_name}"
-  #     inherit_lock                    = false
-  #     resource_group_name             = var.vnet.resource_group_name
-  #   }
-  # }
+  network_acls = {
+    default_action = "Deny"
+  }
+  private_endpoints = {
+    for endpoint in local.endpoints :
+    endpoint => {
+      name                            = "pe-${endpoint}-${var.services.ai_services_name}"
+      private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this[endpoint].id])
+      private_service_connection_name = "psc-${endpoint}-${var.services.ai_services_name}"
+      subnet_resource_id              = data.azurerm_subnet.this.id
+    }
+  }
   diagnostic_settings = {
     to_la = {
       name                  = format("tola_%s", var.services.ai_services_name)
