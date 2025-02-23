@@ -86,6 +86,7 @@ module "aiservices" {
   network_acls = {
     default_action = "Deny"
   }
+  public_network_access_enabled = false
   custom_subdomain_name = var.services.ai_services_name
   private_endpoints = {
     for endpoint in local.endpoints :

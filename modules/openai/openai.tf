@@ -90,6 +90,7 @@ module "openai" {
   network_acls = {
     default_action = "Deny"
   }
+  public_network_access_enabled = false
   private_endpoints = {
     pe_endpoint = {
       name                          = "pe-${var.services.open_ai_name}"
