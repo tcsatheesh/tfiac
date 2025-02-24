@@ -116,3 +116,10 @@ module "function_app" {
   app_insights_connection_string   = module.appinsights.connection_string
 }
 
+module "search" {
+  source   = "../../modules/search"
+  dns      = local.dns
+  log      = local.log
+  vnet     = local.vnet
+  services = local.services
+}

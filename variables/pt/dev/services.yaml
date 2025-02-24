@@ -24,6 +24,8 @@ ai_services_name: "tfweaiservices01"
 document_intelligence_name: "tfwedocint01"
 ai_language_name: "tfweailang01"
 
+ai_search_name: "tfweaisrch01"
+
 aml_name: "tfweaml01"
 aml_storage_account_name: "tfwestg02"
 
