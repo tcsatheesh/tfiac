@@ -38,7 +38,7 @@ data "azurerm_subnet" "this" {
 
 data "azurerm_private_dns_zone" "this" {
   provider            = azurerm.private_dns
-  name                = var.dns.domain_names["containerregistry"]
+  name                = var.dns.domain_names["website"]
   resource_group_name = var.dns.resource_group_name
 }
 
@@ -54,7 +54,6 @@ resource "azurerm_service_plan" "this" {
   os_type             = "Linux"
   resource_group_name = var.services.resource_group_name
   sku_name            = "EP1"
-
 }
 
 module "function_app_storage" {
@@ -92,9 +91,9 @@ resource "azurerm_linux_function_app" "fnapp" {
     vnet_route_all_enabled = true
     application_stack {
         docker {
-            registry_url = var.services.function_app.docker_registry_server_url
-            image_name = var.services.function_app.docker_image_name
-            image_tag = var.services.function_app.docker_image_tag
+            registry_url = var.services.function_app.docker.registry_server_url
+            image_name = var.services.function_app.docker.image_name
+            image_tag = var.services.function_app.docker.image_tag
         }
     }
   }
