@@ -57,12 +57,13 @@ resource "azurerm_service_plan" "this" {
 }
 
 module "logic_app_storage" {
-  source       = "../../modules/storage"
-  dns          = var.dns
-  log          = var.log
-  vnet         = var.vnet
-  services     = var.services
-  storage_type = "logic_app"
+  source                        = "../../modules/storage"
+  dns                           = var.dns
+  log                           = var.log
+  vnet                          = var.vnet
+  services                      = var.services
+  storage_type                  = "logic_app"
+  public_network_access_enabled = true
 }
 
 resource "azurerm_logic_app_standard" "this" {

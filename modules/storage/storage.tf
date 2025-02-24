@@ -10,6 +10,11 @@ variable "log" {}
 variable "vnet" {}
 variable "services" {}
 
+variable "public_network_access_enabled" {
+  type    = bool
+  default = false
+}
+
 locals {
   endpoints = toset(["blob", "queue", "table", "file"])
 }
@@ -80,17 +85,17 @@ module "this" {
   resource_group_name                     = var.services.resource_group_name
   min_tls_version                         = "TLS1_2"
   shared_access_key_enabled               = false
-  public_network_access_enabled           = false
+  public_network_access_enabled           = var.public_network_access_enabled
   private_endpoints_manage_dns_zone_group = true
   #create a private endpoint for each endpoint type
   private_endpoints = {
     for endpoint in local.endpoints :
     endpoint => {
       # the name must be set to avoid conflicting resources.
-      name                          = "pe-${endpoint}-${local.storage_account_name}"
-      subnet_resource_id            = data.azurerm_subnet.this.id
-      subresource_name              = endpoint
-      private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.this[endpoint].id]
+      name                            = "pe-${endpoint}-${local.storage_account_name}"
+      subnet_resource_id              = data.azurerm_subnet.this.id
+      subresource_name                = endpoint
+      private_dns_zone_resource_ids   = [data.azurerm_private_dns_zone.this[endpoint].id]
       private_service_connection_name = "psc-${endpoint}-${local.storage_account_name}"
       network_interface_name          = "nic-pe-${endpoint}-${local.storage_account_name}"
       inherit_lock                    = false
