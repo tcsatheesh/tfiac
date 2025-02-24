@@ -88,6 +88,7 @@ jobs:
         cd terraform/${{ inputs.az_svc }}
         export exitcode=0
         terraform plan \
+        -destroy \
         -var market=${{ inputs.market }} \
         -var environment=${{ inputs.environment }} \
         -detailed-exitcode -no-color -out tfplan || export exitcode=$?
