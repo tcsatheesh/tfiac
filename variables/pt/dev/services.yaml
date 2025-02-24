@@ -25,6 +25,8 @@ ai_services_name: "tfweaiservices01"
 
 document_intelligence_name: "tfwedocint01"
 
+aml_name: "tfweaml01"
+
 # vnet parameters
 subnet_name: development
 function_app_subnet_name: dev-function-app

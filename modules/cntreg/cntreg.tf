@@ -3,7 +3,6 @@ variable "log" {}
 variable "vnet" {}
 variable "services" {}
 
-
 provider "azurerm" {
   features {}
   alias           = "vnet"
@@ -46,7 +45,7 @@ module "containerregistry" {
   name                          = var.services.container_registry_name
   location                      = var.services.location
   resource_group_name           = var.services.resource_group_name
-  sku                           = "Premium"
+  sku                           = "Basic"
   public_network_access_enabled = false
   private_endpoints = {
     primary = {

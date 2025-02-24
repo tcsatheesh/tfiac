@@ -86,3 +86,14 @@ module "cntreg" {
   vnet     = local.vnet
   services = local.services
 }
+
+module "aml" {
+  source   = "../../modules/aml"
+  dns      = local.dns
+  log      = local.log
+  vnet     = local.vnet
+  services = local.services
+}
+
+
+
