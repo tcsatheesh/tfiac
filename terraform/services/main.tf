@@ -93,6 +93,11 @@ module "aml" {
   log      = local.log
   vnet     = local.vnet
   services = local.services
+  depends_on = [ 
+    module.keyvault,
+    module.appinsights,
+    module.cntreg
+   ]
 }
 
 
