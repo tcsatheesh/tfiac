@@ -94,7 +94,7 @@ module "aml" {
   vnet                  = local.vnet
   services              = local.services
   app_insights_id       = module.appinsights.app_insights_id
-  key_vault_id          = module.keyvault.key_vault_id
+  keyvault_id           = module.keyvault.keyvault_id
   container_registry_id = module.cntreg.container_registry_id
 }
 

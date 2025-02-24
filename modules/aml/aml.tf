@@ -6,7 +6,7 @@ variable "app_insights_id" {
   description = "The resource id of the application insights"
   type        = string
 }
-variable "key_vault_id" {
+variable "keyvault_id" {
   description = "The resource id of the key vault"
   type        = string
 }
@@ -79,7 +79,7 @@ module "azureml" {
   }
 
   key_vault = {
-    resource_id = var.key_vault_id
+    resource_id = var.keyvault_id
     create_new  = false
   }
 
