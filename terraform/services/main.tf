@@ -71,7 +71,7 @@ module "openai" {
   services = local.services
 }
 
-module "aiservices" {
+module "docint" {
   source   = "../../modules/docint"
   dns      = local.dns
   log      = local.log
