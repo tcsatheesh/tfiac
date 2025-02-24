@@ -105,5 +105,6 @@ module "function_app" {
   vnet                             = local.vnet
   services                         = local.services
   app_insights_instrumentation_key = module.appinsights.instrumentation_key
+  app_insights_connection_string   = module.appinsights.connection_string
 }
 

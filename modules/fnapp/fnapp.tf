@@ -5,7 +5,10 @@ variable "services" {}
 variable "app_insights_instrumentation_key" {
   description = "The instrumentation key of the application insights"
   type        = string
-
+}
+variable "app_insights_connection_string" {
+  description = "The connection string of the application insights"
+  type        = string
 }
 
 provider "azurerm" {
@@ -63,27 +66,38 @@ module "function_app_storage" {
   storage_type = "function_app"
 }
 
-resource "azurerm_function_app" "fnapp" {
-  name                       = var.services.function_app_name
-  location                   = var.services.location
-  resource_group_name        = var.services.resource_group_name
-  app_service_plan_id        = azurerm_service_plan.this.id
-  storage_account_name       = module.function_app_storage.storage_account_name
-  storage_account_access_key = module.function_app_storage.storage_account_access_key
-  version                    = var.services.runtime_version
-  count                      = 1
-
+resource "azurerm_linux_function_app" "fnapp" {
+  name                          = var.services.function_app_name
+  location                      = var.services.location
+  resource_group_name           = var.services.resource_group_name
+  service_plan_id               = azurerm_service_plan.this.id
+  storage_account_name          = module.function_app_storage.storage_account_name
+  storage_uses_managed_identity = true
+  https_only                    = true
+  public_network_access_enabled = false
+  functions_extension_version   = "~4"
+  vnet_image_pull_enabled       = true
+  virtual_network_subnet_id = data.azurerm_subnet.this.id
   app_settings = {
-    FUNCTIONS_EXTENSION_VERSION         = var.services.function_app.runtime_version
-    FUNCTIONS_WORKER_RUNTIME            = var.services.function_app.worker_runtime
-    DOCKER_REGISTRY_SERVER_URL          = var.services.function_app.docker_registry_server_url
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE = false
-    DOCKER_REGISTRY_SERVER_USERNAME     = var.services.function_app.docker_registry_server_username
-    APPINSIGHTS_INSTRUMENTATIONKEY      = var.app_insights_instrumentation_key
+    FUNCTIONS_WORKER_RUNTIME              = var.services.function_app.worker_runtime
+    WEBSITES_ENABLE_APP_SERVICE_STORAGE   = false
+    WEBSITE_VNET_ROUTE_ALL                = "1"
+    WEBSITE_CONTENTOVERVNET               = "1"
   }
   site_config {
-    linux_fx_version = var.services.function_app.app_linux_fx_versions
     always_on        = true
+    application_insights_key = var.app_insights_instrumentation_key
+    application_insights_connection_string = var.app_insights_connection_string
+    container_registry_use_managed_identity = true
+    minimum_tls_version = "1.2"
+    vnet_route_all_enabled = true
+    application_stack {
+        docker {
+            registry_url = var.services.function_app.docker_registry_server_url
+            image_name = var.services.function_app.docker_image_name
+            image_tag = var.services.function_app.docker_image_tag
+        }
+    }
   }
 
   identity {
