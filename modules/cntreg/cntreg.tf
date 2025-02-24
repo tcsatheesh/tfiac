@@ -45,10 +45,10 @@ module "containerregistry" {
   name                          = var.services.container_registry_name
   location                      = var.services.location
   resource_group_name           = var.services.resource_group_name
-  sku                           = "Basic"
+  sku                           = "Premium"
   zone_redundancy_enabled       = false
-  retention_policy_in_days      = null
-  # public_network_access_enabled = false # public_network_access_enabled can only be disabled for Premium SKU
+  retention_policy_in_days      = 7
+  public_network_access_enabled = false # public_network_access_enabled can only be disabled for Premium SKU
   private_endpoints = {
     primary = {
       name                            = "pe-${var.services.container_registry_name}"
