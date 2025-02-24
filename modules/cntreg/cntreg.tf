@@ -42,7 +42,7 @@ data "azurerm_log_analytics_workspace" "this" {
 }
 
 module "containerregistry" {
-  source                        = "Azure/avm-containerregistry-registry/azurerm"
+  source                        = "Azure/avm-res-containerregistry-registry/azurerm"
   name                          = var.services.container_registry_name
   location                      = var.services.location
   resource_group_name           = var.services.resource_group_name
