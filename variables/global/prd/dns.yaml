@@ -12,3 +12,4 @@ domain_names:
   aiservices: privatelink.services.ai.azure.com
   containerregistry: privatelink.azurecr.io
   aisearch: privatelink.aisearch.windows.net
+  website: privatelink.azurewebsites.net
