@@ -79,6 +79,14 @@ module "docint" {
   services = local.services
 }
 
+module "language" {
+  source   = "../../modules/language"
+  dns      = local.dns
+  log      = local.log
+  vnet     = local.vnet
+  services = local.services
+}
+
 module "cntreg" {
   source   = "../../modules/cntreg"
   dns      = local.dns
