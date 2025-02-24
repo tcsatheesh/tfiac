@@ -61,7 +61,7 @@ module "ai_language" {
   location            = var.services.location
   name                = var.services.ai_language_name
   resource_group_name = var.services.resource_group_name
-  sku_name            = "S0"
+  sku_name            = "S"
   managed_identities = {
     system_assigned = true
   }
