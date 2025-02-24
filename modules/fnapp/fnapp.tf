@@ -79,7 +79,6 @@ resource "azurerm_linux_function_app" "fnapp" {
   vnet_image_pull_enabled       = true
   virtual_network_subnet_id = data.azurerm_subnet.this.id
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME              = var.services.function_app.worker_runtime
     WEBSITES_ENABLE_APP_SERVICE_STORAGE   = false
     WEBSITE_VNET_ROUTE_ALL                = "1"
     WEBSITE_CONTENTOVERVNET               = "1"

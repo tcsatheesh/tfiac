@@ -35,10 +35,8 @@ function_app:
   service_plan_name: tfwefunctionapppln
   name: tfwefunctionapp
   subnet_name: dev-function-app # vnet parameter
-  worker_runtime: "python"
   docker_registry_server_url: "https://tfwecr01.azurecr.io"
   docker_registry_server_username: tfwecr01
   docker_image_name: tfwefunctionapp
   docker_image_tag: latest
-  linux_fx_versions: "DOCKER|tfwecr01.azurecr.io/tfwefunctionapp:latest"
 
