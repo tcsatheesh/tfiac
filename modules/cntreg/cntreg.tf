@@ -48,7 +48,7 @@ module "containerregistry" {
   sku                           = "Basic"
   zone_redundancy_enabled       = false
   retention_policy_in_days      = null
-  public_network_access_enabled = false
+  # public_network_access_enabled = false # public_network_access_enabled can only be disabled for Premium SKU
   private_endpoints = {
     primary = {
       name                            = "pe-${var.services.container_registry_name}"
