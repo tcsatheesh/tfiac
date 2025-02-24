@@ -53,7 +53,7 @@ resource "azurerm_service_plan" "this" {
   name                = var.services.function_app.service_plan_name
   os_type             = "Windows"
   resource_group_name = var.services.resource_group_name
-  sku_name            = "WorkflowStandard"
+  sku_name            = "WS1"
 }
 
 module "logic_app_storage" {
