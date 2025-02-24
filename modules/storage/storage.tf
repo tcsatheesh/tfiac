@@ -165,9 +165,3 @@ output "storage_account_id" {
 output "storage_account_name" {
   value = module.this.name
 }
-output "storage_connection_string" {
-  value = module.this.primary_blob_connection_string
-}
-output "storage_account_key" {
-  value = module.this.primary_access_key
-}
