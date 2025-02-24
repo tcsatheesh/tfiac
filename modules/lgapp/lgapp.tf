@@ -31,7 +31,7 @@ provider "azurerm" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.function_app.subnet_name
+  name                 = var.services.logic_app.subnet_name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -73,6 +73,7 @@ resource "azurerm_logic_app_standard" "example" {
   storage_account_name       = module.logic_app_storage.storage_account_name
   storage_account_access_key = module.logic_app_storage.storage_account_key
   https_only                 = true
+  virtual_network_subnet_id  = data.azurerm_subnet.this.id
   app_settings = {
     "FUNCTIONS_WORKER_RUNTIME"     = "dotnet"
     "WEBSITE_NODE_DEFAULT_VERSION" = "~14"
