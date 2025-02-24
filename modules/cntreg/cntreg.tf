@@ -47,6 +47,7 @@ module "containerregistry" {
   resource_group_name           = var.services.resource_group_name
   sku                           = "Basic"
   zone_redundancy_enabled       = false
+  retention_policy_in_days      = null
   public_network_access_enabled = false
   private_endpoints = {
     primary = {
