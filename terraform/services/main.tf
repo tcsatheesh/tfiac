@@ -98,5 +98,12 @@ module "aml" {
   container_registry_id = module.cntreg.container_registry_id
 }
 
-
+module "function_app" {
+  source = "../../modules/fnapp"
+  dns                   = local.dns
+  log                   = local.log
+  vnet                  = local.vnet
+  services              = local.services
+  app_insights_instrumentation_key = module.appinsights.instrumentation_key  
+}
 

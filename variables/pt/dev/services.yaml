@@ -13,8 +13,6 @@ public_network_access_enabled: false
 container_registry_name: "tfwecr01"
 
 landing_storage_account_name: "tfwestg01"
-aml_storage_account_name: "tfwestg02"
-function_app_storage_account_name: "tfwestg03"
 logic_app_storage_account_name: "tfwestg04"
 
 open_ai_location: "westeurope"
@@ -26,9 +24,19 @@ ai_services_name: "tfweaiservices01"
 document_intelligence_name: "tfwedocint01"
 
 aml_name: "tfweaml01"
+aml_storage_account_name: "tfwestg02"
 
 # vnet parameters
 subnet_name: development
-function_app_subnet_name: dev-function-app
 logic_app_subnet_name: dev-logic-app
+
+function_app_service_plan_name: dev-function-app-service-plan
+function_app_name: dev-function-app
+function_app_storage_account_name: "tfwestg03"
+function_app_subnet_name: dev-function-app # vnet parameter
+functiona_app:
+  runtime_version: "4.0"
+  worker_runtime: "python"
+  docker_registry_server_url: "https://tfwecr01.azurecr.io"
+  docker_registry_server_username: tfwecr01
 
