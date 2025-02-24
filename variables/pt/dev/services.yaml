@@ -10,6 +10,8 @@ key_vault_name: "tfwekv01"
 purge_protection_enabled: false
 public_network_access_enabled: false
 
+container_registry_name: "tfwecr01"
+
 landing_storage_account_name: "tfwestg01"
 aml_storage_account_name: "tfwestg02"
 function_app_storage_account_name: "tfwestg03"

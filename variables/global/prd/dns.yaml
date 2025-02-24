@@ -10,3 +10,4 @@ domain_names:
   openai: privatelink.openai.azure.com
   cognitiveservices: privatelink.cognitiveservices.azure.com
   aiservices: privatelink.services.ai.azure.com
+  containerregistry: privatelink.azurecr.io
