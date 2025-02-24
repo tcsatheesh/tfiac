@@ -78,9 +78,9 @@ resource "azurerm_logic_app_standard" "example" {
     "WEBSITE_NODE_DEFAULT_VERSION" = "~14"
   }
   site_config {
-    always_on                              = true
-    min_tls_version                        = "1.2"
-    vnet_route_all_enabled                 = true
+    always_on              = true
+    min_tls_version        = "1.2"
+    vnet_route_all_enabled = true
   }
   identity {
     type = "SystemAssigned"
