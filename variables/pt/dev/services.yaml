@@ -30,11 +30,11 @@ aml_storage_account_name: "tfwestg02"
 subnet_name: development
 logic_app_subnet_name: dev-logic-app
 
-function_app_service_plan_name: tfwefunctionapppln
-function_app_name: tfwefunctionapp
 function_app_storage_account_name: "tfwestg03"
-function_app_subnet_name: dev-function-app # vnet parameter
-functiona_app:
+function_app:
+  service_plan_name: tfwefunctionapppln
+  name: tfwefunctionapp
+  subnet_name: dev-function-app # vnet parameter
   worker_runtime: "python"
   docker_registry_server_url: "https://tfwecr01.azurecr.io"
   docker_registry_server_username: tfwecr01

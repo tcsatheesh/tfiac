@@ -31,7 +31,7 @@ provider "azurerm" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.function_app_subnet_name
+  name                 = var.services.function_app.subnet_name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -50,7 +50,7 @@ data "azurerm_log_analytics_workspace" "this" {
 
 resource "azurerm_service_plan" "this" {
   location            = var.services.location
-  name                = var.services.function_app_service_plan_name
+  name                = var.services.function_app.service_plan_name
   os_type             = "Linux"
   resource_group_name = var.services.resource_group_name
   sku_name            = "EP1"
@@ -67,7 +67,7 @@ module "function_app_storage" {
 }
 
 resource "azurerm_linux_function_app" "fnapp" {
-  name                          = var.services.function_app_name
+  name                          = var.services.function_app.name
   location                      = var.services.location
   resource_group_name           = var.services.resource_group_name
   service_plan_id               = azurerm_service_plan.this.id
