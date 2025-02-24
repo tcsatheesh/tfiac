@@ -15,6 +15,11 @@ variable "public_network_access_enabled" {
   default = false
 }
 
+variable "shared_access_key_enabled" {
+  type    = bool
+  default = false
+}
+
 locals {
   endpoints = toset(["blob", "queue", "table", "file"])
 }
@@ -84,7 +89,7 @@ module "this" {
   https_traffic_only_enabled              = true
   resource_group_name                     = var.services.resource_group_name
   min_tls_version                         = "TLS1_2"
-  shared_access_key_enabled               = false
+  shared_access_key_enabled               = var.shared_access_key_enabled
   public_network_access_enabled           = var.public_network_access_enabled
   private_endpoints_manage_dns_zone_group = true
   #create a private endpoint for each endpoint type

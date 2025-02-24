@@ -64,6 +64,7 @@ module "logic_app_storage" {
   services                      = var.services
   storage_type                  = "logic_app"
   public_network_access_enabled = true
+  shared_access_key_enabled     = true
 }
 
 resource "azurerm_logic_app_standard" "this" {
