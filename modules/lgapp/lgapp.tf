@@ -74,7 +74,7 @@ resource "azurerm_logic_app_standard" "this" {
   storage_account_access_key = module.logic_app_storage.storage_account_key
   https_only                 = true
   virtual_network_subnet_id  = data.azurerm_subnet.this.id
-  public_network_access      = false
+  public_network_access      = "Disabled"
   app_settings = {
     "FUNCTIONS_WORKER_RUNTIME"     = "dotnet"
     "WEBSITE_NODE_DEFAULT_VERSION" = "~14"
