@@ -70,3 +70,11 @@ module "aiservices" {
   vnet     = local.vnet
   services = local.services
 }
+
+module "aiservices" {
+  source   = "../../modules/docint"
+  dns      = local.dns
+  log      = local.log
+  vnet     = local.vnet
+  services = local.services
+}

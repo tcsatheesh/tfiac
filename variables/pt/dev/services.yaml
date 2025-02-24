@@ -21,6 +21,8 @@ open_ai_name: "tfweopenai01"
 ai_services_location: "westeurope"
 ai_services_name: "tfweaiservices01"
 
+document_intelligence_name: "tfwedocint01"
+
 # vnet parameters
 subnet_name: development
 function_app_subnet_name: dev-function-app
