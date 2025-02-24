@@ -65,7 +65,7 @@ module "logic_app_storage" {
   storage_type = "logic_app"
 }
 
-resource "azurerm_logic_app_standard" "example" {
+resource "azurerm_logic_app_standard" "this" {
   name                       = var.services.logic_app.name
   location                   = var.services.location
   resource_group_name        = var.services.resource_group_name
