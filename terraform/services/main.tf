@@ -88,16 +88,14 @@ module "cntreg" {
 }
 
 module "aml" {
-  source   = "../../modules/aml"
-  dns      = local.dns
-  log      = local.log
-  vnet     = local.vnet
-  services = local.services
-  depends_on = [ 
-    module.keyvault,
-    module.appinsights,
-    module.cntreg
-   ]
+  source                = "../../modules/aml"
+  dns                   = local.dns
+  log                   = local.log
+  vnet                  = local.vnet
+  services              = local.services
+  app_insights_id       = module.appinsights.app_insights_id
+  key_vault_id          = module.keyvault.key_vault_id
+  container_registry_id = module.cntreg.container_registry_id
 }
 
 

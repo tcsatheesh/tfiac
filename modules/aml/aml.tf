@@ -2,6 +2,19 @@ variable "dns" {}
 variable "log" {}
 variable "vnet" {}
 variable "services" {}
+variable "app_insights_id" {
+  description = "The resource id of the application insights"
+  type        = string
+}
+variable "key_vault_id" {
+  description = "The resource id of the key vault"
+  type        = string
+}
+variable "container_registry_id" {
+  description = "The resource id of the container registry"
+  type        = string
+}
+
 
 provider "azurerm" {
   features {}
@@ -45,21 +58,6 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
-data "azurerm_key_vault" "this" {
-  name                = var.services.key_vault_name
-  resource_group_name = var.services.resource_group_name
-}
-
-data "azurerm_container_registry" "this" {
-  name                = var.services.container_registry_name
-  resource_group_name = var.services.resource_group_name
-}
-
-data "azurerm_application_insights" "this" {
-  name                = var.services.app_insights_name
-  resource_group_name = var.services.resource_group_name
-}
-
 module "aml_storage" {
   source       = "../../modules/storage"
   dns          = var.dns
@@ -70,7 +68,7 @@ module "aml_storage" {
 }
 
 module "azureml" {
-  source             = "Azure/avm-res-machinelearningservices-workspace/azurerm"
+  source              = "Azure/avm-res-machinelearningservices-workspace/azurerm"
   location            = var.services.location
   name                = var.services.aml_name
   resource_group_name = var.services.resource_group_name
@@ -81,17 +79,17 @@ module "azureml" {
   }
 
   key_vault = {
-    resource_id = data.azurerm_key_vault.this.id
+    resource_id = var.key_vault_id
     create_new  = false
   }
 
   container_registry = {
-    resource_id = data.azurerm_container_registry.this.id
+    resource_id = var.container_registry_id
     create_new  = false
   }
 
   application_insights = {
-    resource_id = data.azurerm_application_insights.this.id
+    resource_id = var.app_insights_id
     create_new  = false
   }
 
