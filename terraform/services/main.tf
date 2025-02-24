@@ -124,12 +124,12 @@ module "search" {
   services = local.services
 }
 
-# module "logic_app" {
-#   source                           = "../../modules/lgapp"
-#   dns                              = local.dns
-#   log                              = local.log
-#   vnet                             = local.vnet
-#   services                         = local.services
-#   app_insights_instrumentation_key = module.appinsights.instrumentation_key
-#   app_insights_connection_string   = module.appinsights.connection_string
-# }
+module "logic_app" {
+  source                           = "../../modules/lgapp"
+  dns                              = local.dns
+  log                              = local.log
+  vnet                             = local.vnet
+  services                         = local.services
+  app_insights_instrumentation_key = module.appinsights.instrumentation_key
+  app_insights_connection_string   = module.appinsights.connection_string
+}
