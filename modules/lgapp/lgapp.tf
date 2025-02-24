@@ -50,7 +50,7 @@ data "azurerm_log_analytics_workspace" "this" {
 
 resource "azurerm_service_plan" "this" {
   location            = var.services.location
-  name                = var.services.function_app.service_plan_name
+  name                = var.services.logic_app.service_plan_name
   os_type             = "Windows"
   resource_group_name = var.services.resource_group_name
   sku_name            = "WS1"
@@ -74,6 +74,7 @@ resource "azurerm_logic_app_standard" "this" {
   storage_account_access_key = module.logic_app_storage.storage_account_key
   https_only                 = true
   virtual_network_subnet_id  = data.azurerm_subnet.this.id
+  public_network_access      = false
   app_settings = {
     "FUNCTIONS_WORKER_RUNTIME"     = "dotnet"
     "WEBSITE_NODE_DEFAULT_VERSION" = "~14"

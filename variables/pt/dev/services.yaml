@@ -44,5 +44,6 @@ function_app:
 
 logic_app_storage_account_name: "tfwestg04"
 logic_app:
+  service_plan_name: tfwelogicapppln
   name: tfwelogicapp
   subnet_name: dev-logic-app # vnet parameter
