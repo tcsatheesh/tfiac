@@ -35,6 +35,7 @@ provider "azurerm" {
     }
   }
   storage_use_azuread = true
+  subscription_id     = var.services.subscription_id
 }
 
 provider "azurerm" {

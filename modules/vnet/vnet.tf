@@ -10,6 +10,7 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
+  subscription_id = var.vnet.subscription_id
 }
 provider "azurerm" {
   features {}
