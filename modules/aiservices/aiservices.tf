@@ -4,10 +4,6 @@ variable "vnet" {}
 variable "services" {}
 
 locals {
-  link_endpoints = toset(["aiservices", "cognitiveservices"])
-}
-
-locals {
   endpoints = toset(["aiservices", "cognitiveservices", "openai"])
 }
 
@@ -65,7 +61,7 @@ data "azurerm_log_analytics_workspace" "this" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "link" {
-  for_each              = local.link_endpoints
+  for_each              = local.endpoints
   provider              = azurerm.private_dns
   name                  = "${each.key}-${var.vnet.name}"
   private_dns_zone_name = var.dns.domain_names[each.key]

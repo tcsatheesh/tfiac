@@ -55,16 +55,16 @@ module "landing_zone" {
   storage_type = "landing"
 }
 
-module "openai" {
-  source   = "../../modules/openai"
+module "aiservices" {
+  source   = "../../modules/aiservices"
   dns      = local.dns
   log      = local.log
   vnet     = local.vnet
   services = local.services
 }
 
-module "aiservices" {
-  source   = "../../modules/aiservices"
+module "openai" {
+  source   = "../../modules/openai"
   dns      = local.dns
   log      = local.log
   vnet     = local.vnet

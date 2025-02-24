@@ -55,14 +55,6 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "link" {
-  provider              = azurerm.private_dns
-  name                  = "openai-${var.vnet.name}"
-  private_dns_zone_name = var.dns.domain_names["openai"]
-  resource_group_name   = var.dns.resource_group_name
-  virtual_network_id    = data.azurerm_virtual_network.this.id
-}
-
 module "openai" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
   kind                = "OpenAI"
