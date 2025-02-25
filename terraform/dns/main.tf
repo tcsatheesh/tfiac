@@ -1,5 +1,5 @@
 locals {
-  dns = yamldecode(file("../../variables/global/prd/dns.yaml"))
+  dns = yamldecode(file("../../variables/grp/prd/dns.yaml"))
 }
 
 terraform {

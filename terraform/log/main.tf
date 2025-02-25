@@ -1,5 +1,5 @@
 locals {
-  log = yamldecode(file("../../variables/global/${var.environment}/log.yaml"))
+  log = yamldecode(file("../../variables/grp/${var.environment}/log.yaml"))
 }
 
 terraform {
