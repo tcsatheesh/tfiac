@@ -13,3 +13,11 @@ domain_names:
   containerregistry: privatelink.azurecr.io
   aisearch: privatelink.aisearch.windows.net
   website: privatelink.azurewebsites.net
+  redis: privatelink.redis.cache.windows.net
+  enterpriseredis: privatelink.redisenterprise.cache.azure.net
+  managedredis: privatelink.redis.azure.net
+  sql: privatelink.database.windows.net
+
+backend:
+  key: global/dns.tfstate
+
