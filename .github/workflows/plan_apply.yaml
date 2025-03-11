@@ -102,7 +102,7 @@ jobs:
         env_type="npd"
         input_environment="${{ inputs.environment }}"
         echo "Input environment is $input_environment"
-        if [ $input_environment -eq "prd" ]; then
+        if [[ "$input_environment" == "prd" ]]; then
           env_type="prd"
         fi
         echo "env_type is $env_type"
