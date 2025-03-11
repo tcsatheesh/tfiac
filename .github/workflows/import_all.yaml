@@ -3,13 +3,31 @@ name: "Terraform Import DNS"
 on: 
   workflow_dispatch:
     inputs:
+      market:
+        description: 'Market to deploy to'
+        required: true
+        type: choice
+        options:
+          - grp
+          - pt
+          - tr
+      service:
+        description: 'Service to deploy'
+        required: true
+        default: "dns"
+        type: choice
+        options:
+          - dns
+          - log
       environment:
         description: 'Environment to deploy to'
         required: true
-        type: string
+        type: choice
         options:
           - npd
           - prd
+          - pre
+          - dev
       apply:
         description: 'Apply changes'
         required: true
@@ -75,8 +93,8 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/__init__.py \
           init \
-          --folder terraform/log \
-          --variables variables/grp/${{ github.event.inputs.environment }}/dns.yaml \
+          --folder terraform/${{ github.event.inputs.service }} \
+          --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
           --yes
 
       # Import the terraform state.
@@ -84,7 +102,7 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
-          ./scripts/src/import/log.py \
+          ./scripts/src/import/${{ github.event.inputs.service }}.py \
           --yes
 
       - name: Remove virtual environment

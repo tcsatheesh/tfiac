@@ -7,6 +7,7 @@ on:
         description: Service to deploy
         required: true
         default: "dns"
+        type: choice
         options:
           - dns
           - log
@@ -16,6 +17,7 @@ on:
         description: Market to deploy to
         required: true
         default: "grp"
+        type: choice
         options:
           - grp
           - pt
@@ -24,6 +26,7 @@ on:
         description: Environment to deploy to
         required: true
         default: "prd"
+        type: choice
         options:
           - dev
           - pre
@@ -33,7 +36,7 @@ on:
         description: Action
         required: true
         default: "apply"
-        type: string
+        type: choice
         options:
           - apply
           - destroy
