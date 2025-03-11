@@ -49,8 +49,10 @@ class ImportState:
             _command = [
                 "terraform",
                 "import",
-                f"-var market={_args.market}",
-                f"-var environment={_args.environment}",
+                "-var",
+                "market={_args.market}",
+                "-var",
+                f"environment={_args.environment}",
                 f'module.log.module.log_analytics_workspace.azurerm_log_analytics_workspace.this',
                 f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/{_workspace_name}",
             ]
@@ -69,15 +71,26 @@ if __name__ == "__main__":
     parser.add_argument(
         "--folder",
         type=str,
-        required=False,
+        required=True,
         help="Folder to initialize",
-        default="terraform/log",
     )
     parser.add_argument(
         "--variables",
         type=str,
         required=True,
         help="Variables to use",
+    )
+    parser.add_argument(
+        "--market",
+        type=str,
+        required=True,
+        help="Market to use",
+    )
+    parser.add_argument(
+        "--environment",
+        type=str,
+        required=True,
+        help="Environment to use",
     )
     parser.add_argument(
         "--yes",
