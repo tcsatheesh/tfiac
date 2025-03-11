@@ -1,4 +1,4 @@
-name: "Terraform Deploy DNS"
+name: "Terraform Import DNS"
 
 on: workflow_dispatch
 
