@@ -4,7 +4,7 @@ variable "market" {
 variable "environment" {
   type = string
 }
-variable "environment" {
+variable "env_type" {
   type    = string
   default = "npd"
   validation {

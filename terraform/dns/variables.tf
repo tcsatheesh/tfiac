@@ -5,9 +5,10 @@ variable "environment" {
   type = string
 }
 variable "env_type" {
-  type = string
+  type    = string
+  default = "npd"
   validation {
-    condition     = var.env_type == "prd"
-    error_message = "env_type must be either prd or pre or dev"
+    condition     = var.env_type == "prd" || var.env_type == "npd"
+    error_message = "env_type must be either prd or npd"
   }
 }
