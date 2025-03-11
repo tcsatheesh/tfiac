@@ -42,6 +42,9 @@ class ImportState:
             with open(_dns_variables_file_path, "r") as file:
                 _dns_variables = yaml.safe_load(file)
 
+            _cwd = os.path.join(os.getcwd(), _args.folder)
+            _cwd = os.path.abspath(_cwd)
+
             _subscription_id = _dns_variables["subscription_id"]
             _resource_group_name = _dns_variables["resource_group_name"]
 
@@ -55,7 +58,7 @@ class ImportState:
                 ]
                 _logger.info("Import command: %s", _command)
                 _output = self.shell_handler.execute_shell_command(
-                    cwd=self.args.folder,
+                    cwd=_cwd,
                     command=_command,
                 )
 
