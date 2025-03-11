@@ -6,13 +6,13 @@ on:
       service:
         description: Service to deploy
         required: true
-        default: "dns"
+        default: "services"
         type: choice
         options:
+          - services
+          - vnet
           - dns
           - log
-          - vnet
-          - services
       market:
         description: Market to deploy to
         required: true
