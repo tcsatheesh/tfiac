@@ -1,0 +1,47 @@
+name: Terraform Deploy All
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to deploy
+        required: true
+        default: "dns"
+        options:
+          - dns
+          - log
+          - vnet
+          - services
+      market:
+        description: Market to deploy to
+        required: true
+        default: "grp"
+        options:
+          - grp
+          - pt
+          - tr
+      environment:
+        description: Environment to deploy to
+        required: true
+        default: "prd"
+        options:
+          - dev
+          - pre
+          - npd
+          - prd
+      apply:
+        description: Apply changes
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  deploy-services:
+    name: Deploy Services
+    uses: ./.github/workflows/calls/plan_apply.yaml
+    with:
+      market: ${{ github.event.inputs.market }}
+      environment: ${{ github.event.inputs.environment }}
+      az_svc: services
+      apply: "${{ github.event.inputs.apply }}" # https://github.com/actions/runner/issues/1483
+    secrets: inherit
