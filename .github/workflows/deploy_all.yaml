@@ -29,11 +29,6 @@ on:
           - pre
           - npd
           - prd
-      apply:
-        description: Apply changes
-        required: true
-        default: false
-        type: boolean
       action:
         description: Action
         required: true
@@ -42,6 +37,11 @@ on:
         options:
           - apply
           - destroy
+      apply:
+        description: Apply changes
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   deploy-services:
