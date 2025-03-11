@@ -48,4 +48,5 @@ jobs:
       # Import the terraform state.
       - name: Terraform Import
         run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           python3 ./scripts/src/import/dns.py --yes
