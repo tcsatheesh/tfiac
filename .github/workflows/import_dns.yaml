@@ -45,6 +45,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ./scripts/requirements.txt
 
+      # Install the latest version of the Terraform CLI
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
       # Import the terraform state.
       - name: Terraform Import
         run: |
