@@ -7,6 +7,9 @@ on:
         description: 'Environment to deploy to'
         required: true
         type: string
+        options:
+          - npd
+          - prd
       apply:
         description: 'Apply changes'
         required: true
@@ -154,6 +157,12 @@ jobs:
                 repo: context.repo.repo,
                 body: body
             })
+
+    - name: Remove virtual environment
+      if: always()
+      run: |
+        rm -rf ${GITHUB_WORKSPACE}/.iacvenv
+
                 
   terraform-apply:
     name: 'Terraform Apply'
@@ -182,16 +191,29 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
+    # Setup Python
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        python --version
+        python -m venv ${GITHUB_WORKSPACE}/.iacvenv
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/python -m pip install --upgrade pip
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/pip install -r ./scripts/requirements.txt
+
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/log
-        terraform init \
-        -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-        -backend-config="resource_group_name=stcwe-rg-tfs-01" \
-        -backend-config="storage_account_name=stcwetfstate01" \
-        -backend-config="container_name=tfstate" \
-        -backend-config="key=grp/dns.tfstate"
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
+        ./scripts/src/__init__.py \
+        init \
+        --folder terraform/dns \
+        --variables variables/grp/${{ github.event.inputs.environment }}/dns.yaml \
+        --yes
 
     # Download saved plan from artifacts  
     - name: Download Terraform Plan
@@ -205,3 +227,8 @@ jobs:
       run: |
         cd terraform/log
         terraform apply -auto-approve tfplan
+
+    - name: Remove virtual environment
+      if: always()
+      run: |
+        rm -rf ${GITHUB_WORKSPACE}/.iacvenv

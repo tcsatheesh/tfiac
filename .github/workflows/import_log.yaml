@@ -1,6 +1,20 @@
 name: "Terraform Import DNS"
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: string
+        options:
+          - npd
+          - prd
+      apply:
+        description: 'Apply changes'
+        required: true
+        default: false
+        type: boolean
 
 #Special permissions required for OIDC authentication
 permissions:
@@ -61,8 +75,8 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/__init__.py \
           init \
-          --folder terraform/dns \
-          --variables variables/grp/prd/dns.yaml \
+          --folder terraform/log \
+          --variables variables/grp/${{ github.event.inputs.environment }}/dns.yaml \
           --yes
 
       # Import the terraform state.
@@ -70,5 +84,10 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
-          ./scripts/src/import/dns.py \
+          ./scripts/src/import/log.py \
           --yes
+
+      - name: Remove virtual environment
+        if: always()
+        run: |
+          rm -rf ${GITHUB_WORKSPACE}/.iacvenv

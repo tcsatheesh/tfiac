@@ -73,3 +73,8 @@ jobs:
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
           ./scripts/src/import/dns.py \
           --yes
+
+      - name: Remove virtual environment
+        if: always()
+        run: |
+          rm -rf ${GITHUB_WORKSPACE}/.iacvenv
