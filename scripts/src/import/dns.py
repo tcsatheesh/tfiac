@@ -73,16 +73,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--folder",
         type=str,
-        required=False,
+        required=True,
         help="Folder to initialize",
-        default="./terraform/dns",
     )
     parser.add_argument(
         "--variables",
         type=str,
-        required=False,
+        required=True,
         help="Variables to use",
-        default="./variables/grp/prd/dns.yaml",
     )
     parser.add_argument(
         "--market",

@@ -85,8 +85,6 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/__init__.py \
           init \
-          --market ${{ github.event.inputs.market }} \
-          --environment ${{ github.event.inputs.environment }} \
           --folder terraform/${{ github.event.inputs.service }} \
           --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
           --yes
@@ -97,6 +95,10 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
           ./scripts/src/import/${{ github.event.inputs.service }}.py \
+          --market ${{ github.event.inputs.market }} \
+          --environment ${{ github.event.inputs.environment }} \
+          --folder terraform/${{ github.event.inputs.service }} \
+          --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
           --yes
 
       - name: Remove virtual environment
