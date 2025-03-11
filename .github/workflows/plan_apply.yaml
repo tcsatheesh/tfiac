@@ -41,6 +41,9 @@ env:
 jobs:
   terraform-plan:
     name: 'Terraform Plan'
+    if: |
+      github.ref == 'refs/heads/master' 
+      && inputs.action == 'apply'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     env:
@@ -191,8 +194,12 @@ jobs:
       github.ref == 'refs/heads/master' 
       && needs.terraform-plan.outputs.tfplanExitCode == 2 
       && inputs.apply == 'true'
+      && inputs.action == 'apply'
     runs-on: ubuntu-latest
-    environment: dev
+    environment: ${{ inputs.environment }}
+    env:
+      #this is needed since we are running terraform with read-only permissions
+      ARM_SKIP_PROVIDER_REGISTRATION: true
     needs: [terraform-plan]
     
     steps:
@@ -230,7 +237,7 @@ jobs:
         ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
         ./scripts/src/__init__.py \
         init \
-        --folder terraform/dns \
+        --folder terraform/${{ inputs.az_svc }} \
         --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
         --yes
 
@@ -246,6 +253,68 @@ jobs:
       run: |
         cd terraform/${{ inputs.az_svc }}
         terraform ${{ inputs.action }} -auto-approve tfplan
+
+    - name: Remove virtual environment
+      if: always()
+      run: |
+        rm -rf ${GITHUB_WORKSPACE}/.iacvenv
+
+  terraform-destroy:
+    name: 'Terraform Destroy'
+    if: |
+      github.ref == 'refs/heads/master' 
+      && inputs.action == 'destroy' 
+      && inputs.apply == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      #this is needed since we are running terraform with read-only permissions
+      ARM_SKIP_PROVIDER_REGISTRATION: true
+    
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+    # Setup Python
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        python --version
+        python -m venv ${GITHUB_WORKSPACE}/.iacvenv
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/python -m pip install --upgrade pip
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/pip install -r ./scripts/requirements.txt
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
+        ./scripts/src/__init__.py \
+        init \
+        --folder terraform/${{ inputs.az_svc }} \
+        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
+        --yes
+
+    # Terraform Destroy
+    - name: Terraform Destroy
+      run: |
+        cd terraform/${{ inputs.az_svc }}
+        terraform ${{ inputs.action }} -auto-approve
 
     - name: Remove virtual environment
       if: always()
