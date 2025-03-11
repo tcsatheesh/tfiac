@@ -86,7 +86,7 @@ jobs:
         export PYTHONPATH=$PYTHONPATH:$(pwd)
         ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/__init__.py \
         init \
-        --folder terraform/dns \
+        --folder terraform/${{ inputs.az_svc }} \
         --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
         --yes
 
