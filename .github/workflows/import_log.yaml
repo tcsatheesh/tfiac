@@ -59,8 +59,7 @@ jobs:
       - name: Terraform Init
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
-          ./scripts/src/__init__.py \
+          ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/__init__.py \
           init \
           --folder terraform/dns \
           --variables variables/grp/prd/dns.yaml \

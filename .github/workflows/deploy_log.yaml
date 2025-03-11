@@ -55,16 +55,28 @@ jobs:
       with:
         terraform_wrapper: false
 
+    # Setup Python
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        python --version
+        python -m venv ${GITHUB_WORKSPACE}/.iacvenv
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/python -m pip install --upgrade pip
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/pip install -r ./scripts/requirements.txt
+
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/log
-        terraform init \
-        -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-        -backend-config="resource_group_name=stcwe-rg-tfs-01" \
-        -backend-config="storage_account_name=stcwetfstate01" \
-        -backend-config="container_name=tfstate" \
-        -backend-config="key=grp/${{ github.event.inputs.environment }}/log.tfstate"
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
+        ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/__init__.py \
+        init \
+        --folder terraform/dns \
+        --variables variables/grp/${{ github.event.inputs.environment }}/dns.yaml \
+        --yes
 
     # Checks that all Terraform configuration files adhere to a canonical format
     # Will fail the build if not
