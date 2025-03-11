@@ -70,14 +70,14 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="Folder to initialize",
-        default="terraform/dns",
+        default="./terraform/dns",
     )
     parser.add_argument(
         "--variables",
         type=str,
         required=False,
         help="Variables to use",
-        default="variables/grp/prd/dns.yaml",
+        default="./variables/grp/prd/dns.yaml",
     )
     parser.add_argument(
         "--yes",
