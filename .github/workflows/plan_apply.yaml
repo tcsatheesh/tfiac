@@ -310,11 +310,26 @@ jobs:
         --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
         --yes
 
+    - name: Find environemnt type
+      run: |
+        env_type="npd"
+        input_environment="${{ inputs.environment }}"
+        echo "Input environment is $input_environment"
+        if [[ "$input_environment" == "prd" ]]; then
+          env_type="prd"
+        fi
+        echo "env_type is $env_type"
+        echo "env_type=$env_type" >> $GITHUB_ENV
+
     # Terraform Destroy
     - name: Terraform Destroy
       run: |
         cd terraform/${{ inputs.az_svc }}
-        terraform ${{ inputs.action }} -auto-approve
+        terraform ${{ inputs.action }} \
+        -var market=${{ inputs.market }} \
+        -var environment=${{ inputs.environment }} \
+        -var env_type=$env_type \
+        -auto-approve
 
     - name: Remove virtual environment
       if: always()
