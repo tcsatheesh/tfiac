@@ -38,7 +38,7 @@ on:
 jobs:
   deploy-services:
     name: Deploy Services
-    uses: ./.github/workflows/calls/plan_apply.yaml
+    uses: ./.github/workflows/plan_apply.yaml
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
