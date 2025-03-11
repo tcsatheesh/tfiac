@@ -34,6 +34,14 @@ on:
         required: true
         default: false
         type: boolean
+      action:
+        description: Action
+        required: true
+        default: "apply"
+        type: string
+        options:
+          - apply
+          - destroy
 
 jobs:
   deploy-services:
@@ -44,4 +52,5 @@ jobs:
       environment: ${{ github.event.inputs.environment }}
       az_svc: ${{ github.event.inputs.service }}
       apply: "${{ github.event.inputs.apply }}" # https://github.com/actions/runner/issues/1483
+      action: ${{ github.event.inputs.action }}
     secrets: inherit

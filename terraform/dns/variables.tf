@@ -7,7 +7,7 @@ variable "environment" {
 variable "env_type" {
   type    = string
   validation {
-    condition     = var.env_type == "prd" || var.env_type == "pre" || var.env_type == "dev"
+    condition     = var.env_type == "prd"
     error_message = "env_type must be either prd or pre or dev"
   }
 }

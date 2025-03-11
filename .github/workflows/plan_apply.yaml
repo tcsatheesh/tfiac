@@ -20,6 +20,11 @@ on:
         required: true
         default: "false"
         type: string
+      action:
+        description: 'Action'
+        required: true
+        default: "apply"
+        type: string
 
 #Special permissions required for OIDC authentication
 permissions:
@@ -229,7 +234,7 @@ jobs:
     - name: Terraform Apply
       run: |
         cd terraform/${{ inputs.az_svc }}
-        terraform apply -auto-approve tfplan
+        terraform ${{ inputs.action }} -auto-approve tfplan
 
     - name: Remove virtual environment
       if: always()
