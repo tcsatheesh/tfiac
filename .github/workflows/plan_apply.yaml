@@ -100,7 +100,9 @@ jobs:
     - name: Find environemnt type
       run: |
         env_type="npd"
-        if [ "${{ inputs.environment }}" -eq "prd" ]; then
+        input_environment="${{ inputs.environment }}"
+        echo "Input environment is $input_environment"
+        if [ $input_environment -eq "prd" ]; then
           env_type="prd"
         fi
         echo "env_type is $env_type"
