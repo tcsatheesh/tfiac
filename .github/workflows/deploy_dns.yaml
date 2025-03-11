@@ -54,13 +54,12 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/dns
-        terraform init \
-        -backend-config="subscription_id=${{ vars.TERRAFORM_STATE_AZURE_SUBSCRIPTION_ID }}" \
-        -backend-config="resource_group_name=${{ vars.TERRAFORM_STATE_RESOURCE_GROUP }}" \
-        -backend-config="storage_account_name=${{ vars.TERRAFORM_STATE_STORAGE_ACCOUNT_NAME }}" \
-        -backend-config="container_name=${{ vars.TERRAFORM_STATE_CONTAINER_NAME }}" \
-        -backend-config="key=global/dns.tfstate"
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
+        python3 ./scripts/src/__init__.py \
+        init \
+        --folder terraform/dns \
+        --variables variables/grp/prd/dns.yaml \
+        --yes
 
     # Checks that all Terraform configuration files adhere to a canonical format
     # Will fail the build if not
@@ -168,13 +167,12 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        cd terraform/dns
-        terraform init \
-        -backend-config="subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
-        -backend-config="resource_group_name=stcwe-rg-tfs-01" \
-        -backend-config="storage_account_name=stcwetfstate01" \
-        -backend-config="container_name=tfstate" \
-        -backend-config="key=grp/dns.tfstate"
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
+        python3 ./scripts/src/__init__.py \
+        init \
+        --folder terraform/dns \
+        --variables variables/grp/prd/dns.yaml \
+        --yes
 
     # Download saved plan from artifacts  
     - name: Download Terraform Plan
