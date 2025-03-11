@@ -49,6 +49,8 @@ class ImportState:
             _command = [
                 "terraform",
                 "import",
+                f"-var market={_args.market}",
+                f"-var environment={_args.environment}",
                 f'module.log.module.log_analytics_workspace.azurerm_log_analytics_workspace.this',
                 f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/{_workspace_name}",
             ]
