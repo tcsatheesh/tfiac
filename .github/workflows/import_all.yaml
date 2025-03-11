@@ -77,8 +77,6 @@ jobs:
         with:
           terraform_wrapper: false
 
-      # Load variables
-
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         run: |
@@ -89,6 +87,17 @@ jobs:
           --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
           --yes
 
+      - name: Find environemnt type
+        run: |
+          env_type="npd"
+          input_environment="${{ inputs.environment }}"
+          echo "Input environment is $input_environment"
+          if [[ "$input_environment" == "prd" ]]; then
+            env_type="prd"
+          fi
+          echo "env_type is $env_type"
+          echo "env_type=$env_type" >> $GITHUB_ENV
+
       # Import the terraform state.
       - name: Terraform Import
         run: |
@@ -97,6 +106,7 @@ jobs:
           ./scripts/src/import/${{ github.event.inputs.service }}.py \
           --market ${{ github.event.inputs.market }} \
           --environment ${{ github.event.inputs.environment }} \
+          --env_type $env_type \
           --folder terraform/${{ github.event.inputs.service }} \
           --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
           --yes

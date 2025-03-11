@@ -50,9 +50,11 @@ class ImportState:
                 "terraform",
                 "import",
                 "-var",
-                "market={_args.market}",
+                f"market={_args.market}",
                 "-var",
                 f"environment={_args.environment}",
+                "-var",
+                f"env_type={_args.env_type}",
                 f'module.log.module.log_analytics_workspace.azurerm_log_analytics_workspace.this',
                 f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/{_workspace_name}",
             ]
@@ -91,6 +93,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Environment to use",
+    )
+    parser.add_argument(
+        "--env_type",
+        type=str,
+        required=True,
+        help="Environment type to use",
     )
     parser.add_argument(
         "--yes",

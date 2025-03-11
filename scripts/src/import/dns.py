@@ -54,9 +54,11 @@ class ImportState:
                     "terraform",
                     "import",
                     "-var",
-                    "market={_args.market}",
+                    f"market={_args.market}",
                     "-var",
                     f"environment={_args.environment}",
+                    "-var",
+                    f"env_type={_args.env_type}",
                     f'module.dns.module.private_dns_zones["{_key}"].azurerm_private_dns_zone.this',
                     f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/privateDnsZones/{_value}",
                 ]
@@ -95,6 +97,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Environment to use",
+    )
+    parser.add_argument(
+        "--env_type",
+        type=str,
+        required=True,
+        help="Environment type to use",
     )
     parser.add_argument(
         "--yes",

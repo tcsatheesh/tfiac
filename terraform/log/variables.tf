@@ -6,9 +6,8 @@ variable "environment" {
 }
 variable "env_type" {
   type    = string
-  default = "npd"
   validation {
-    condition     = var.environment == "prd" || var.environment == "npd"
+    condition     = var.env_type == "prd" || var.env_type == "npd"
     error_message = "environment must be either prd or npd"
   }
 }
