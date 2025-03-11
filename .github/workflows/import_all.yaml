@@ -24,10 +24,8 @@ on:
         required: true
         type: choice
         options:
-          - npd
           - prd
-          - pre
-          - dev
+          - npd
 #Special permissions required for OIDC authentication
 permissions:
   id-token: write
