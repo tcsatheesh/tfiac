@@ -84,7 +84,6 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python ./scripts/src/import/${{ github.event.inputs.service }}.py \
-          init \
           --folder terraform/${{ github.event.inputs.service }} \
           --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
           --yes
