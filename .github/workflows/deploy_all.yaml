@@ -42,6 +42,6 @@ jobs:
     with:
       market: ${{ github.event.inputs.market }}
       environment: ${{ github.event.inputs.environment }}
-      az_svc: ${{ github.event.inputs.service }
+      az_svc: ${{ github.event.inputs.service }}
       apply: "${{ github.event.inputs.apply }}" # https://github.com/actions/runner/issues/1483
     secrets: inherit
