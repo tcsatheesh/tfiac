@@ -95,7 +95,10 @@ class ImportState:
                 name="module.vnet.module.vnet.azapi_resource.vnet",
                 resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}',
             )
-            
+            self._import_resource(
+                name='module.vnet.module.vnet.azurerm_monitor_diagnostic_setting.this["sendToLogAnalytics"]',
+                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}|sendToLogAnalytics',
+            )
 
 
 if __name__ == "__main__":
