@@ -155,8 +155,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dns-variables",
         type=str,
-        required=True,
+        required=False,
         help="DNS variables to use",
+        default="variables/grp/prd/dns.yaml",
     )
     parser.add_argument(
         "--market",
