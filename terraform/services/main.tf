@@ -32,6 +32,7 @@ provider "azurerm" {
 
 module "keyvault" {
   source   = "../../modules/keyvault"
+  for_each = local.services.keyvault ? { "enabled" = true } : {}
   dns      = local.dns
   log      = local.log
   vnet     = local.vnet
