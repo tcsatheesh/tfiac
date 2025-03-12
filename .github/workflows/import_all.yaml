@@ -17,6 +17,7 @@ on:
         default: "dns"
         type: choice
         options:
+          - vnet
           - dns
           - log
       environment:
