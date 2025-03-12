@@ -101,8 +101,13 @@ data "azurerm_virtual_network" "remote" {
   resource_group_name = var.remote_vnet.resource_group_name
 }
 
+locals {
+  peering_enabled = var.remote_vnet.name != var.vnet.name
+}
+
 module "peering" {
   source = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
+  for_each = local.peering_enabled ? { "enabled" = true } : {}
   virtual_network = {
     resource_id = module.vnet.resource_id
   }
