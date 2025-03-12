@@ -50,7 +50,7 @@ class ImportState:
         _logger.info("Importing state...")
         _vnet_variables_file_path = os.path.join(
             os.path.abspath(os.getcwd()),
-            _args.vnet_variables,
+            _args.variables,
         )
         _vnet_variables_file_path = os.path.abspath(
             _vnet_variables_file_path,
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         help="Folder to initialize",
     )
     parser.add_argument(
-        "--vnet-variables",
+        "--variables",
         type=str,
         required=True,
         help="Variables to use",
