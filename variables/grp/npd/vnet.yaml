@@ -10,46 +10,55 @@ subnets:
     address_prefixes: ["10.0.0.0/24"]
     nsg: "dev-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
   dev_function_app:
     address_prefixes: ["10.0.2.0/24"]
     nsg: "dev-function-app-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: []
   dev-logic-app:
     address_prefixes: ["10.0.3.0/24"]
     nsg: "dev-logic-app-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: []
   pre-production:
     address_prefixes: ["10.0.1.0/24"]
     nsg: "pre-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
   pre-production-function-app:
     address_prefixes: ["10.0.4.0/24"]
     nsg: "pre-function-app-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: []
   pre-production-logic-app:
     address_prefixes: ["10.0.5.0/24"]
     nsg: "pre-logic-app-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: []
   firewall:
     address_prefixes: ["10.0.6.0/24"]
     nsg: "firewall-nsg"
     add_route_table: false
+    add_nsg: false
     service_endpoints: []
   firewall_mgmt:
     address_prefixes: ["10.0.7.0/24"]
     nsg: "firewall-mgmt-nsg"
     add_route_table: false
+    add_nsg: false
     service_endpoints: []
   api_management:
     address_prefixes: ["10.0.8.0/24"]
     nsg: "api-nsg"
     add_route_table: false
+    add_nsg: true
     service_endpoints: []
 
 backend:
