@@ -139,19 +139,12 @@ module "peering" {
   reverse_use_remote_gateways          = false
 }
 
-resource "azapi_resource" "virtual_network_link" {
-  type      = "Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01"
+resource "azurerm_private_dns_zone_virtual_network_link" "this" {
   for_each  = tomap(var.dns.domain_names)
-  name      = module.vnet.name
-  location  = var.vnet.location
-  parent_id = data.azurerm_private_dns_zone.this[each.value].id
-  body = jsonencode({
-    properties = {
-      registrationEnabled = false
-      resolutionPolicy    = "Default"
-      virtualNetwork = {
-        id = module.vnet.resource_id
-      }
-    }
-  })
+  name                  = var.vnet.name
+  resource_group_name   = var.dns.resource_group_name
+  private_dns_zone_name = each.value
+  virtual_network_id    = module.vnet.resource_id
+  registration_enabled  = false
 }
+
