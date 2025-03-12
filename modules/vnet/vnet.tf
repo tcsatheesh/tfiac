@@ -63,6 +63,14 @@ module "vnet" {
   }
 }
 
+data "azurerm_network_security_group" "this" {
+  for_each = tomap(var.vnet.subnets)
+
+  name                = each.value.nsg
+  resource_group_name = var.vnet.resource_group_name
+  depends_on = [ azurerm_network_security_group.subnet ]
+}
+
 module "subnets" {
   for_each = tomap(var.vnet.subnets)
   source   = "Azure/avm-res-network-virtualnetwork/azurerm//modules/subnet"
@@ -72,7 +80,7 @@ module "subnets" {
   name             = each.key
   address_prefixes = each.value.address_prefixes
   network_security_group = {
-    id = azurerm_network_security_group.subnet[each.key].id
+    id = data.azurerm_network_security_group.this[each.key].id
   }
   route_table = {
     id = each.value.add_route_table ? azurerm_route_table.this.id : null
