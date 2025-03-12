@@ -78,6 +78,17 @@ jobs:
         with:
           terraform_wrapper: false
 
+      - name: Find environemnt type
+        run: |
+          env_type="npd"
+          input_environment="${{ inputs.environment }}"
+          echo "Input environment is $input_environment"
+          if [[ "$input_environment" == "prd" ]]; then
+            env_type="prd"
+          fi
+          echo "env_type is $env_type"
+          echo "env_type=$env_type" >> $GITHUB_ENV
+
       # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
       - name: Terraform Init
         run: |
@@ -87,6 +98,7 @@ jobs:
           ./scripts/src/backend.py \
           --backend variables/grp/prd/bed.yaml \
           --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.service }}.yaml \
+          --remote-vnet-variables variables/grp/$env_type/vnet.yaml \
           --output-file $temp_backend_output_file
           
           # Read the backend output file and set the environment variables
@@ -100,17 +112,6 @@ jobs:
           -backend-config="storage_account_name=$TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME" \
           -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
           -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
-
-      - name: Find environemnt type
-        run: |
-          env_type="npd"
-          input_environment="${{ inputs.environment }}"
-          echo "Input environment is $input_environment"
-          if [[ "$input_environment" == "prd" ]]; then
-            env_type="prd"
-          fi
-          echo "env_type is $env_type"
-          echo "env_type=$env_type" >> $GITHUB_ENV
 
       # Import the terraform state.
       - name: Terraform Import
