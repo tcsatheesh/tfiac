@@ -66,3 +66,5 @@ subnets:
     nsg_rules: {}
 
 
+backend:
+  key: pt/npd/vnet.tfstate
