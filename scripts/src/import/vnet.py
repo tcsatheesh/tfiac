@@ -81,7 +81,7 @@ class ImportState:
                     _logger.info(f"{_key1}: {_value1}")
                     self._import_resource(
                         name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_rule.this["{_key1}"]',
-                        resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}/securityRules/{_key1}',
+                        resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}/securityRules/{_value1["name"]}',
                     )
             self._import_resource(
                 name="module.vnet.azurerm_route_table.this",
@@ -90,6 +90,10 @@ class ImportState:
             self._import_resource(
                 name="module.vnet.azurerm_resource_group.this",
                 resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}',
+            )
+            self._import_resource(
+                name="module.vnet.module.vnet.azapi_resource.vnet",
+                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}',
             )
             
 
