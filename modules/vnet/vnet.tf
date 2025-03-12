@@ -1,7 +1,7 @@
 variable "dns" {}
 variable "log" {}
 variable "vnet" {}
-variable firewall {}
+variable "firewall" {}
 
 provider "azurerm" {
   features {
@@ -29,9 +29,9 @@ resource "azurerm_route_table" "this" {
   resource_group_name = var.vnet.resource_group_name
 
   route {
-    name           = "firewall-appliance"
-    address_prefix = "0.0.0.0/0"
-    next_hop_type  = "VirtualAppliance"
+    name                   = "firewall-appliance"
+    address_prefix         = "0.0.0.0/0"
+    next_hop_type          = "VirtualAppliance"
     next_hop_in_ip_address = var.firewall.ip
   }
 }
@@ -72,10 +72,13 @@ module "subnets" {
   name             = each.key
   address_prefixes = each.value.address_prefixes
   network_security_group = {
-    id = each.value.add_nsg ? azurerm_network_security_group.subnet[each.key].id : ""
+    for_each = each.value.add_nsg ? [1] : []
+    id       = azurerm_network_security_group.subnet[each.key].id
   }
+
   route_table = {
-    id = each.value.add_route_table ? azurerm_route_table.this.id : ""
+    for_each = each.value.add_route_table ? [1] : []
+    id       = azurerm_route_table.this.id
   }
   service_endpoints = each.value.service_endpoints
 }
