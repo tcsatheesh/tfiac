@@ -23,15 +23,10 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
-resource "azurerm_resource_group" "this" {
-  name     = var.vnet.resource_group_name
-  location = var.vnet.location
-}
-
 resource "azurerm_route_table" "this" {
   location            = var.vnet.location
   name                = var.vnet.route_table_name
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = var.vnet.resource_group_name
 
   route {
     name           = "firewall-appliance"
@@ -46,7 +41,7 @@ resource "azurerm_network_security_group" "subnet" {
 
   location            = var.vnet.location
   name                = each.value.nsg
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = var.vnet.resource_group_name
 }
 
 
@@ -54,7 +49,7 @@ resource "azurerm_network_security_group" "subnet" {
 module "vnet" {
   source              = "Azure/avm-res-network-virtualnetwork/azurerm"
   name                = var.vnet.name
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = var.vnet.resource_group_name
   location            = var.vnet.location
 
   address_space = var.vnet.address_space
