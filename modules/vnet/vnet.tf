@@ -72,12 +72,10 @@ module "subnets" {
   name             = each.key
   address_prefixes = each.value.address_prefixes
   network_security_group = {
-    for_each = each.value.add_nsg ? [1] : []
     id       = azurerm_network_security_group.subnet[each.key].id
   }
 
   route_table = {
-    for_each = each.value.add_route_table ? [1] : []
     id       = azurerm_route_table.this.id
   }
   service_endpoints = each.value.service_endpoints
