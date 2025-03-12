@@ -38,12 +38,12 @@ subnets:
     service_endpoints: []
   firewall:
     address_prefixes: ["10.0.6.0/24"]
-    nsg: "pre-logic-app-nsg"
+    nsg: "firewall-nsg"
     add_route_table: false
     service_endpoints: []
   firewall_mgmt:
     address_prefixes: ["10.0.7.0/24"]
-    nsg: "pre-logic-app-nsg"
+    nsg: "firewall-mgmt-nsg"
     add_route_table: false
     service_endpoints: []
   api_management:
