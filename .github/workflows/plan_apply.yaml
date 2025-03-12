@@ -97,6 +97,8 @@ jobs:
         # Read the backend output file and set the environment variables
         source $temp_backend_output_file
 
+        cd terraform/${{ inputs.az_svc }}
+
         terraform init \
          -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
          -backend-config="resource_group_name=$TERRAFORM_BACKEND_AZURE_RESOURCE_GROUP_NAME" \
@@ -255,6 +257,8 @@ jobs:
         # Read the backend output file and set the environment variables
         source $temp_backend_output_file
 
+        cd terraform/${{ inputs.az_svc }}
+
         terraform init \
          -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
          -backend-config="resource_group_name=$TERRAFORM_BACKEND_AZURE_RESOURCE_GROUP_NAME" \
@@ -333,6 +337,8 @@ jobs:
         
         # Read the backend output file and set the environment variables
         source $temp_backend_output_file
+
+        cd terraform/${{ inputs.az_svc }}
 
         terraform init \
          -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
