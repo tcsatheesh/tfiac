@@ -59,11 +59,19 @@ class TerraformWrapper:
         """
         _logger = self._logger
         _folder = self._folder
+        _args = self.args
+
         _logger.info("Showing plan for backend")
         _logger.info("Folder for plan: %s", _folder)
         _shell_command = [
             "terraform",
             "plan",
+            "-var",
+            f"market={_args.market}",
+            "-var",
+            f"environment={_args.environment}",
+            "-var",
+            f"env_type={_args.env_type}",
         ]
         self._shell_handler.execute_shell_command(
             cwd=_folder,

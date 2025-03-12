@@ -67,6 +67,24 @@ class Main:
             help="Plan the scripts module",
         )
         plan_parser.add_argument(
+            "--market",
+            type=str,
+            required=True,
+            help="Market to initialize",
+        )
+        plan_parser.add_argument(
+            "--environment",
+            type=str,
+            required=True,
+            help="Environment to initialize",
+        )
+        plan_parser.add_argument(
+            "--env-type",
+            type=str,
+            required=True,
+            help="Environment Type to initialize",
+        )
+        plan_parser.add_argument(
             "--folder",
             type=str,
             required=True,

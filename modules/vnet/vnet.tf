@@ -2,7 +2,6 @@ variable "dns" {}
 variable "log" {}
 variable "vnet" {}
 variable firewall {}
-variable "services" {}
 
 provider "azurerm" {
   features {
@@ -26,7 +25,7 @@ data "azurerm_log_analytics_workspace" "this" {
 
 resource "azurerm_route_table" "this" {
   location            = var.vnet.location
-  name                = "route-az-grp-firewall"
+  name                = var.vnet.route_table_name
   resource_group_name = var.vnet.resource_group_name
 
   route {
@@ -37,34 +36,11 @@ resource "azurerm_route_table" "this" {
   }
 }
 
-resource "azurerm_network_security_group" "dev_subnet" {
+resource "azurerm_network_security_group" "subnet" {
+  for_each = tomap(var.vnet.subnets)
+
   location            = var.vnet.location
-  name                = "nsg-${var.vnet.dev_subnet_name}"
-  resource_group_name = var.vnet.resource_group_name
-}
-resource "azurerm_network_security_group" "dev_function_app_subnet" {
-  location            = var.vnet.location
-  name                = "nsg-${var.vnet.dev_function_app_subnet_name}"
-  resource_group_name = var.vnet.resource_group_name
-}
-resource "azurerm_network_security_group" "dev_logic_app_subnet" {
-  location            = var.vnet.location
-  name                = "nsg-${var.vnet.dev_logic_app_subnet_name}"
-  resource_group_name = var.vnet.resource_group_name
-}
-resource "azurerm_network_security_group" "pre_subnet" {
-  location            = var.vnet.location
-  name                = "nsg-${var.vnet.pre_subnet_name}"
-  resource_group_name = var.vnet.resource_group_name
-}
-resource "azurerm_network_security_group" "pre_function_app_subnet" {
-  location            = var.vnet.location
-  name                = "nsg-${var.vnet.pre_function_app_subnet_name}"
-  resource_group_name = var.vnet.resource_group_name
-}
-resource "azurerm_network_security_group" "pre_logic_app_subnet" {
-  location            = var.vnet.location
-  name                = "nsg-${var.vnet.pre_logic_app_subnet_name}"
+  name                = each.value.nsg
   resource_group_name = var.vnet.resource_group_name
 }
 
@@ -78,110 +54,19 @@ module "vnet" {
 
   address_space = var.vnet.address_space
 
+  for_each = tomap(var.vnet.subnets)
   subnets = {
-    dev = {
-      name                            = var.vnet.dev_subnet_name
+    subnet = {
+      name                            = each.key
       default_outbound_access_enabled = false
-      address_prefixes                = var.vnet.dev_subnet_address_prefixes
+      address_prefixes                = each.value.address_prefix
       network_security_group = {
-        id = azurerm_network_security_group.dev_subnet.id
+        id = azurerm_network_security_group.subnet[each.key].id
       }
       route_table = {
-        id = azurerm_route_table.this.id
+        id = each.value.add_route_table ? azurerm_route_table.this.id : null
       }
-      service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.CognitiveServices"]
-    }
-    devFunctionApp = {
-      name                            = var.vnet.dev_function_app_subnet_name
-      default_outbound_access_enabled = false
-      address_prefixes                = var.vnet.dev_function_app_subnet_address_prefixes
-      network_security_group = {
-        id = azurerm_network_security_group.dev_function_app_subnet.id
-      }
-      route_table = {
-        id = azurerm_route_table.this.id
-      }
-      service_endpoints = ["Microsoft.Storage"]
-      delegation = [
-        {
-          name = "Microsoft.Web.serverFarms"
-          service_delegation = {
-            name = "Microsoft.Web/serverFarms"
-          }
-        }
-      ]
-    }
-    devLogicApp = {
-      name                            = var.vnet.dev_logic_app_subnet_name
-      default_outbound_access_enabled = false
-      address_prefixes                = var.vnet.dev_logic_app_subnet_address_prefixes
-      network_security_group = {
-        id = azurerm_network_security_group.dev_logic_app_subnet.id
-      }
-      route_table = {
-        id = azurerm_route_table.this.id
-      }
-      service_endpoints = ["Microsoft.Storage"]
-      delegation = [
-        {
-          name = "Microsoft.Web.serverFarms"
-          service_delegation = {
-            name = "Microsoft.Web/serverFarms"
-          }
-        }
-      ]
-    }
-    pre = {
-      name                            = var.vnet.pre_subnet_name
-      default_outbound_access_enabled = false
-      address_prefixes                = var.vnet.pre_subnet_address_prefixes
-      network_security_group = {
-        id = azurerm_network_security_group.pre_subnet.id
-      }
-      route_table = {
-        id = azurerm_route_table.this.id
-      }
-      service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.CognitiveServices"]
-    }
-    preFunctionApp = {
-      name                            = var.vnet.pre_function_app_subnet_name
-      default_outbound_access_enabled = false
-      address_prefixes                = var.vnet.pre_function_app_subnet_address_prefixes
-      network_security_group = {
-        id = azurerm_network_security_group.pre_function_app_subnet.id
-      }
-      route_table = {
-        id = azurerm_route_table.this.id
-      }
-      service_endpoints = ["Microsoft.Storage"]
-      delegation = [
-        {
-          name = "Microsoft.Web.serverFarms"
-          service_delegation = {
-            name = "Microsoft.Web/serverFarms"
-          }
-        }
-      ]
-    }
-    preLogicApp = {
-      name                            = var.vnet.pre_logic_app_subnet_name
-      default_outbound_access_enabled = false
-      address_prefixes                = var.vnet.pre_logic_app_subnet_address_prefixes
-      network_security_group = {
-        id = azurerm_network_security_group.pre_logic_app_subnet.id
-      }
-      route_table = {
-        id = azurerm_route_table.this.id
-      }
-      service_endpoints = ["Microsoft.Storage"]
-      delegation = [
-        {
-          name = "Microsoft.Web.serverFarms"
-          service_delegation = {
-            name = "Microsoft.Web/serverFarms"
-          }
-        }
-      ]
+      service_endpoints = each.value.service_endpoints
     }
   }
   diagnostic_settings = {

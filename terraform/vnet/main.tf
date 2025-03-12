@@ -3,7 +3,6 @@ locals {
   log      = yamldecode(file("../../variables/grp/${var.env_type}/log.yaml"))
   firewall = yamldecode(file("../../variables/grp/${var.env_type}/fw.yaml"))
   vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
-  services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
 }
 
 terraform {
@@ -36,7 +35,6 @@ module "vnet" {
   dns      = local.dns
   log      = local.log
   vnet     = local.vnet
-  services = local.services
   firewall = local.firewall
 }
 
