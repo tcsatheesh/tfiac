@@ -22,6 +22,18 @@ provider "azurerm" {
   alias           = "remote_vnet"
   subscription_id = var.remote_vnet.subscription_id
 }
+provider "azurerm" {
+  features {}
+  alias           = "dns"
+  subscription_id = var.dns.subscription_id
+}
+
+data "azurerm_private_dns_zone" "this" {
+  for_each            = tomap(var.dns.domain_names)
+  provider            = azurerm.dns
+  name                = each.value
+  resource_group_name = var.dns.resource_group_name
+}
 
 data "azurerm_log_analytics_workspace" "this" {
   provider            = azurerm.log_analytics_workspace
@@ -106,7 +118,7 @@ locals {
 }
 
 module "peering" {
-  source = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
+  source   = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
   for_each = local.peering_enabled ? { "enabled" = true } : {}
   virtual_network = {
     resource_id = module.vnet.resource_id
@@ -125,4 +137,21 @@ module "peering" {
   reverse_allow_gateway_transit        = false
   reverse_allow_virtual_network_access = true
   reverse_use_remote_gateways          = false
+}
+
+resource "azapi_resource" "virtual_network_link" {
+  type      = "Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01"
+  for_each  = tomap(var.dns.domain_names)
+  name      = module.vnet.name
+  location  = var.vnet.location
+  parent_id = data.azurerm_private_dns_zone.this[each.value].id
+  body = jsonencode({
+    properties = {
+      registrationEnabled = false
+      resolutionPolicy    = "Default"
+      virtualNetwork = {
+        id = module.vnet.resource_id
+      }
+    }
+  })
 }
