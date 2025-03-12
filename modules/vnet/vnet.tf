@@ -126,13 +126,13 @@ module "peering" {
   remote_virtual_network = {
     resource_id = data.azurerm_virtual_network.remote.id
   }
-  name                                 = "${var.vnet.name}-local-to-${var.remote_vnet.name}-remote"
+  name                                 = "${var.vnet.vnet_peering.local_name}"
   allow_forwarded_traffic              = true
   allow_gateway_transit                = true
   allow_virtual_network_access         = true
   use_remote_gateways                  = false
   create_reverse_peering               = true
-  reverse_name                         = "${var.remote_vnet.name}-remote-to-${var.vnet.name}-local"
+  reverse_name                         = "${var.vnet.vnet_peering.remote_name}"
   reverse_allow_forwarded_traffic      = false
   reverse_allow_gateway_transit        = false
   reverse_allow_virtual_network_access = true

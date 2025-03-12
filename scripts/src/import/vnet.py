@@ -48,57 +48,91 @@ class ImportState:
         _args = self.args
         _logger = self._logger
         _logger.info("Importing state...")
-        _variables_file_path = os.path.join(
+        _vnet_variables_file_path = os.path.join(
             os.path.abspath(os.getcwd()),
-            _args.variables,
+            _args.vnet_variables,
         )
-        _variables_file_path = os.path.abspath(
-            _variables_file_path,
+        _vnet_variables_file_path = os.path.abspath(
+            _vnet_variables_file_path,
         )
 
-        if not os.path.exists(_variables_file_path):
-            self._logger.error(f"Variables file not found at {_variables_file_path}")
+        if not os.path.exists(_vnet_variables_file_path):
+            self._logger.error(f"Variables file not found at {_vnet_variables_file_path}")
         else:
-            self._logger.info(f"Importing variables from {_variables_file_path}")
-            with open(_variables_file_path, "r") as file:
-                _variables = yaml.safe_load(file)
+            self._logger.info(f"Importing variables from {_vnet_variables_file_path}")
+            with open(_vnet_variables_file_path, "r") as file:
+                _vnet_variables = yaml.safe_load(file)
 
-            _subscription_id = _variables["subscription_id"]
-            _resource_group_name = _variables["resource_group_name"]
+            _vnet_subscription_id = _vnet_variables["subscription_id"]
+            _vnet_resource_group_name = _vnet_variables["resource_group_name"]
 
-            for _key, _value in _variables["subnets"].items():
+            for _key, _value in _vnet_variables["subnets"].items():
                 _logger.info(f"{_key}: {_value}")
                 _nsg_name = _value["nsg"]
                 self._import_resource(
                     name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_group.this',
-                    resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}',
+                    resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}',
                 )
                 self._import_resource(
                     name=f'module.vnet.module.subnets["{_key}"].azapi_resource.subnet',
-                    resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}/subnets/{_key}',
+                    resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/subnets/{_key}',
                 )
                 for _key1, _value1 in _value["nsg_rules"].items():
                     _logger.info(f"{_key1}: {_value1}")
                     self._import_resource(
                         name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_rule.this["{_key1}"]',
-                        resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}/securityRules/{_value1["name"]}',
+                        resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}/securityRules/{_value1["name"]}',
                     )
             self._import_resource(
                 name="module.vnet.azurerm_route_table.this",
-                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/routeTables/{_variables["route_table_name"]}',
+                resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/routeTables/{_vnet_variables["route_table_name"]}',
             )
             self._import_resource(
                 name="module.vnet.azurerm_resource_group.this",
-                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}',
+                resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}',
             )
             self._import_resource(
                 name="module.vnet.module.vnet.azapi_resource.vnet",
-                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}',
+                resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}',
             )
             self._import_resource(
                 name='module.vnet.module.vnet.azurerm_monitor_diagnostic_setting.this["sendToLogAnalytics"]',
-                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}|sendToLogAnalytics',
+                resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}|sendToLogAnalytics',
             )
+
+
+
+            self._import_resource(
+                name='module.vnet.module.peering["enabled"].azapi_resource.this[0]',
+                resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["local_name"]}',
+            )
+
+
+
+            _dns_variables_file_path = os.path.join(
+                os.path.abspath(os.getcwd()),
+                _args.dns_variables,
+            )
+            _dns_variables_file_path = os.path.abspath(
+                _dns_variables_file_path,
+            )
+
+            if not os.path.exists(_dns_variables_file_path):
+                self._logger.error(f"DNS variables file not found at {_dns_variables_file_path}")
+            else:
+                self._logger.info(f"Importing DNS variables from {_dns_variables_file_path}")
+                with open(_dns_variables_file_path, "r") as file:
+                    _dns_variables = yaml.safe_load(file)
+
+                _dns_subscription_id = _dns_variables["subscription_id"]
+                _dns_resource_group_name = _dns_variables["resource_group_name"]
+
+                for _key2, _value2 in _dns_variables["domain_names"].items():
+                    _logger.info(f"{_key2}: {_value2}")
+                    self._import_resource(
+                        name=f'module.vnet.azurerm_private_dns_zone_virtual_network_link.this["{_key2}"]',
+                        resource_id=f'/subscriptions/{_dns_subscription_id}/resourceGroups/{_dns_resource_group_name}/providers/Microsoft.Network/privateDnsZones/{_value2}/virtualNetworkLinks/{_vnet_variables["name"]}',
+                    )
 
 
 if __name__ == "__main__":
@@ -113,10 +147,16 @@ if __name__ == "__main__":
         help="Folder to initialize",
     )
     parser.add_argument(
-        "--variables",
+        "--vnet-variables",
         type=str,
         required=True,
         help="Variables to use",
+    )
+    parser.add_argument(
+        "--dns-variables",
+        type=str,
+        required=True,
+        help="DNS variables to use",
     )
     parser.add_argument(
         "--market",

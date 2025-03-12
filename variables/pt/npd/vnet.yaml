@@ -5,6 +5,10 @@ location: "westeurope"
 address_space: ["10.1.0.0/16"]
 route_table_name: "route-az-grp-firewall"
 
+vnet_peering:
+  local_name: tfwe-pt-npd-vnet-01-local-to-tf-grp-npd-vnet-01-remote
+  remote_name: tf-grp-npd-vnet-01-remote-to-tfwe-pt-npd-vnet-01-local
+
 subnets:
   dev:
     address_prefixes: ["10.1.0.0/24"]
