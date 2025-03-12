@@ -77,10 +77,22 @@ class ImportState:
                     name=f'module.vnet.module.subnets["{_key}"].azapi_resource.subnet',
                     resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_variables["name"]}/subnets/{_key}',
                 )
+                for _key1, _value1 in _value["nsg_rules"].items():
+                    _logger.info(f"{_key1}: {_value1}")
+                    self._import_resource(
+                        name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_rule.this["{_key1}"]',
+                        resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}/securityRules/{_key1}',
+                    )
             self._import_resource(
                 name="module.vnet.azurerm_route_table.this",
                 resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.Network/routeTables/{_variables["route_table_name"]}',
             )
+            self._import_resource(
+                name="module.vnet.azurerm_resource_group.this",
+                resource_id=f'/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}',
+            )
+            
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
