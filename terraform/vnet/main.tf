@@ -1,8 +1,9 @@
 locals {
-  dns      = yamldecode(file("../../variables/grp/prd/dns.yaml"))
-  log      = yamldecode(file("../../variables/grp/${var.env_type}/log.yaml"))
-  firewall = yamldecode(file("../../variables/grp/${var.env_type}/fw.yaml"))
-  vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
+  dns         = yamldecode(file("../../variables/grp/prd/dns.yaml"))
+  log         = yamldecode(file("../../variables/grp/${var.env_type}/log.yaml"))
+  firewall    = yamldecode(file("../../variables/grp/${var.env_type}/fw.yaml"))
+  vnet        = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
+  remote_vnet = yamldecode(file("../../variables/grp/${var.env_type}/vnet.yaml"))
 }
 
 terraform {
@@ -31,11 +32,12 @@ provider "azurerm" {
 }
 
 module "vnet" {
-  source   = "../../modules/vnet"
-  dns      = local.dns
-  log      = local.log
-  vnet     = local.vnet
-  firewall = local.firewall
+  source      = "../../modules/vnet"
+  dns         = local.dns
+  log         = local.log
+  vnet        = local.vnet
+  firewall    = local.firewall
+  remote_vnet = local.remote_vnet
 }
 
 

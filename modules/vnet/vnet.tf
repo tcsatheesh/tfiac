@@ -2,6 +2,7 @@ variable "dns" {}
 variable "log" {}
 variable "vnet" {}
 variable "firewall" {}
+variable "remote_vnet" {}
 
 provider "azurerm" {
   features {
@@ -15,6 +16,11 @@ provider "azurerm" {
   features {}
   alias           = "log_analytics_workspace"
   subscription_id = var.log.subscription_id
+}
+provider "azurerm" {
+  features {}
+  alias           = "remote_vnet"
+  subscription_id = var.remote_vnet.subscription_id
 }
 
 data "azurerm_log_analytics_workspace" "this" {
@@ -42,8 +48,8 @@ resource "azurerm_route_table" "this" {
 }
 
 module "nsg" {
-  for_each = tomap(var.vnet.subnets)
-  source             = "Azure/avm-res-network-networksecuritygroup/azurerm"
+  for_each            = tomap(var.vnet.subnets)
+  source              = "Azure/avm-res-network-networksecuritygroup/azurerm"
   resource_group_name = azurerm_resource_group.this.name
   name                = each.value.nsg
   location            = var.vnet.location
@@ -79,12 +85,39 @@ module "subnets" {
   name             = each.key
   address_prefixes = each.value.address_prefixes
   network_security_group = each.value.add_nsg ? {
-    id       = module.nsg[each.key].resource_id
+    id = module.nsg[each.key].resource_id
   } : null
 
   route_table = each.value.add_route_table ? {
-    id       = azurerm_route_table.this.id
+    id = azurerm_route_table.this.id
   } : null
 
   service_endpoints = each.value.service_endpoints
+}
+
+data "azurerm_virtual_network" "remote" {
+  provider            = azurerm.remote_vnet
+  name                = var.remote_vnet.name
+  resource_group_name = var.remote_vnet.resource_group_name
+}
+
+module "peering" {
+  source = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
+  virtual_network = {
+    resource_id = module.vnet.resource_id
+  }
+  remote_virtual_network = {
+    resource_id = data.azurerm_virtual_network.remote.id
+  }
+  name                                 = "${var.vnet.name}-local-to-${var.remote_vnet.name}-remote"
+  allow_forwarded_traffic              = true
+  allow_gateway_transit                = true
+  allow_virtual_network_access         = true
+  use_remote_gateways                  = false
+  create_reverse_peering               = true
+  reverse_name                         = "${var.remote_vnet.name}-remote-to-${var.vnet.name}-local"
+  reverse_allow_forwarded_traffic      = false
+  reverse_allow_gateway_transit        = false
+  reverse_allow_virtual_network_access = true
+  reverse_use_remote_gateways          = false
 }
