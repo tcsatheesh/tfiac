@@ -86,7 +86,7 @@ jobs:
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
           ./scripts/src/backend.py \
           --backend variables/grp/prd/bed.yaml \
-          --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
+          --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.service }}.yaml \
           --output-file $temp_backend_output_file
           
           # Read the backend output file and set the environment variables
