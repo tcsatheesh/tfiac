@@ -1,7 +1,7 @@
-
 import os
 import yaml
 import shutil
+
 
 class Backend:
     """
@@ -211,3 +211,60 @@ class Backend:
 
         self._logger.info("Resetting backend done.")
 
+
+if __name__ == "__main__":
+    import argparse
+    import logging
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--backend",
+        type=str,
+        required=True,
+        help="Backend configuration file",
+    )
+    parser.add_argument(
+        "--variables",
+        type=str,
+        required=True,
+        help="Variables file",
+    )
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        required=True,
+        help="Output file",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    backend = Backend(
+        args=args,
+        logger=logger,
+    )
+    _config = backend.get_backend_variables()
+    logger.info(f"Backend configuration: {_config}")
+    _output_config = {}
+    _output_config["TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID"] = _config.get(
+        "subscription_id"
+    )
+    _output_config["TERRAFORM_BACKEND_AZURE_RESOURCE_GROUP_NAME"] = _config.get(
+        "resource_group_name"
+    )
+    _output_config["TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME"] = _config.get(
+        "storage_account_name"
+    )
+    _output_config["TERRAFORM_BACKEND_AZURE_CONTAINER_NAME"] = _config.get(
+        "container_name"
+    )
+    _output_config["TERRAFORM_BACKEND_AZURE_KEY"] = _config.get("key")
+
+    logger.info(f"Output configuration: {_output_config}")
+    # Write the output configuration to the specified file
+    logger.info(f"Writing output configuration to {args.output_file}")
+
+    with open(args.output_file, "w") as f:
+        for key, value in _output_config.items():
+            f.write(f"{key}={value}\n")

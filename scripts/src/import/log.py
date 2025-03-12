@@ -95,7 +95,7 @@ if __name__ == "__main__":
         help="Environment to use",
     )
     parser.add_argument(
-        "--env_type",
+        "--env-type",
         type=str,
         required=True,
         help="Environment type to use",

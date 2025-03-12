@@ -61,8 +61,17 @@ class TerraformWrapper:
         _folder = self._folder
         _args = self.args
 
+        _out_file_path = os.path.join(
+            os.path.abspath(os.getcwd()),
+            f"temp/{_args.folder}.tfplan",
+        )
+        _out_file_path = os.path.abspath(
+            _out_file_path,
+        )
+
         _logger.info("Showing plan for backend")
         _logger.info("Folder for plan: %s", _folder)
+        # _logger.info("Plan file path: %s", _out_file_path)
         _shell_command = [
             "terraform",
             "plan",
@@ -72,6 +81,7 @@ class TerraformWrapper:
             f"environment={_args.environment}",
             "-var",
             f"env_type={_args.env_type}",
+            # f"-out={_out_file_path}",
         ]
         self._shell_handler.execute_shell_command(
             cwd=_folder,
@@ -92,6 +102,12 @@ class TerraformWrapper:
         _shell_command = [
             "terraform",
             "apply",
+            "-var",
+            f"market={self.args.market}",
+            "-var",
+            f"environment={self.args.environment}",
+            "-var",
+            f"env_type={self.args.env_type}",
             "-auto-approve",
         ]
         self._shell_handler.execute_shell_command(
@@ -113,6 +129,12 @@ class TerraformWrapper:
         _shell_command = [
             "terraform",
             "destroy",
+            "-var",
+            f"market={self.args.market}",
+            "-var",
+            f"environment={self.args.environment}",
+            "-var",
+            f"env_type={self.args.env_type}",
             "-auto-approve",
         ]
         self._shell_handler.execute_shell_command(

@@ -109,6 +109,24 @@ class Main:
             help="Apply the scripts module",
         )
         apply_parser.add_argument(
+            "--market",
+            type=str,
+            required=True,
+            help="Market to initialize",
+        )
+        apply_parser.add_argument(
+            "--environment",
+            type=str,
+            required=True,
+            help="Environment to initialize",
+        )
+        apply_parser.add_argument(
+            "--env-type",
+            type=str,
+            required=True,
+            help="Environment Type to initialize",
+        )
+        apply_parser.add_argument(
             "--folder",
             type=str,
             required=True,
@@ -131,6 +149,24 @@ class Main:
         destroy_parser = subparsers.add_parser(
             "destroy",
             help="Destroy the scripts module",
+        )
+        destroy_parser.add_argument(
+            "--market",
+            type=str,
+            required=True,
+            help="Market to initialize",
+        )
+        destroy_parser.add_argument(
+            "--environment",
+            type=str,
+            required=True,
+            help="Environment to initialize",
+        )
+        destroy_parser.add_argument(
+            "--env-type",
+            type=str,
+            required=True,
+            help="Environment Type to initialize",
         )
         destroy_parser.add_argument(
             "--folder",
