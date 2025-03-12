@@ -36,12 +36,14 @@ resource "azurerm_route_table" "this" {
   }
 }
 
-resource "azurerm_network_security_group" "subnet" {
+module "nsg" {
   for_each = tomap(var.vnet.subnets)
-
-  location            = var.vnet.location
-  name                = each.value.nsg
+  source             = "Azure/avm-res-network-networksecuritygroup/azurerm"
   resource_group_name = var.vnet.resource_group_name
+  name                = each.value.nsg
+  location            = var.vnet.location
+
+  # security_rules = each.value.nsg_rules
 }
 
 
@@ -72,12 +74,12 @@ module "subnets" {
   name             = each.key
   address_prefixes = each.value.address_prefixes
   network_security_group = each.value.add_nsg ? {
-    id       = azurerm_network_security_group.subnet[each.key].id
+    id       = module.nsg[each.key].resource_id
   } : null
 
   route_table = each.value.add_route_table ? {
     id       = azurerm_route_table.this.id
   } : null
-  
+
   service_endpoints = each.value.service_endpoints
 }
