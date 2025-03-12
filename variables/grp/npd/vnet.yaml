@@ -12,54 +12,82 @@ subnets:
     add_route_table: true
     add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
+    has_nsg_rules: true
+    nsg_rules:
+      rule01:
+        name: "test-rule"
+        access: "Deny"
+        destination_address_prefix: "*"
+        destination_port_range: "80-88"
+        direction: "Outbound"
+        priority: 100
+        protocol: "Tcp"
+        source_address_prefix: "*"
+        source_port_range: "*"    
   dev_function_app:
     address_prefixes: ["10.0.2.0/24"]
     nsg: "dev-function-app-nsg"
     add_route_table: true
     add_nsg: true
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
   dev-logic-app:
     address_prefixes: ["10.0.3.0/24"]
     nsg: "dev-logic-app-nsg"
     add_route_table: true
     add_nsg: true
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
   pre-production:
     address_prefixes: ["10.0.1.0/24"]
     nsg: "pre-nsg"
     add_route_table: true
     add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
+    has_nsg_rules: false
+    nsg_rules: {}
   pre-production-function-app:
     address_prefixes: ["10.0.4.0/24"]
     nsg: "pre-function-app-nsg"
     add_route_table: true
     add_nsg: true
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
   pre-production-logic-app:
     address_prefixes: ["10.0.5.0/24"]
     nsg: "pre-logic-app-nsg"
     add_route_table: true
     add_nsg: true
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
   firewall:
     address_prefixes: ["10.0.6.0/24"]
     nsg: "firewall-nsg"
     add_route_table: false
     add_nsg: false
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
   firewall_mgmt:
     address_prefixes: ["10.0.7.0/24"]
     nsg: "firewall-mgmt-nsg"
     add_route_table: false
     add_nsg: false
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
   api_management:
     address_prefixes: ["10.0.8.0/24"]
     nsg: "api-nsg"
     add_route_table: false
     add_nsg: true
     service_endpoints: []
+    has_nsg_rules: false
+    nsg_rules: {}
 
 backend:
   key: grp/npd/vnet.tfstate

@@ -43,7 +43,7 @@ module "nsg" {
   name                = each.value.nsg
   location            = var.vnet.location
 
-  # security_rules = each.value.nsg_rules
+  security_rules = each.value.has_nsg_rules ? each.value.nsg_rules : null
 }
 
 
