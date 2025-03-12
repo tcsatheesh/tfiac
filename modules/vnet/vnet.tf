@@ -54,21 +54,6 @@ module "vnet" {
 
   address_space = var.vnet.address_space
 
-  for_each = tomap(var.vnet.subnets)
-  subnets = {
-    subnet = {
-      name                            = each.key
-      default_outbound_access_enabled = false
-      address_prefixes                = each.value.address_prefix
-      network_security_group = {
-        id = azurerm_network_security_group.subnet[each.key].id
-      }
-      route_table = {
-        id = each.value.add_route_table ? azurerm_route_table.this.id : null
-      }
-      service_endpoints = each.value.service_endpoints
-    }
-  }
   diagnostic_settings = {
     sendToLogAnalytics = {
       name                           = "sendToLogAnalytics"
@@ -78,3 +63,19 @@ module "vnet" {
   }
 }
 
+module "subnets" {
+  for_each = tomap(var.vnet.subnets)
+  source   = "Azure/avm-res-network-virtualnetwork/azurerm//modules/subnet"
+  virtual_network = {
+    resource_id = module.vnet.resource_id
+  }
+  name             = each.key
+  address_prefixes = each.value.address_prefixes
+  network_security_group = {
+    id = azurerm_network_security_group.subnet[each.key].id
+  }
+  route_table = {
+    id = each.value.add_route_table ? azurerm_route_table.this.id : null
+  }
+  service_endpoints = each.value.service_endpoints
+}
