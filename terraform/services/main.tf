@@ -30,6 +30,11 @@ provider "azurerm" {
   subscription_id = local.services.subscription_id
 }
 
+resource "azurerm_resource_group" "rg" {
+  name     = local.services.resource_group_name
+  location = local.services.location
+}
+
 module "keyvault" {
   source   = "../../modules/keyvault"
   for_each = local.services.keyvault ? { "enabled" = true } : {}
@@ -37,6 +42,10 @@ module "keyvault" {
   log      = local.log
   vnet     = local.vnet
   services = local.services
+
+  depends_on = [
+    azurerm_resource_group.rg
+  ]
 }
 
 # module "appinsights" {
