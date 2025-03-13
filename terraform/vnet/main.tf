@@ -28,7 +28,25 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = local.services.subscription_id
+  subscription_id = local.vnet.subscription_id
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "remote_vnet"
+  subscription_id = local.remote_vnet.subscription_id
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "log"
+  subscription_id = local.log.subscription_id
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "dns"
+  subscription_id = local.dns.subscription_id
 }
 
 module "vnet" {
