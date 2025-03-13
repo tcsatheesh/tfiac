@@ -49,3 +49,6 @@ logic_app:
   storage_account_name: "tfweptdevstg04"
   service_plan_name: tfweptdevlogicapppln
   subnet_name: dev-logic-app # vnet parameter
+
+backend:
+  key: pt/dev/services.tfstate
