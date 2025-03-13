@@ -50,3 +50,5 @@ subnet:
 #   service_plan_name: tfwetrdevlogicapppln
 #   subnet_name: dev-logic-app # vnet parameter
 
+backend:
+  key: tr/dev/services.tfstate
