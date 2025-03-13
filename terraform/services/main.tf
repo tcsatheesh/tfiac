@@ -41,10 +41,6 @@ module "keyvault" {
   log      = local.log
   vnet     = local.vnet
   services = local.services
-
-  depends_on = [
-    azurerm_resource_group.rg
-  ]
 }
 
 module "appinsights" {
