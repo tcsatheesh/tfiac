@@ -46,15 +46,6 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "link" {
-  for_each              = local.endpoints
-  provider              = azurerm.dns
-  name                  = "${each.key}-${var.vnet.name}"
-  private_dns_zone_name = var.dns.domain_names[each.key]
-  resource_group_name   = var.dns.resource_group_name
-  virtual_network_id    = data.azurerm_virtual_network.this.id
-}
-
 module "aiservices" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
   kind                = "AIServices"

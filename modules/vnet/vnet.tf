@@ -94,6 +94,7 @@ module "subnets" {
   } : null
 
   service_endpoints = each.value.service_endpoints
+  delegation        = each.value.delegation
 }
 
 data "azurerm_virtual_network" "remote" {

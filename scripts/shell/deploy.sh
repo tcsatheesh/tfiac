@@ -70,6 +70,8 @@ echo "environment is $environment"
 echo "service is $service"
 echo "env_type is $env_type"
 
+terraform fmt -recursive
+
 # Get the backend variables
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 temp_backend_output_file=$(mktemp)
@@ -85,6 +87,12 @@ source $temp_backend_output_file
 cd terraform/$service
 
 if [[ "$action" == "init" ]]; then
+    echo "Clearing terraform state"
+    rm -rf .terraform
+    rm -rf .terraform.lock.hcl
+    rm -rf terraform.tfstate
+    rm -rf terraform.tfstate.backup
+
     echo "Running terraform init"
 
     terraform init \
