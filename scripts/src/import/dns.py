@@ -87,6 +87,18 @@ if __name__ == "__main__":
         help="Variables to use",
     )
     parser.add_argument(
+        "--dns-variables",
+        type=str,
+        required=True,
+        help="DNS variables to use",
+    )
+    parser.add_argument(
+        "--remote-vnet-variables",
+        type=str,
+        required=True,
+        help="Remote VNet variables to use",
+    )
+    parser.add_argument(
         "--market",
         type=str,
         required=True,
