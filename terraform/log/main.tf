@@ -24,7 +24,7 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = local.dns.subscription_id
+  subscription_id = local.log.subscription_id
 }
 
 module "log" {

@@ -4,9 +4,9 @@ environment=$3
 service=$4
 
 # check if the action is valid
-if [[ "$action" != "init" && "$action" != "plan" && "$action" != "apply" && "$action" != "destroy" ]]; then
+if [[ "$action" != "init" && "$action" != "plan" && "$action" != "apply" && "$action" != "destroy" && "$action" != "import" && "$action" != "reset" ]]; then
     echo "Invalid action: $action"
-    echo "Valid actions are: init, plan, apply, destroy"
+    echo "Valid actions are: init, plan, apply, destroy, import, reset"
     echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
     exit 1
 fi
@@ -149,3 +149,30 @@ if [[ "$action" == "destroy" ]]; then
     -auto-approve
 fi
 
+if [[ "$action" == "import" ]]; then
+    init_terraform
+    cd $current_working_directory
+    echo "Running terraform import"
+    python3 \
+    ./scripts/src/import/$service.py \
+    --market $market \
+    --environment $environment \
+    --env-type $env_type \
+    --folder terraform/$service \
+    --variables variables/$market/$environment/$service.yaml \
+    --dns-variables variables/grp/prd/dns.yaml \
+    --remote-vnet-variables variables/grp/$env_type/vnet.yaml \
+    --yes
+fi
+
+if [[ "$action" == "reset" ]]; then
+    export PYTHONPATH=$PYTHONPATH:$(pwd)
+    cd $current_working_directory
+    echo "Running terraform reset"
+    python3 \
+    ./scripts/src/__init__.py \
+    reset \
+    --folder terraform/$service \
+    --variables variables/$market/$environment/$service.yaml \
+    --yes
+fi
