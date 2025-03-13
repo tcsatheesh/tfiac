@@ -123,7 +123,7 @@ jobs:
           --env-type $env_type \
           --folder terraform/${{ github.event.inputs.service }} \
           --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
-          --remote-vnet-variables variables/grp/$env_type/vnet.yaml \          
+          --remote-vnet-variables variables/grp/$env_type/vnet.yaml \
           --yes
 
       - name: Remove virtual environment
