@@ -52,8 +52,8 @@ module "keyvault" {
   resource_group_name           = var.services.resource_group_name
   tenant_id                     = data.azurerm_client_config.this.tenant_id
   soft_delete_retention_days    = 7
-  purge_protection_enabled      = var.services.keyvault.purge_protection_enabled
-  public_network_access_enabled = var.services.keyvault.public_network_access_enabled
+  purge_protection_enabled      = var.services.key_vault.purge_protection_enabled
+  public_network_access_enabled = var.services.key_vault.public_network_access_enabled
   private_endpoints = {
     pe_endpoint = {
       name                          = "pe-${var.services.key_vault.name}"

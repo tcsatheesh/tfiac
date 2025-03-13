@@ -25,7 +25,7 @@ locals {
 }
 
 locals {
-  storage_account_name = var.storage_type == "landing" ? var.services.landing_storage_account_name : (var.storage_type == "aml" ? var.services.aml_storage_account_name : (var.storage_type == "function_app" ? var.services.function_app_storage_account_name : var.services.logic_app_storage_account_name))
+  storage_account_name = var.storage_type == "landing" ? var.services.landing.storage_account_name : (var.storage_type == "aml" ? var.services.aml.storage_account_name : (var.storage_type == "function_app" ? var.services.function_app.storage_account_name : var.services.logic_app.storage_account_name))
 }
 
 provider "azurerm" {
