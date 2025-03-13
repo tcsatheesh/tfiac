@@ -14,7 +14,7 @@ provider "azurerm" {
 }
 
 module "firewall_policy" {
-  source             = "Azure/avm-res-network-firewallpolicy/azurerm"
+  source              = "Azure/avm-res-network-firewallpolicy/azurerm"
   name                = var.vnet.firewall.policy.name
   location            = var.vnet.firewall.location
   resource_group_name = var.vnet.firewall.resource_group_name

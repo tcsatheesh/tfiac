@@ -1,5 +1,5 @@
-variable vnet {}
-variable source_ip_groups {}
+variable "vnet" {}
+variable "source_ip_groups" {}
 
 provider "azurerm" {
   features {}

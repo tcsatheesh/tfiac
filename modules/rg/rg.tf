@@ -18,7 +18,7 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
-  alias = "vnet"
+  alias           = "vnet"
   subscription_id = var.vnet.subscription_id
 }
 

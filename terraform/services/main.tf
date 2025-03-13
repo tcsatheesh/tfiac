@@ -28,6 +28,25 @@ terraform {
 provider "azurerm" {
   features {}
   subscription_id = local.services.subscription_id
+  alias           = "services"
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "vnet"
+  subscription_id = var.vnet.subscription_id
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "log"
+  subscription_id = var.log.subscription_id
+}
+
+provider "azurerm" {
+  features {}
+  alias           = "dns"
+  subscription_id = var.dns.subscription_id
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -36,11 +55,18 @@ resource "azurerm_resource_group" "rg" {
 }
 
 module "keyvault" {
-  source   = "../../modules/keyvault"
-  dns      = local.dns
-  log      = local.log
-  vnet     = local.vnet
-  services = local.services
+  source     = "../../modules/keyvault"
+  dns        = local.dns
+  log        = local.log
+  vnet       = local.vnet
+  services   = local.services
+  depends_on = [azurerm_resource_group.rg]
+  providers = {
+    azurerm.services = azurerm.services
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
 }
 
 module "appinsights" {

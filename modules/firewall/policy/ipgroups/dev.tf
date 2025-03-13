@@ -1,8 +1,8 @@
 variable "source_ip_groups" {}
 variable "source_function_app_ip_groups" {}
 variable "source_logic_app_ip_groups" {}
-  
-}
+
+
 
 provider "azurerm" {
   features {}

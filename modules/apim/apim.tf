@@ -3,7 +3,7 @@ variable "log" {}
 variable "vnet" {}
 variable "services" {}
 
-provider azurerm {
+provider "azurerm" {
   features {}
   subscription_id = var.services.subscription_id
 }

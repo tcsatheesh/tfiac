@@ -34,8 +34,8 @@ data "azurerm_log_analytics_workspace" "this" {
 }
 
 module "fw_public_ip" {
-  source  = "Azure/avm-res-network-publicipaddress/azurerm"
-  version = "0.1.0"
+  source              = "Azure/avm-res-network-publicipaddress/azurerm"
+  version             = "0.1.0"
   name                = "pip-fw-${var.vnet.firewall.public_ip_name}"
   location            = var.vnet.firewall.location
   resource_group_name = var.vnet.firewall.resource_group_name
@@ -54,7 +54,7 @@ module "fw_public_ip" {
 # }
 
 module "firewall" {
-  source             = "Azure/avm-res-network-firewall/azurerm"
+  source              = "Azure/avm-res-network-firewall/azurerm"
   name                = var.vnet.firewall.name
   location            = var.vnet.firewall.location
   resource_group_name = var.vnet.firewall.resource_group_name
@@ -74,7 +74,7 @@ module "firewall" {
       name                  = "tola-${var.vnet.firewall.name}"
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
       log_groups            = ["allLogs"]
-      metric_categories     = ["AllMetrics"]  
+      metric_categories     = ["AllMetrics"]
     }
   }
 }
