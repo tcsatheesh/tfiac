@@ -41,7 +41,7 @@ provider "azurerm" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.subnet_name
+  name                 = var.services.subnet.name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -70,7 +70,7 @@ module "aml_storage" {
 module "azureml" {
   source              = "Azure/avm-res-machinelearningservices-workspace/azurerm"
   location            = var.services.location
-  name                = var.services.aml_name
+  name                = var.services.aml.name
   resource_group_name = var.services.resource_group_name
 
   storage_account = {

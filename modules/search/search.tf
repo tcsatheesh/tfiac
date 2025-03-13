@@ -39,7 +39,7 @@ data "azurerm_virtual_network" "this" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.subnet_name
+  name                 = var.services.subnet.name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -68,15 +68,15 @@ resource "azurerm_private_dns_zone_virtual_network_link" "this" {
 module "search_service" {
   source              = "Azure/avm-res-search-searchservice/azurerm"
   location            = var.services.location
-  name                = var.services.ai_search_name
+  name                = var.services.ai_search.name
   resource_group_name = var.services.resource_group_name
   private_endpoints = {
     primary = {
-      name                            = "pe-${var.services.ai_search_name}"
+      name                            = "pe-${var.services.ai_search.name}"
       private_dns_zone_resource_ids   = [data.azurerm_private_dns_zone.this.id]
-      private_service_connection_name = "psc-${var.services.ai_search_name}"
+      private_service_connection_name = "psc-${var.services.ai_search.name}"
       subnet_resource_id              = data.azurerm_subnet.this.id
-      network_interface_name          = "nic-pe-${var.services.ai_search_name}"
+      network_interface_name          = "nic-pe-${var.services.ai_search.name}"
       resource_group_name             = var.vnet.resource_group_name
     }
   }

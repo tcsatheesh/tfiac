@@ -39,7 +39,7 @@ data "azurerm_virtual_network" "this" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.subnet_name
+  name                 = var.services.subnet.name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -60,7 +60,7 @@ module "ai_language" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
   kind                = "TextAnalytics"
   location            = var.services.location
-  name                = var.services.ai_language_name
+  name                = var.services.ai_language.name
   resource_group_name = var.services.resource_group_name
   sku_name            = "S"
   managed_identities = {
@@ -72,17 +72,17 @@ module "ai_language" {
   public_network_access_enabled = false
   private_endpoints = {
     pe_endpoint = {
-      name                            = "pe-${var.services.ai_language_name}"
+      name                            = "pe-${var.services.ai_language.name}"
       private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this.id])
-      private_service_connection_name = "psc-${var.services.ai_language_name}"
+      private_service_connection_name = "psc-${var.services.ai_language.name}"
       subnet_resource_id              = data.azurerm_subnet.this.id
-      network_interface_name          = "nic-pe-${var.services.ai_language_name}"
+      network_interface_name          = "nic-pe-${var.services.ai_language.name}"
       resource_group_name             = var.vnet.resource_group_name
     }
   }
   diagnostic_settings = {
     to_la = {
-      name                  = format("tola_%s", var.services.ai_language_name)
+      name                  = format("tola_%s", var.services.ai_language.name)
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }

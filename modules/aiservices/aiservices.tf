@@ -43,7 +43,7 @@ data "azurerm_virtual_network" "this" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.subnet_name
+  name                 = var.services.subnet.name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -73,8 +73,8 @@ resource "azurerm_private_dns_zone_virtual_network_link" "link" {
 module "aiservices" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
   kind                = "AIServices"
-  location            = var.services.ai_services_location
-  name                = var.services.ai_services_name
+  location            = var.services.ai_services.location
+  name                = var.services.ai_services.name
   resource_group_name = var.services.resource_group_name
   sku_name            = "S0"
   managed_identities = {
@@ -84,7 +84,7 @@ module "aiservices" {
     default_action = "Deny"
   }
   public_network_access_enabled = false
-  custom_subdomain_name = var.services.ai_services_name
+  custom_subdomain_name = var.services.ai_services.name
   private_endpoints = {
     for endpoint in local.endpoints :
     endpoint => {
@@ -98,7 +98,7 @@ module "aiservices" {
   }
   diagnostic_settings = {
     to_la = {
-      name                  = format("tola_%s", var.services.ai_services_name)
+      name                  = format("tola_%s", var.services.ai_services.name)
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }

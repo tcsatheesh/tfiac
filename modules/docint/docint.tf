@@ -39,7 +39,7 @@ data "azurerm_virtual_network" this {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.subnet_name
+  name                 = var.services.subnet.name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
@@ -60,7 +60,7 @@ module "document_intelligence" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
   kind                = "FormRecognizer"
   location            = var.services.location
-  name                = var.services.document_intelligence_name
+  name                = var.services.document_intelligence.name
   resource_group_name = var.services.resource_group_name
   sku_name            = "S0"
     managed_identities = {
@@ -72,17 +72,17 @@ module "document_intelligence" {
   public_network_access_enabled = false
   private_endpoints = {
     pe_endpoint = {
-      name                          = "pe-${var.services.document_intelligence_name}"
+      name                          = "pe-${var.services.document_intelligence.name}"
       private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this.id])
-      private_service_connection_name = "psc-${var.services.document_intelligence_name}"
+      private_service_connection_name = "psc-${var.services.document_intelligence.name}"
       subnet_resource_id            = data.azurerm_subnet.this.id
-      network_interface_name          = "nic-pe-${var.services.document_intelligence_name}"
+      network_interface_name          = "nic-pe-${var.services.document_intelligence.name}"
       resource_group_name             = var.vnet.resource_group_name
     }
   }
   diagnostic_settings = {
     to_la = {
-      name                  = format("tola_%s", var.services.document_intelligence_name)
+      name                  = format("tola_%s", var.services.document_intelligence.name)
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }
