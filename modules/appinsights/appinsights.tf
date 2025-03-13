@@ -3,15 +3,21 @@ variable "log" {}
 variable "vnet" {}
 variable "services" {}
 
-
-provider "azurerm" {
-  features {}
-  alias           = "log_analytics_workspace"
-  subscription_id = var.log.subscription_id
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      configuration_aliases = [
+        azurerm.services,
+        azurerm.log,
+        azurerm.vnet,
+      azurerm.dns]
+    }
+  }
 }
 
 data "azurerm_log_analytics_workspace" "this" {
-  provider            = azurerm.log_analytics_workspace
+  provider            = azurerm.log
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
 }

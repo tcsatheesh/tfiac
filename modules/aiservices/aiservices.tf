@@ -7,32 +7,17 @@ locals {
   endpoints = toset(["aiservices", "cognitiveservices", "openai"])
 }
 
-provider "azurerm" {
-  features {
-    resource_group {
-      prevent_deletion_if_contains_resources = false
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      configuration_aliases = [
+        azurerm.services,
+        azurerm.log,
+        azurerm.vnet,
+      azurerm.dns]
     }
   }
-  subscription_id = var.services.subscription_id
-}
-
-provider "azurerm" {
-  features {}
-  alias           = "vnet"
-  subscription_id = var.vnet.subscription_id
-}
-
-
-provider "azurerm" {
-  features {}
-  alias           = "log_analytics_workspace"
-  subscription_id = var.log.subscription_id
-}
-
-provider "azurerm" {
-  features {}
-  alias           = "private_dns"
-  subscription_id = var.dns.subscription_id
 }
 
 data "azurerm_virtual_network" "this" {
@@ -50,20 +35,20 @@ data "azurerm_subnet" "this" {
 
 data "azurerm_private_dns_zone" "this" {
   for_each            = local.endpoints
-  provider            = azurerm.private_dns
+  provider            = azurerm.dns
   name                = var.dns.domain_names[each.value]
   resource_group_name = var.dns.resource_group_name
 }
 
 data "azurerm_log_analytics_workspace" "this" {
-  provider            = azurerm.log_analytics_workspace
+  provider            = azurerm.log
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "link" {
   for_each              = local.endpoints
-  provider              = azurerm.private_dns
+  provider              = azurerm.dns
   name                  = "${each.key}-${var.vnet.name}"
   private_dns_zone_name = var.dns.domain_names[each.key]
   resource_group_name   = var.dns.resource_group_name

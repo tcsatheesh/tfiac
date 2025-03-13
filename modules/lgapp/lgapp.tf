@@ -11,23 +11,19 @@ variable "app_insights_connection_string" {
   type        = string
 }
 
-provider "azurerm" {
-  features {}
-  alias           = "vnet"
-  subscription_id = var.vnet.subscription_id
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      configuration_aliases = [
+        azurerm.services,
+        azurerm.log,
+        azurerm.vnet,
+      azurerm.dns]
+    }
+  }
 }
 
-provider "azurerm" {
-  features {}
-  alias           = "log_analytics_workspace"
-  subscription_id = var.log.subscription_id
-}
-
-provider "azurerm" {
-  features {}
-  alias           = "private_dns"
-  subscription_id = var.dns.subscription_id
-}
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
@@ -37,13 +33,13 @@ data "azurerm_subnet" "this" {
 }
 
 data "azurerm_private_dns_zone" "this" {
-  provider            = azurerm.private_dns
+  provider            = azurerm.dns
   name                = var.dns.domain_names["website"]
   resource_group_name = var.dns.resource_group_name
 }
 
 data "azurerm_log_analytics_workspace" "this" {
-  provider            = azurerm.log_analytics_workspace
+  provider            = azurerm.log
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
 }
@@ -65,6 +61,12 @@ module "logic_app_storage" {
   storage_type                  = "logic_app"
   public_network_access_enabled = true
   shared_access_key_enabled     = true
+  providers = {
+    azurerm.services = azurerm.services
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
 }
 
 resource "azurerm_logic_app_standard" "this" {

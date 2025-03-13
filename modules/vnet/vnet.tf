@@ -4,28 +4,17 @@ variable "vnet" {}
 variable "firewall" {}
 variable "remote_vnet" {}
 
-provider "azurerm" {
-  features {
-    resource_group {
-      prevent_deletion_if_contains_resources = false
+terraform {
+  required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+      configuration_aliases = [
+        azurerm.vnet,
+        azurerm.log,
+        azurerm.remote_vnet,
+      azurerm.dns]
     }
   }
-  subscription_id = var.vnet.subscription_id
-}
-provider "azurerm" {
-  features {}
-  alias           = "log_analytics_workspace"
-  subscription_id = var.log.subscription_id
-}
-provider "azurerm" {
-  features {}
-  alias           = "remote_vnet"
-  subscription_id = var.remote_vnet.subscription_id
-}
-provider "azurerm" {
-  features {}
-  alias           = "dns"
-  subscription_id = var.dns.subscription_id
 }
 
 data "azurerm_private_dns_zone" "this" {
@@ -36,7 +25,7 @@ data "azurerm_private_dns_zone" "this" {
 }
 
 data "azurerm_log_analytics_workspace" "this" {
-  provider            = azurerm.log_analytics_workspace
+  provider            = azurerm.log
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
 }

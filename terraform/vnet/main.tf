@@ -38,6 +38,12 @@ module "vnet" {
   vnet        = local.vnet
   firewall    = local.firewall
   remote_vnet = local.remote_vnet
+  providers = {
+    azurerm.vnet        = azurerm
+    azurerm.log         = azurerm.log
+    azurerm.dns         = azurerm.dns
+    azurerm.remote_vnet = azurerm.remote_vnet
+  }
 }
 
 

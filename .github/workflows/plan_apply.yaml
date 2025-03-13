@@ -111,7 +111,7 @@ jobs:
     - name: Terraform Format
       run: |
         cd terraform/${{ inputs.az_svc }}
-        terraform fmt -check
+        terraform fmt -recursive -check
 
     - name: Find environemnt type
       run: |
