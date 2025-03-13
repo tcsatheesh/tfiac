@@ -100,32 +100,33 @@ class ImportState:
                 resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}|sendToLogAnalytics',
             )
 
-            _remote_vnet_variables_file_path = os.path.join(
-                os.path.abspath(os.getcwd()),
-                _args.remote_vnet_variables,
-            )
-            _remote_vnet_variables_file_path = os.path.abspath(
-                _remote_vnet_variables_file_path,
-            )
-
-            if not os.path.exists(_remote_vnet_variables_file_path):
-                self._logger.error(f"Remote VNet variables file not found at {_remote_vnet_variables_file_path}")
-            else:
-                self._logger.info(f"Importing Remote VNet variables from {_remote_vnet_variables_file_path}")
-                with open(_remote_vnet_variables_file_path, "r") as file:
-                    _remote_vnet_variables = yaml.safe_load(file)
-
-                _remote_vnet_subscription_id = _remote_vnet_variables["subscription_id"]
-                _remote_vnet_resource_group_name = _remote_vnet_variables["resource_group_name"]
-
-                self._import_resource(
-                    name='module.vnet.module.peering["enabled"].azapi_resource.this[0]',
-                    resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["local_name"]}',
+            if "vnet_peering" in _vnet_variables:
+                _remote_vnet_variables_file_path = os.path.join(
+                    os.path.abspath(os.getcwd()),
+                    _args.remote_vnet_variables,
                 )
-                self._import_resource(
-                    name='module.vnet.module.peering["enabled"].azapi_resource.reverse[0]',
-                    resource_id=f'/subscriptions/{_remote_vnet_subscription_id}/resourceGroups/{_remote_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_remote_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["remote_name"]}',
+                _remote_vnet_variables_file_path = os.path.abspath(
+                    _remote_vnet_variables_file_path,
                 )
+
+                if not os.path.exists(_remote_vnet_variables_file_path):
+                    self._logger.error(f"Remote VNet variables file not found at {_remote_vnet_variables_file_path}")
+                else:
+                    self._logger.info(f"Importing Remote VNet variables from {_remote_vnet_variables_file_path}")
+                    with open(_remote_vnet_variables_file_path, "r") as file:
+                        _remote_vnet_variables = yaml.safe_load(file)
+
+                    _remote_vnet_subscription_id = _remote_vnet_variables["subscription_id"]
+                    _remote_vnet_resource_group_name = _remote_vnet_variables["resource_group_name"]
+
+                    self._import_resource(
+                        name='module.vnet.module.peering["enabled"].azapi_resource.this[0]',
+                        resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["local_name"]}',
+                    )
+                    self._import_resource(
+                        name='module.vnet.module.peering["enabled"].azapi_resource.reverse[0]',
+                        resource_id=f'/subscriptions/{_remote_vnet_subscription_id}/resourceGroups/{_remote_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_remote_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["remote_name"]}',
+                    )
 
 
 
