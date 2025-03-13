@@ -34,19 +34,19 @@ provider "azurerm" {
 provider "azurerm" {
   features {}
   alias           = "vnet"
-  subscription_id = var.vnet.subscription_id
+  subscription_id = local.vnet.subscription_id
 }
 
 provider "azurerm" {
   features {}
   alias           = "log"
-  subscription_id = var.log.subscription_id
+  subscription_id = local.log.subscription_id
 }
 
 provider "azurerm" {
   features {}
   alias           = "dns"
-  subscription_id = var.dns.subscription_id
+  subscription_id = local.dns.subscription_id
 }
 
 resource "azurerm_resource_group" "rg" {
