@@ -128,7 +128,7 @@ module "peering" {
   }
   name                                 = "${var.vnet.vnet_peering.local_name}"
   allow_forwarded_traffic              = true
-  allow_gateway_transit                = true
+  allow_gateway_transit                = false
   allow_virtual_network_access         = true
   use_remote_gateways                  = false
   create_reverse_peering               = true
