@@ -28,7 +28,7 @@ subnets:
         protocol: "Tcp"
         source_address_prefix: "*"
         source_port_range: "*"    
-  dev_function_app:
+  dev-function-app:
     address_prefixes: ["10.1.2.0/24"]
     nsg: "dev-function-app-nsg"
     add_route_table: true
