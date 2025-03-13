@@ -1,0 +1,52 @@
+subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
+resource_group_name: "tfwe-pt-dev-rg-app-01"
+location: "westeurope"
+# app_insights:
+#   name: "tfwetrdevai01"
+#   internet_ingestion_enabled : true
+#   internet_query_enabled : true
+# key_vault:
+#   name: "tfwetrdevkv01"
+#   purge_protection_enabled: false
+#   public_network_access_enabled: false
+# container_registry:
+#   name: "tfwetrdevcr01"
+# landing:
+#   storage_account_name: "tfwetrdevstg01"
+# open_ai:
+#   name: "tfwetrdevopenai01"
+#   location: "westeurope"
+# ai_services:
+#   name: "tfwetrdevaiservices01"
+#   location: "westeurope"
+# document_intelligence:
+#   name: "tfwetrdevdocint01"
+# ai_language:
+#   name: "tfwetrdevailang01"
+# ai_search:
+#   name: "tfwetrdevaisrch01"
+#   location: "westeurope"
+# aml:
+#   name: "tfwetrdevaml01"
+#   storage_account_name: "tfwetrdevstg02"
+
+# vnet parameters
+subnet:
+  name: development
+
+# function_app:
+#   name: tfwetrdevfunctionapp
+#   storage_account_name: "tfwetrdevstg03"
+#   service_plan_name: tfwetrdevfunctionapppln
+#   subnet_name: dev-function-app # vnet parameter
+#   docker:
+#     registry_server_url: "https://tfwetrdevcr01.azurecr.io"
+#     image_name: tfwetrdevfunctionapp
+#     image_tag: latest
+
+# logic_app:
+#   name: tfwetrdevlogicapp
+#   storage_account_name: "tfwetrdevstg04"
+#   service_plan_name: tfwetrdevlogicapppln
+#   subnet_name: dev-logic-app # vnet parameter
+
