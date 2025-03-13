@@ -72,21 +72,28 @@ echo "env_type is $env_type"
 
 terraform fmt -recursive
 
-# Get the backend variables
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-temp_backend_output_file=$(mktemp)
-python3 \
-./scripts/src/backend.py \
---backend variables/grp/prd/bed.yaml \
---variables variables/$market/$environment/$service.yaml \
---output-file $temp_backend_output_file
+current_working_directory=$(pwd)
+echo "Current working directory is $current_working_directory"
 
-# Read the backend output file and set the environment variables
-source $temp_backend_output_file
+init_terraform() {
 
-cd terraform/$service
+    cd $current_working_directory
 
-if [[ "$action" == "init" ]]; then
+    # Get the backend variables
+    export PYTHONPATH=$PYTHONPATH:$(pwd)
+    temp_backend_output_file=$(mktemp)
+    python3 \
+    ./scripts/src/backend.py \
+    --backend variables/grp/prd/bed.yaml \
+    --variables variables/$market/$environment/$service.yaml \
+    --output-file $temp_backend_output_file
+
+    # Read the backend output file and set the environment variables
+    source $temp_backend_output_file
+
+
+    cd terraform/$service
+
     echo "Clearing terraform state"
     rm -rf .terraform
     rm -rf .terraform.lock.hcl
@@ -101,9 +108,16 @@ if [[ "$action" == "init" ]]; then
     -backend-config="storage_account_name=$TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME" \
     -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
     -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
+}
+
+if [[ "$action" == "init" ]]; then
+    init_terraform
 fi
 
 if [[ "$action" == "plan" ]]; then
+    init_terraform
+    cd $current_working_directory
+    cd terraform/$service
     echo "Running terraform plan"
     terraform plan \
     -var market=$market \
@@ -112,6 +126,9 @@ if [[ "$action" == "plan" ]]; then
 fi
 
 if [[ "$action" == "apply" ]]; then
+    init_terraform
+    cd $current_working_directory
+    cd terraform/$service
     echo "Running terraform apply"
     terraform apply \
     -var market=$market \
@@ -121,6 +138,9 @@ if [[ "$action" == "apply" ]]; then
 fi
 
 if [[ "$action" == "destroy" ]]; then
+    init_terraform
+    cd $current_working_directory
+    cd terraform/$service
     echo "Running terraform destroy"
     terraform destroy \
     -var market=$market \

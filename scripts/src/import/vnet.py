@@ -69,13 +69,14 @@ class ImportState:
             for _key, _value in _vnet_variables["subnets"].items():
                 _logger.info(f"{_key}: {_value}")
                 _nsg_name = _value["nsg"]
+                _subnet_name = _value["name"]
                 self._import_resource(
                     name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_group.this',
                     resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/networkSecurityGroups/{_nsg_name}',
                 )
                 self._import_resource(
                     name=f'module.vnet.module.subnets["{_key}"].azapi_resource.subnet',
-                    resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/subnets/{_key}',
+                    resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/subnets/{_subnet_name}',
                 )
                 for _key1, _value1 in _value["nsg_rules"].items():
                     _logger.info(f"{_key1}: {_value1}")

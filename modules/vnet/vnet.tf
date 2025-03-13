@@ -83,7 +83,7 @@ module "subnets" {
   virtual_network = {
     resource_id = module.vnet.resource_id
   }
-  name             = each.key
+  name             = each.value.name
   address_prefixes = each.value.address_prefixes
   network_security_group = each.value.add_nsg ? {
     id = module.nsg[each.key].resource_id
