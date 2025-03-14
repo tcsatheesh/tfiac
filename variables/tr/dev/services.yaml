@@ -37,6 +37,17 @@ open_ai:
           }
         }
     }
+ai_foundry:
+  name: stcgenaidevtraif
+  storage_account_name: stcgenaidevtra06
+  projects: {
+    "AzureOpenAI": {
+      name: "azure-openai-project",
+      description: "Azure Open AI project",
+      friendly_name: "Azure Open AI",
+      location: "westeurope"
+    }
+  }
 ai_services:
   name: stcgenaidevtrais
   location: westeurope
