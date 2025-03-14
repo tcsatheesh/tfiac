@@ -39,10 +39,10 @@ open_ai:
           }
         }
     }
-
 ai_services:
   name: stcgenaidevptais
   location: westeurope
+  storage_account_name: stcgenaidevpts05
 document_intelligence:
   name: stcgenaidevptdoc
 ai_language:

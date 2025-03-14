@@ -21,15 +21,33 @@ container_registry:
 open_ai:
   name: stcgenaidevtroai
   location: swedencentral
+  deployments: {
+      gpt-4o-mini:
+        {
+          name: "gpt-4o-mini-2024-07-18",
+          model:
+            { 
+              format: "OpenAI", 
+              name: "gpt-4o-mini", 
+              version: "2024-07-18"
+            },
+          scale: { 
+            type: "Standard",
+            count: 100
+          }
+        }
+    }
 ai_services:
   name: stcgenaidevtrais
   location: westeurope
+  storage_account_name: stcgenaidevtra05
 ai_language:
   name: stcgenaidevtrlng
 aml:
   name: stcgenaidevtraml
   storage_account_name: stcgenaidevtrs02
 
+landing: null
 document_intelligence: null
 ai_search: null
 function_app: null

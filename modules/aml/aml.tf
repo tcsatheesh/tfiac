@@ -49,12 +49,12 @@ data "azurerm_log_analytics_workspace" "this" {
 }
 
 module "aml_storage" {
-  source       = "../../modules/storage"
-  dns          = var.dns
-  log          = var.log
-  vnet         = var.vnet
-  services     = var.services
-  storage_type = "aml"
+  source               = "../../modules/storage"
+  dns                  = var.dns
+  log                  = var.log
+  vnet                 = var.vnet
+  services             = var.services
+  storage_account_name = var.services.aml.storage_account_name
   providers = {
     azurerm.services = azurerm.services
     azurerm.vnet     = azurerm.vnet

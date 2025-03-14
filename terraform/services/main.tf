@@ -91,14 +91,14 @@ module "appinsights" {
 }
 
 module "landing_zone" {
-  source       = "../../modules/storage"
-  count        = local.services.landing != null ? 1 : 0
-  dns          = local.dns
-  log          = local.log
-  vnet         = local.vnet
-  services     = local.services
-  storage_type = "landing"
-  depends_on   = [azurerm_resource_group.rg]
+  source               = "../../modules/storage"
+  count                = local.services.landing != null ? 1 : 0
+  dns                  = local.dns
+  log                  = local.log
+  vnet                 = local.vnet
+  services             = local.services
+  storage_account_name = local.services.landing.storage_account_name
+  depends_on           = [azurerm_resource_group.rg]
   providers = {
     azurerm.services = azurerm
     azurerm.vnet     = azurerm.vnet

@@ -58,7 +58,7 @@ module "function_app_storage" {
   log                           = var.log
   vnet                          = var.vnet
   services                      = var.services
-  storage_type                  = "function_app"
+  storage_account_name          = var.services.function_app.storage_account_name
   public_network_access_enabled = true # TODO: fix later
   shared_access_key_enabled     = true # TODO: fix later
 

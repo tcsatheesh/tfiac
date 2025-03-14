@@ -46,6 +46,21 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
+module "ai_services_storage" {
+  source               = "../../modules/storage"
+  dns                  = var.dns
+  log                  = var.log
+  vnet                 = var.vnet
+  services             = var.services
+  storage_account_name = var.services.ai_services.storage_account_name
+  providers = {
+    azurerm.services = azurerm.services
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
+}
+
 module "aiservices" {
   source              = "Azure/avm-res-cognitiveservices-account/azurerm"
   kind                = "AIServices"
@@ -59,6 +74,11 @@ module "aiservices" {
   network_acls = {
     default_action = "Deny"
   }
+  storage = [
+    {
+      storage_account_id = module.ai_services_storage.storage_account_id
+    }
+  ]
   public_network_access_enabled = false
   custom_subdomain_name         = var.services.ai_services.name
   private_endpoints = {

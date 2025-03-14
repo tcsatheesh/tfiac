@@ -1,9 +1,5 @@
-variable "storage_type" {
+variable "storage_account_name" {
   type = string
-  validation {
-    condition     = var.storage_type == "landing" || var.storage_type == "aml" || var.storage_type == "function_app" || var.storage_type == "logic_app"
-    error_message = "storage_type must be either landing, aml, function_app or logic_app"
-  }
 }
 variable "dns" {}
 variable "log" {}
@@ -29,10 +25,6 @@ variable "network_rules" {
 
 locals {
   endpoints = toset(["blob", "queue", "table", "file"])
-}
-
-locals {
-  storage_account_name = var.storage_type == "landing" ? var.services.landing.storage_account_name : (var.storage_type == "aml" ? var.services.aml.storage_account_name : (var.storage_type == "function_app" ? var.services.function_app.storage_account_name : var.services.logic_app.storage_account_name))
 }
 
 terraform {
@@ -77,7 +69,7 @@ module "this" {
   account_tier                            = "Standard"
   account_kind                            = "StorageV2"
   location                                = var.services.location
-  name                                    = local.storage_account_name
+  name                                    = var.storage_account_name
   https_traffic_only_enabled              = true
   resource_group_name                     = var.services.resource_group_name
   min_tls_version                         = "TLS1_2"
@@ -90,12 +82,12 @@ module "this" {
     for endpoint in local.endpoints :
     endpoint => {
       # the name must be set to avoid conflicting resources.
-      name                            = "pe-${endpoint}-${local.storage_account_name}"
+      name                            = "pe-${endpoint}-${var.storage_account_name}"
       subnet_resource_id              = data.azurerm_subnet.this.id
       subresource_name                = endpoint
       private_dns_zone_resource_ids   = [data.azurerm_private_dns_zone.this[endpoint].id]
-      private_service_connection_name = "psc-${endpoint}-${local.storage_account_name}"
-      network_interface_name          = "nic-pe-${endpoint}-${local.storage_account_name}"
+      private_service_connection_name = "psc-${endpoint}-${var.storage_account_name}"
+      network_interface_name          = "nic-pe-${endpoint}-${var.storage_account_name}"
       inherit_lock                    = false
       resource_group_name             = var.vnet.resource_group_name
     }

@@ -12,61 +12,62 @@ app_insights:
   name: stcgenaidevgbain
   internet_ingestion_enabled: true
   internet_query_enabled: true
-# key_vault:
-#   name: stcgenaidevgbkvl
-#   purge_protection_enabled: false
-#   public_network_access_enabled: false
-# container_registry:
-#   name: stcgenaidevgbcon
-# landing:
-#   storage_account_name: stcgenaidevgbs01
-# open_ai:
-#   name: stcgenaidevgbswc
-#   location: swedencentral
-#   deployments: {
-#       gpt-4o-mini:
-#         {
-#           name: "gpt-4o-mini-2024-07-18",
-#           model:
-#             { 
-#               format: "OpenAI", 
-#               name: "gpt-4o-mini", 
-#               version: "2024-07-18"
-#             },
-#           scale: { 
-#             type: "Standard",
-#             count: 100
-#           }
-#         }
-#     }
+key_vault:
+  name: stcgenaidevgbkvl
+  purge_protection_enabled: false
+  public_network_access_enabled: false
+container_registry:
+  name: stcgenaidevgbcon
+landing:
+  storage_account_name: stcgenaidevgbs01
+open_ai:
+  name: stcgenaidevgbswc
+  location: swedencentral
+  deployments: {
+      gpt-4o-mini:
+        {
+          name: "gpt-4o-mini-2024-07-18",
+          model:
+            { 
+              format: "OpenAI", 
+              name: "gpt-4o-mini", 
+              version: "2024-07-18"
+            },
+          scale: { 
+            type: "Standard",
+            count: 100
+          }
+        }
+    }
 
-# ai_services:
-#   name: stcgenaidevgbais
-#   location: westeurope
-# document_intelligence:
-#   name: stcgenaidevgbdoc
-# ai_language:
-#   name: stcgenaidevgblng
-# ai_search:
-#   name: stcgenaidevgbsch
-#   location: francecentral
-# aml:
-#   name: stcgenaidevgbaml
-#   storage_account_name: stcgenaidevgbs02
+ai_services:
+  name: stcgenaidevgbais
+  location: westeurope
+  storage_account_name: stcgenaidevgbs05
+document_intelligence:
+  name: stcgenaidevgbdoc
+ai_language:
+  name: stcgenaidevgblng
+ai_search:
+  name: stcgenaidevgbsch
+  location: francecentral
+aml:
+  name: stcgenaidevgbaml
+  storage_account_name: stcgenaidevgbs02
 
-# function_app:
-#   name: stcgenaidevgbfna
-#   storage_account_name: stcgenaidevgbs03
-#   service_plan_name: stcgenaidevgbfnp
-#   subnet_name: FunctionAppSubnet
-#   docker:
-#     registry_server_url: https://stcgenaidevgbcon.azurecr.io
-#     image_name: tfweptdevfunctionapp
-#     image_tag: latest
+function_app:
+  name: stcgenaidevgbfna
+  storage_account_name: stcgenaidevgbs03
+  service_plan_name: stcgenaidevgbfnp
+  subnet_name: FunctionAppSubnet
+  docker:
+    registry_server_url: https://stcgenaidevgbcon.azurecr.io
+    image_name: tfweptdevfunctionapp
+    image_tag: latest
 
-# logic_app:
-#   name: stcgenaidevgblap
-#   storage_account_name: stcgenaidevgbs04
-#   service_plan_name: stcgenaidevgblpn
-#   subnet_name: LogicAppSubnet
+logic_app:
+  name: stcgenaidevgblap
+  storage_account_name: stcgenaidevgbs04
+  service_plan_name: stcgenaidevgblpn
+  subnet_name: LogicAppSubnet
 
