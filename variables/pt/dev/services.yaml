@@ -1,54 +1,53 @@
-subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
-resource_group_name: "tfwe-pt-dev-rg-app-01"
-location: "westeurope"
+subscription_id: 883c9081-23ed-4674-95c5-45c74834e093
+resource_group_name: stc-genai-dev-pt-rg
+location: westeurope
 app_insights:
-  name: "tfweptdevai01"
+  name: stcgenaidevptain
   internet_ingestion_enabled : true
   internet_query_enabled : true
 key_vault:
-  name: "tfweptdevkv01"
+  name: stcgenaidevptkvl
   purge_protection_enabled: false
   public_network_access_enabled: false
 container_registry:
-  name: "tfweptdevcr01"
+  name: stcgenaidevptcon
 landing:
-  storage_account_name: "tfweptdevstg01"
+  storage_account_name: stcgenaidevpts01
 open_ai:
-  name: "tfweptdevopenai01"
-  location: "westeurope"
+  name: stcgenaidevptswc
+  location: swedencentral
 ai_services:
-  name: "tfweptdevaiservices01"
-  location: "westeurope"
+  name: stcgenaidevptais
+  location: westeurope
 document_intelligence:
-  name: "tfweptdevdocint01"
+  name: stcgenaidevptdoc
 ai_language:
-  name: "tfweptdevailang01"
+  name: stcgenaidevptlng
 ai_search:
-  name: "tfweptdevaisrch01"
-  location: "westeurope"
+  name: stcgenaidevptsch
+  location: westeurope
 aml:
-  name: "tfweptdevaml01"
-  storage_account_name: "tfweptdevstg02"
+  name: stcgenaidevptaml
+  storage_account_name: stcgenaidevpts02
 
-# vnet parameters
 subnet:
-  name: development
+  name: Development
 
 function_app:
-  name: tfweptdevfunctionapp
-  storage_account_name: "tfweptdevstg03"
-  service_plan_name: tfweptdevfunctionapppln
-  subnet_name: dev-function-app # vnet parameter
+  name: stcgenaidevptfna
+  storage_account_name: stcgenaidevpts03
+  service_plan_name: stcgenaidevptfnp
+  subnet_name: FunctionAppSubnet
   docker:
-    registry_server_url: "https://tfweptdevcr01.azurecr.io"
+    registry_server_url: https://stcgenaidevptcon.azurecr.io
     image_name: tfweptdevfunctionapp
     image_tag: latest
 
 logic_app:
-  name: tfweptdevlogicapp
-  storage_account_name: "tfweptdevstg04"
-  service_plan_name: tfweptdevlogicapppln
-  subnet_name: dev-logic-app # vnet parameter
+  name: stcgenaidevptlap
+  storage_account_name: stcgenaidevpts04
+  service_plan_name: stcgenaidevptlpn
+  subnet_name: LogicAppSubnet
 
 backend:
   key: pt/dev/services.tfstate
