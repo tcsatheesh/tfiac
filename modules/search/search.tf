@@ -44,12 +44,13 @@ data "azurerm_log_analytics_workspace" "this" {
 
 module "search_service" {
   source              = "Azure/avm-res-search-searchservice/azurerm"
-  location            = var.services.location
+  location            = var.services.ai_search.location
   name                = var.services.ai_search.name
   resource_group_name = var.services.resource_group_name
   private_endpoints = {
     primary = {
       name                            = "pe-${var.services.ai_search.name}"
+      location                        = var.services.location
       private_dns_zone_resource_ids   = [data.azurerm_private_dns_zone.this.id]
       private_service_connection_name = "psc-${var.services.ai_search.name}"
       subnet_resource_id              = data.azurerm_subnet.this.id
