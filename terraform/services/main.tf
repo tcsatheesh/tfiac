@@ -26,7 +26,11 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
   storage_use_azuread = true
   subscription_id     = local.services.subscription_id
 }
@@ -56,6 +60,7 @@ resource "azurerm_resource_group" "rg" {
 
 module "keyvault" {
   source     = "../../modules/keyvault"
+  count      = local.services.key_vault != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -71,6 +76,7 @@ module "keyvault" {
 
 module "appinsights" {
   source     = "../../modules/appinsights"
+  count      = local.services.app_insights != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -86,6 +92,7 @@ module "appinsights" {
 
 module "landing_zone" {
   source       = "../../modules/storage"
+  count        = local.services.landing != null ? 1 : 0
   dns          = local.dns
   log          = local.log
   vnet         = local.vnet
@@ -102,6 +109,7 @@ module "landing_zone" {
 
 module "aiservices" {
   source     = "../../modules/aiservices"
+  count      = local.services.ai_services != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -117,6 +125,7 @@ module "aiservices" {
 
 module "openai" {
   source     = "../../modules/openai"
+  count      = local.services.open_ai != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -132,6 +141,7 @@ module "openai" {
 
 module "docint" {
   source     = "../../modules/docint"
+  count      = local.services.document_intelligence != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -147,6 +157,7 @@ module "docint" {
 
 module "language" {
   source     = "../../modules/language"
+  count      = local.services.ai_language != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -162,6 +173,7 @@ module "language" {
 
 module "cntreg" {
   source     = "../../modules/cntreg"
+  count      = local.services.container_registry != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -177,13 +189,14 @@ module "cntreg" {
 
 module "aml" {
   source                = "../../modules/aml"
+  count                 = local.services.aml != null ? 1 : 0
   dns                   = local.dns
   log                   = local.log
   vnet                  = local.vnet
   services              = local.services
-  app_insights_id       = module.appinsights.app_insights_id
-  keyvault_id           = module.keyvault.keyvault_id
-  container_registry_id = module.cntreg.container_registry_id
+  app_insights_id       = module.appinsights[0].app_insights_id
+  keyvault_id           = module.keyvault[0].keyvault_id
+  container_registry_id = module.cntreg[0].container_registry_id
   depends_on            = [azurerm_resource_group.rg]
   providers = {
     azurerm.services = azurerm
@@ -193,25 +206,9 @@ module "aml" {
   }
 }
 
-module "function_app" {
-  source                           = "../../modules/fnapp"
-  dns                              = local.dns
-  log                              = local.log
-  vnet                             = local.vnet
-  services                         = local.services
-  app_insights_instrumentation_key = module.appinsights.instrumentation_key
-  app_insights_connection_string   = module.appinsights.connection_string
-  depends_on                       = [azurerm_resource_group.rg]
-  providers = {
-    azurerm.services = azurerm
-    azurerm.vnet     = azurerm.vnet
-    azurerm.log      = azurerm.log
-    azurerm.dns      = azurerm.dns
-  }
-}
-
-module "search" {
+module "ai_search" {
   source     = "../../modules/search"
+  count      = local.services.ai_search != null ? 1 : 0
   dns        = local.dns
   log        = local.log
   vnet       = local.vnet
@@ -225,14 +222,33 @@ module "search" {
   }
 }
 
-module "logic_app" {
-  source                           = "../../modules/lgapp"
+module "function_app" {
+  source                           = "../../modules/fnapp"
+  count                            = local.services.function_app != null ? 1 : 0
   dns                              = local.dns
   log                              = local.log
   vnet                             = local.vnet
   services                         = local.services
-  app_insights_instrumentation_key = module.appinsights.instrumentation_key
-  app_insights_connection_string   = module.appinsights.connection_string
+  app_insights_instrumentation_key = module.appinsights[0].instrumentation_key
+  app_insights_connection_string   = module.appinsights[0].connection_string
+  depends_on                       = [azurerm_resource_group.rg]
+  providers = {
+    azurerm.services = azurerm
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
+}
+
+module "logic_app" {
+  source                           = "../../modules/lgapp"
+  count                            = local.services.logic_app != null ? 1 : 0
+  dns                              = local.dns
+  log                              = local.log
+  vnet                             = local.vnet
+  services                         = local.services
+  app_insights_instrumentation_key = module.appinsights[0].instrumentation_key
+  app_insights_connection_string   = module.appinsights[0].connection_string
   depends_on                       = [azurerm_resource_group.rg]
   providers = {
     azurerm.services = azurerm
