@@ -1,27 +1,3 @@
-variable "dns" {}
-variable "log" {}
-variable "vnet" {}
-variable "services" {}
-
-terraform {
-  required_providers {
-    azurerm = {
-      source = "hashicorp/azurerm"
-      configuration_aliases = [
-        azurerm.services,
-        azurerm.log,
-        azurerm.vnet,
-      azurerm.dns]
-    }
-  }
-}
-
-data "azurerm_log_analytics_workspace" "this" {
-  provider            = azurerm.log
-  name                = var.log.workspace_name
-  resource_group_name = var.log.resource_group_name
-}
-
 resource "azurerm_application_insights" "this" {
   name                       = var.services.app_insights.name
   location                   = var.services.location

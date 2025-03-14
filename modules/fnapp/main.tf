@@ -1,49 +1,3 @@
-variable "dns" {}
-variable "log" {}
-variable "vnet" {}
-variable "services" {}
-variable "app_insights_instrumentation_key" {
-  description = "The instrumentation key of the application insights"
-  type        = string
-}
-variable "app_insights_connection_string" {
-  description = "The connection string of the application insights"
-  type        = string
-}
-
-terraform {
-  required_providers {
-    azurerm = {
-      source = "hashicorp/azurerm"
-      configuration_aliases = [
-        azurerm.services,
-        azurerm.log,
-        azurerm.vnet,
-      azurerm.dns]
-    }
-  }
-}
-
-
-data "azurerm_subnet" "this" {
-  provider             = azurerm.vnet
-  name                 = var.services.function_app.subnet_name
-  virtual_network_name = var.vnet.name
-  resource_group_name  = var.vnet.resource_group_name
-}
-
-data "azurerm_private_dns_zone" "this" {
-  provider            = azurerm.dns
-  name                = var.dns.domain_names["website"]
-  resource_group_name = var.dns.resource_group_name
-}
-
-data "azurerm_log_analytics_workspace" "this" {
-  provider            = azurerm.log
-  name                = var.log.workspace_name
-  resource_group_name = var.log.resource_group_name
-}
-
 resource "azurerm_service_plan" "this" {
   location            = var.services.location
   name                = var.services.function_app.service_plan_name
@@ -59,7 +13,7 @@ module "function_app_storage" {
   vnet                          = var.vnet
   services                      = var.services
   storage_account_name          = var.services.function_app.storage_account_name
-  public_network_access_enabled = true # TODO: fix later
+  public_network_access_enabled = false
   shared_access_key_enabled     = true # TODO: fix later
 
   providers = {

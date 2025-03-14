@@ -1,5 +1,3 @@
-variable "dns" {}
-
 # create the resource group
 resource "azurerm_resource_group" "avmrg" {
   name     = var.dns.resource_group_name

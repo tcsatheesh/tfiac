@@ -1,12 +1,8 @@
-variable "log" {}
-
-# create the resource group
 resource "azurerm_resource_group" "avmrg" {
   name     = var.log.resource_group_name
   location = var.log.location
 }
 
-# This is the module call
 module "log_analytics_workspace" {
   source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
   location                                  = var.log.location
