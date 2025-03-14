@@ -59,6 +59,7 @@ module "openai" {
   private_endpoints = {
     pe_endpoint = {
       name                            = "pe-${var.services.open_ai.name}"
+      location                        = var.services.location
       private_dns_zone_resource_ids   = [data.azurerm_private_dns_zone.this.id]
       private_service_connection_name = "psc-${var.services.open_ai.name}"
       subnet_resource_id              = data.azurerm_subnet.this.id
