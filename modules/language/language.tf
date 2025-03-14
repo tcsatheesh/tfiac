@@ -25,7 +25,7 @@ data "azurerm_virtual_network" "this" {
 
 data "azurerm_subnet" "this" {
   provider             = azurerm.vnet
-  name                 = var.services.subnet.name
+  name                 = var.services.vnet.subnet.name
   virtual_network_name = var.vnet.name
   resource_group_name  = var.vnet.resource_group_name
 }
