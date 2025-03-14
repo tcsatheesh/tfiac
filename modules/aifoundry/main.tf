@@ -27,7 +27,7 @@ resource "azurerm_ai_foundry" "this" {
   }
 }
 
-resource "azurerm_ai_foundry_project" "example" {
+resource "azurerm_ai_foundry_project" "this" {
   for_each                     = tomap(var.services.ai_foundry.projects)
   name                         = each.value.name
   location                     = each.value.location
