@@ -53,12 +53,15 @@ resource "azurerm_service_plan" "this" {
 }
 
 module "function_app_storage" {
-  source       = "../../modules/storage"
-  dns          = var.dns
-  log          = var.log
-  vnet         = var.vnet
-  services     = var.services
-  storage_type = "function_app"
+  source                        = "../../modules/storage"
+  dns                           = var.dns
+  log                           = var.log
+  vnet                          = var.vnet
+  services                      = var.services
+  storage_type                  = "function_app"
+  public_network_access_enabled = true # TODO: fix later
+  shared_access_key_enabled     = true # TODO: fix later
+
   providers = {
     azurerm.services = azurerm.services
     azurerm.vnet     = azurerm.vnet

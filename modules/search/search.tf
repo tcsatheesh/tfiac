@@ -42,15 +42,6 @@ data "azurerm_log_analytics_workspace" "this" {
   resource_group_name = var.log.resource_group_name
 }
 
-# Create Private DNS Zone Virtual Network Link
-resource "azurerm_private_dns_zone_virtual_network_link" "this" {
-  provider              = azurerm.dns
-  name                  = "${var.vnet.name}-link"
-  private_dns_zone_name = data.azurerm_private_dns_zone.this.name
-  resource_group_name   = var.dns.resource_group_name
-  virtual_network_id    = data.azurerm_virtual_network.this.id
-}
-
 module "search_service" {
   source              = "Azure/avm-res-search-searchservice/azurerm"
   location            = var.services.location

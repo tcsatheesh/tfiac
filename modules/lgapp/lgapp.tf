@@ -61,6 +61,9 @@ module "logic_app_storage" {
   storage_type                  = "logic_app"
   public_network_access_enabled = true
   shared_access_key_enabled     = true
+  network_rules = {
+    default_action = "Allow"
+  }
   providers = {
     azurerm.services = azurerm.services
     azurerm.vnet     = azurerm.vnet
