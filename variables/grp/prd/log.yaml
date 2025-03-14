@@ -1,0 +1,7 @@
+subscription_id: 883c9081-23ed-4674-95c5-45c74834e093
+resource_group_name: stc-genai-logging-prod-rg
+location: westeurope
+workspace_name: stc-genai-logging-prod-lgn
+
+backend:
+  key: grp/prd/log.tfstate

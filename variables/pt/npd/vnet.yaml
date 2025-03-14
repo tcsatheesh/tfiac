@@ -1,38 +1,28 @@
 subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
-resource_group_name: "tfwe-pt-dev-rg-net-01"
-name: "tfwe-pt-npd-vnet-01"
+resource_group_name: "stc-genai-network-nonprod-pt-rg"
+name: "stc-genai-network-nonprod-pt-vnet"
 location: "westeurope"
-address_space: ["10.1.0.0/16"]
-route_table_name: "route-az-grp-firewall"
+address_space: ["10.240.2.0/24"]
+route_table_name: "route-to-firewall"
 
 vnet_peering:
-  local_name: tfwe-pt-npd-vnet-01-local-to-tf-grp-npd-vnet-01-remote
-  remote_name: tf-grp-npd-vnet-01-remote-to-tfwe-pt-npd-vnet-01-local
+  local_name: stc-genai-network-nonprod-pt-vnet-to-stc-genai-network-nonprod-vnet-peer
+  remote_name: stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-pt-vnet-peer
 
 subnets:
   development:
-    name: "development"
-    address_prefixes: ["10.1.0.0/24"]
+    name: "DevelopmentSubnet"
+    address_prefixes: ["10.240.2.0/26"]
     nsg: "dev-nsg"
     add_route_table: true
     add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
     delegation:  []
     has_nsg_rules: true
-    nsg_rules:
-      rule01:
-        name: "test-rule"
-        access: "Deny"
-        destination_address_prefix: "*"
-        destination_port_range: "80-88"
-        direction: "Outbound"
-        priority: 100
-        protocol: "Tcp"
-        source_address_prefix: "*"
-        source_port_range: "*"    
+    nsg_rules: {}
   dev-function-app:
-    name: "dev-function-app"
-    address_prefixes: ["10.1.2.0/24"]
+    name: "FunctionAppSubnet"
+    address_prefixes: ["10.240.2.144/28"]
     nsg: "dev-function-app-nsg"
     add_route_table: true
     add_nsg: true
@@ -46,8 +36,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   dev-logic-app:
-    name: "dev-logic-app"
-    address_prefixes: ["10.1.3.0/24"]
+    name: "LogicAppSubnet"
+    address_prefixes: ["10.240.2.128/28"]
     nsg: "dev-logic-app-nsg"
     add_route_table: true
     add_nsg: true
@@ -61,8 +51,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   pre-production:
-    name: "pre-production"
-    address_prefixes: ["10.1.1.0/24"]
+    name: "PreProductionSubnet"
+    address_prefixes: ["10.240.2.64/26"]
     nsg: "pre-nsg"
     add_route_table: true
     add_nsg: true
@@ -71,8 +61,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   pre-production-function-app:
-    name: "pre-production-function-app"
-    address_prefixes: ["10.1.4.0/24"]
+    name: "FunctionAppSubnetPre"
+    address_prefixes: ["10.240.2.176/28"]
     nsg: "pre-function-app-nsg"
     add_route_table: true
     add_nsg: true
@@ -86,8 +76,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   pre-production-logic-app:
-    name: "pre-production-logic-app"
-    address_prefixes: ["10.1.5.0/24"]
+    name: "LogicAppSubnetPre"
+    address_prefixes: ["10.240.2.160/28"]
     nsg: "pre-logic-app-nsg"
     add_route_table: true
     add_nsg: true

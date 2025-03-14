@@ -1,14 +1,14 @@
-subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
-resource_group_name: "tfwe-rg-grp-npd-net-01"
-name: "tf-grp-npd-vnet-01"
-location: "westeurope"
-address_space: ["10.0.0.0/16"]
-route_table_name: "route-az-grp-firewall"
+subscription_id: 883c9081-23ed-4674-95c5-45c74834e093
+resource_group_name: stc-genai-network-nonprod-rg
+name: stc-genai-network-nonprod-vnet
+location: westeurope
+address_space: ["10.240.4.0/23"]
+route_table_name: route-az-grp-firewall
 
 subnets:
   development:
-    name: "development"
-    address_prefixes: ["10.0.0.0/24"]
+    name: "DevelopmentSubnet"
+    address_prefixes: ["10.240.4.0/26"]
     nsg: "dev-nsg"
     add_route_table: true
     add_nsg: true
@@ -42,8 +42,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   dev-logic-app:
-    name: "dev-logic-app"
-    address_prefixes: ["10.0.3.0/24"]
+    name: "LogicAppSubnet"
+    address_prefixes: ["10.240.5.128/28"]
     nsg: "dev-logic-app-nsg"
     add_route_table: true
     add_nsg: true
@@ -57,8 +57,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   pre-production:
-    name: "pre-production"
-    address_prefixes: ["10.0.1.0/24"]
+    name: "PreProductionSubnet"
+    address_prefixes: ["10.240.4.64/26"]
     nsg: "pre-nsg"
     add_route_table: true
     add_nsg: true
@@ -67,8 +67,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   pre-production-function-app:
-    name: "pre-production-function-app"
-    address_prefixes: ["10.0.4.0/24"]
+    name: "FunctionAppSubnetPre"
+    address_prefixes: ["10.240.5.144/28"]
     nsg: "pre-function-app-nsg"
     add_route_table: true
     add_nsg: true
@@ -82,8 +82,8 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   pre-production-logic-app:
-    name: "pre-production-logic-app"
-    address_prefixes: ["10.0.5.0/24"]
+    name: "LogicAppSubnetPre"
+    address_prefixes: ["10.240.5.160/28"]
     nsg: "pre-logic-app-nsg"
     add_route_table: true
     add_nsg: true
@@ -96,9 +96,19 @@ subnets:
       }]
     has_nsg_rules: false
     nsg_rules: {}
+  api-management:
+    name: "ApiManagementSubnet"
+    address_prefixes: ["10.240.4.144/28"]
+    nsg: "api-nsg"
+    add_route_table: false
+    add_nsg: true
+    service_endpoints: []
+    delegation:  []
+    has_nsg_rules: false
+    nsg_rules: {}
   firewall:
-    name: "firewall"
-    address_prefixes: ["10.0.6.0/24"]
+    name: "AzureFirewallSubnet"
+    address_prefixes: ["10.240.5.0/26"]
     nsg: "firewall-nsg"
     add_route_table: false
     add_nsg: false
@@ -107,21 +117,11 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
   firewall-mgmt:
-    name: "firewall-mgmt"
-    address_prefixes: ["10.0.7.0/24"]
+    name: "AzureFirewallManagementSubnet"
+    address_prefixes: ["10.240.5.64/26"]
     nsg: "firewall-mgmt-nsg"
     add_route_table: false
     add_nsg: false
-    service_endpoints: []
-    delegation:  []
-    has_nsg_rules: false
-    nsg_rules: {}
-  api-management:
-    name: "api-management"
-    address_prefixes: ["10.0.8.0/24"]
-    nsg: "api-nsg"
-    add_route_table: false
-    add_nsg: true
     service_endpoints: []
     delegation:  []
     has_nsg_rules: false
