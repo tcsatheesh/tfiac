@@ -121,11 +121,11 @@ class ImportState:
                     _remote_vnet_resource_group_name = _remote_vnet_variables["resource_group_name"]
 
                     self._import_resource(
-                        name='module.vnet.module.peering["enabled"].azapi_resource.this[0]',
+                        name='module.vnet.module.peering[0].azapi_resource.this[0]',
                         resource_id=f'/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["local_name"]}',
                     )
                     self._import_resource(
-                        name='module.vnet.module.peering["enabled"].azapi_resource.reverse[0]',
+                        name='module.vnet.module.peering[0].azapi_resource.reverse[0]',
                         resource_id=f'/subscriptions/{_remote_vnet_subscription_id}/resourceGroups/{_remote_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_remote_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["remote_name"]}',
                     )
 

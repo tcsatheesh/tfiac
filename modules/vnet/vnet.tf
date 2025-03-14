@@ -98,6 +98,7 @@ module "subnets" {
 }
 
 data "azurerm_virtual_network" "remote" {
+  count               = local.peering_enabled ? 1 : 0
   provider            = azurerm.remote_vnet
   name                = var.remote_vnet.name
   resource_group_name = var.remote_vnet.resource_group_name
@@ -108,13 +109,13 @@ locals {
 }
 
 module "peering" {
-  source   = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
-  for_each = local.peering_enabled ? { "enabled" = true } : {}
+  source = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
+  count  = local.peering_enabled ? 1 : 0
   virtual_network = {
     resource_id = module.vnet.resource_id
   }
   remote_virtual_network = {
-    resource_id = data.azurerm_virtual_network.remote.id
+    resource_id = data.azurerm_virtual_network.remote[count.index].id
   }
   name                                 = var.vnet.vnet_peering.local_name
   allow_forwarded_traffic              = true
