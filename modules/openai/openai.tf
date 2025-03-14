@@ -51,20 +51,7 @@ module "openai" {
   managed_identities = {
     system_assigned = true
   }
-  # cognitive_deployments = {
-  #   "gpt-4o-mini" = {
-  #     name = "gpt-4o-mini"
-  #     model = {
-  #       format  = "OpenAI"
-  #       name    = "gpt-4o-mini"
-  #       version = "2024-07-18"
-  #     }
-  #     scale = {
-  #       type  = "Standard"
-  #       count = 100
-  #     }
-  #   }
-  # }
+  cognitive_deployments = var.services.open_ai.deployments
   network_acls = {
     default_action = "Deny"
   }
@@ -72,7 +59,7 @@ module "openai" {
   private_endpoints = {
     pe_endpoint = {
       name                            = "pe-${var.services.open_ai.name}"
-      private_dns_zone_resource_ids   = toset([data.azurerm_private_dns_zone.this.id])
+      private_dns_zone_resource_ids   = [data.azurerm_private_dns_zone.this.id]
       private_service_connection_name = "psc-${var.services.open_ai.name}"
       subnet_resource_id              = data.azurerm_subnet.this.id
       network_interface_name          = "nic-pe-${var.services.open_ai.name}"

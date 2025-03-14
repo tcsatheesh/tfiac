@@ -3,8 +3,8 @@ resource_group_name: stc-genai-dev-pt-rg
 location: westeurope
 app_insights:
   name: stcgenaidevptain
-  internet_ingestion_enabled : true
-  internet_query_enabled : true
+  internet_ingestion_enabled: true
+  internet_query_enabled: true
 key_vault:
   name: stcgenaidevptkvl
   purge_protection_enabled: false
@@ -16,6 +16,23 @@ landing:
 open_ai:
   name: stcgenaidevptswc
   location: swedencentral
+  deployments: {
+      gpt-4o-mini:
+        {
+          name: "gpt-4o-mini-2024-07-18",
+          model:
+            { 
+              format: "OpenAI", 
+              name: "gpt-4o-mini", 
+              version: "2024-07-18"
+            },
+          scale: { 
+            type: "Standard",
+            count: 100
+          }
+        }
+    }
+
 ai_services:
   name: stcgenaidevptais
   location: westeurope
@@ -25,7 +42,7 @@ ai_language:
   name: stcgenaidevptlng
 ai_search:
   name: stcgenaidevptsch
-  location: westeurope
+  location: francecentral
 aml:
   name: stcgenaidevptaml
   storage_account_name: stcgenaidevpts02
