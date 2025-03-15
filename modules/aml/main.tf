@@ -39,5 +39,20 @@ module "azureml" {
     create_new  = false
   }
   enable_telemetry = false
+
+  private_endpoints = {
+    api = {
+      name                          = "pe-api-aml"
+      subnet_resource_id            = data.azurerm_subnet.this.id
+      private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.amlapi.id]
+      inherit_lock                  = false
+    }
+    notebooks = {
+      name                          = "pe-notebooks-aml"
+      subnet_resource_id            = data.azurerm_subnet.this.id
+      private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.amlnotebook.id]
+      inherit_lock                  = false
+    }
+  }
 }
 

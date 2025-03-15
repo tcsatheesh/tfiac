@@ -18,6 +18,8 @@ domain_names:
   enterpriseredis: privatelink.redisenterprise.cache.azure.net
   managedredis: privatelink.redis.azure.net
   sql: privatelink.database.windows.net
+  amlapi: privatelink.api.azureml.ms
+  amlnotebook: privatelink.notebooks.azure.net
 
 backend:
   key: grp/prd/dns.tfstate

@@ -17,6 +17,18 @@ data "azurerm_private_dns_zone" "this" {
   resource_group_name = var.dns.resource_group_name
 }
 
+data "azurerm_private_dns_zone" "amlapi" {
+  provider            = azurerm.dns
+  name                = var.dns.domain_names["amlapi"]
+  resource_group_name = var.dns.resource_group_name
+}
+
+data "azurerm_private_dns_zone" "amlnotebook" {
+  provider            = azurerm.dns
+  name                = var.dns.domain_names["amlnotebook"]
+  resource_group_name = var.dns.resource_group_name
+}
+
 data "azurerm_log_analytics_workspace" "this" {
   provider            = azurerm.log
   name                = var.log.workspace_name
