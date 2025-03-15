@@ -163,10 +163,14 @@ class ImportState:
                     name='module.vnet.module.fw_public_ip[0].azurerm_public_ip.this',
                     resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/publicIPAddresses/{_firewall_variables["public_ip_name"]}',
                 )
-                self._import_resource('module.vnet.module.fw_managment_public_ip[0].azurerm_public_ip.this',
+                self._import_resource(
+                    name='module.vnet.module.fw_managment_public_ip[0].azurerm_public_ip.this',
                     resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/publicIPAddresses/{_firewall_variables["management"]["public_ip_name"]}',
                 )
-
+                self._import_resource(
+                    name='module.vnet.module.firewall[0].azurerm_monitor_diagnostic_setting.this["to_law"]',
+                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}|to_law',
+                )
 
             _dns_variables_file_path = os.path.join(
                 os.path.abspath(os.getcwd()),
