@@ -129,6 +129,43 @@ class ImportState:
                         resource_id=f'/subscriptions/{_remote_vnet_subscription_id}/resourceGroups/{_remote_vnet_resource_group_name}/providers/Microsoft.Network/virtualNetworks/{_remote_vnet_variables["name"]}/virtualNetworkPeerings/{_vnet_variables["vnet_peering"]["remote_name"]}',
                     )
 
+            if "vnet_peering" not in _vnet_variables:
+                # Handle firewall import
+                _firewall_variables_file_path = os.path.join(
+                    os.path.abspath(os.getcwd()),
+                    _args.firewall_variables,
+                )
+                _firewall_variables_file_path = os.path.abspath(
+                    _firewall_variables_file_path,
+                )
+
+                if not os.path.exists(_firewall_variables_file_path):
+                    self._logger.error(f"Variables file not found at {_firewall_variables_file_path}")
+                else:
+                    self._logger.info(f"Importing variables from {_firewall_variables_file_path}")
+                    with open(_firewall_variables_file_path, "r") as file:
+                        _firewall_variables = yaml.safe_load(file)
+                
+                _firewall_subscription_id = _firewall_variables["subscription_id"]
+                _firewall_resource_group_name = _firewall_variables["resource_group_name"]
+                _firewall_name = _firewall_variables["name"]
+                _logger.info("Importing firewall...")
+                _firewall_name = _firewall_variables["name"]
+                self._import_resource(
+                    name='module.vnet.module.firewall[0].azurerm_firewall.this',
+                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}',
+                )
+                self._import_resource(
+                    name='module.vnet.module.firewall[0].azurerm_firewall_policy.this',
+                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_variables["policy_name"]}',
+                )
+                self._import_resource(
+                    name='module.vnet.module.fw_public_ip[0].azurerm_public_ip.this',
+                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/publicIPAddresses/{_firewall_variables["public_ip_name"]}',
+                )
+                self._import_resource('module.vnet.module.fw_managment_public_ip[0].azurerm_public_ip.this',
+                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/publicIPAddresses/{_firewall_variables["management"]["public_ip_name"]}',
+                )
 
 
             _dns_variables_file_path = os.path.join(
@@ -185,6 +222,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Remote VNet variables to use",
+    )
+    parser.add_argument(
+        "--firewall-variables",
+        type=str,
+        required=True,
+        help="Firewall variables to use",
     )
     parser.add_argument(
         "--market",

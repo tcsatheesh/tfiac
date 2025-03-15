@@ -21,7 +21,7 @@ module "fw_managment_public_ip" {
 module "fwpolicy" {
   source              = "Azure/avm-res-network-firewallpolicy/azurerm"
   count               = local.firewall_enabled ? 1 : 0
-  name                = var.firewall.firewall_policy_name
+  name                = var.firewall.policy_name
   location            = var.firewall.location
   resource_group_name = var.firewall.resource_group_name
 }

@@ -174,6 +174,7 @@ if [[ "$action" == "import" ]]; then
     --variables variables/$market/$environment/$service.yaml \
     --dns-variables variables/grp/prd/dns.yaml \
     --remote-vnet-variables variables/grp/$env_type/vnet.yaml \
+    --firewall-variables variables/grp/$env_type/firewall.yaml \
     --yes
 fi
 
