@@ -11,7 +11,7 @@ on:
         description: 'Environment to deploy to'
         required: true
         type: string
-      az_svc:
+      service:
         description: 'Service to deploy'
         required: true
         type: string
@@ -91,13 +91,13 @@ jobs:
         ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
         ./scripts/src/backend.py \
         --backend variables/grp/prd/bed.yaml \
-        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
+        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.service }}.yaml \
         --output-file $temp_backend_output_file
         
         # Read the backend output file and set the environment variables
         source $temp_backend_output_file
 
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
 
         terraform init \
          -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
@@ -109,7 +109,7 @@ jobs:
 
     - name: Apply any patches
       run: |
-        if [[ "${{ inputs.az_svc }}" == "services" ]]; then
+        if [[ "${{ inputs.service }}" == "services" ]]; then
           echo "Running patch for AML Private Endpoint"
           chmod +x ./patch/aml/patch.sh
           ./patch/aml/patch.sh
@@ -120,7 +120,7 @@ jobs:
     # Will fail the build if not
     - name: Terraform Format
       run: |
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
         terraform fmt -recursive -check
 
     - name: Find environemnt type
@@ -138,7 +138,7 @@ jobs:
     - name: Terraform Plan
       id: tf-plan
       run: |
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
         export exitcode=0
         terraform plan \
         -var market=${{ inputs.market }} \
@@ -160,13 +160,13 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: tfplan
-        path: terraform/${{ inputs.az_svc }}/tfplan
+        path: terraform/${{ inputs.service }}/tfplan
         
     # Create string output of Terraform Plan
     - name: Create String Output
       id: tf-plan-string
       run: |
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
         TERRAFORM_PLAN=$(terraform show -no-color tfplan)
         
         delimiter="$(openssl rand -hex 8)"
@@ -186,7 +186,7 @@ jobs:
         SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
       continue-on-error: true
       run: |
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
         echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
       
     # If this is a PR post the changes
@@ -262,13 +262,13 @@ jobs:
         ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
         ./scripts/src/backend.py \
         --backend variables/grp/prd/bed.yaml \
-        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
+        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.service }}.yaml \
         --output-file $temp_backend_output_file
         
         # Read the backend output file and set the environment variables
         source $temp_backend_output_file
 
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
 
         terraform init \
          -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
@@ -277,17 +277,26 @@ jobs:
          -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
          -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
 
+    - name: Apply any patches
+      run: |
+        if [[ "${{ inputs.service }}" == "services" ]]; then
+          echo "Running patch for AML Private Endpoint"
+          chmod +x ./patch/aml/patch.sh
+          ./patch/aml/patch.sh
+          echo "Patch completed"
+        fi
+  
     # Download saved plan from artifacts  
     - name: Download Terraform Plan
       uses: actions/download-artifact@v4
       with:
         name: tfplan
-        path: terraform/${{ inputs.az_svc }}
+        path: terraform/${{ inputs.service }}
 
     # Terraform Apply
     - name: Terraform Apply
       run: |
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
         terraform ${{ inputs.action }} -auto-approve tfplan
 
     - name: Remove virtual environment
@@ -343,13 +352,13 @@ jobs:
         ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
         ./scripts/src/backend.py \
         --backend variables/grp/prd/bed.yaml \
-        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.az_svc }}.yaml \
+        --variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.service }}.yaml \
         --output-file $temp_backend_output_file
         
         # Read the backend output file and set the environment variables
         source $temp_backend_output_file
 
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
 
         terraform init \
          -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
@@ -372,7 +381,7 @@ jobs:
     # Terraform Destroy
     - name: Terraform Destroy
       run: |
-        cd terraform/${{ inputs.az_svc }}
+        cd terraform/${{ inputs.service }}
         terraform ${{ inputs.action }} \
         -var market=${{ inputs.market }} \
         -var environment=${{ inputs.environment }} \

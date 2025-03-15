@@ -101,6 +101,14 @@ jobs:
           -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
           -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
 
+      - name: Apply any patches
+        run: |
+          if [[ "${{ inputs.service }}" == "services" ]]; then
+            echo "Running patch for AML Private Endpoint"
+            chmod +x ./patch/aml/patch.sh
+            ./patch/aml/patch.sh
+            echo "Patch completed"
+          fi
       - name: Find environemnt type
         run: |
           env_type="npd"
