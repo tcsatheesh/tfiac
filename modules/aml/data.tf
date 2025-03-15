@@ -1,3 +1,5 @@
+data "azurerm_client_config" "this" {}
+
 data "azurerm_virtual_network" "this" {
   provider            = azurerm.vnet
   name                = var.vnet.name

@@ -57,7 +57,14 @@ ai_language:
 aml:
   name: stcgenaidevtraml
   storage_account_name: stcgenaidevtrs02
-  compute_instances: {}
+  compute_instances: {
+    # instance01: {
+    #   name: "stcgenaidevtradminci01",
+    #   vm_size: "Standard_DS2_v2",
+    #   description: "Compute instance for development",
+    #   object_id: "9caca5ad-f872-471c-ac29-c650a32783ee"
+    # }
+  }
 uai:
   name: stcgenaidevtrciumid01
 landing: null

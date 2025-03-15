@@ -6,9 +6,13 @@ resource "azurerm_machine_learning_compute_instance" "this" {
   virtual_machine_size          = each.value.vm_size
   description                   = each.value.description
   node_public_ip_enabled        = false
+  assign_to_user {
+    object_id = each.value.object_id
+    tenant_id = data.azurerm_client_config.this.tenant_id
+  }
 
   identity {
-    type         = "SystemAssigned,UserAssigned"
-    identity_ids = [for id in each.value.user_assigned_identity : id]
+    type         = "SystemAssigned, UserAssigned"
+    identity_ids = [var.uai_id]
   }
 }

@@ -46,12 +46,14 @@ module "azureml" {
       subnet_resource_id            = data.azurerm_subnet.this.id
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.amlapi.id]
       inherit_lock                  = false
+      resource_group_name = var.vnet.resource_group_name
     }
     notebooks = {
       name                          = "pe-notebooks-aml"
       subnet_resource_id            = data.azurerm_subnet.this.id
       private_dns_zone_resource_ids = [data.azurerm_private_dns_zone.amlnotebook.id]
       inherit_lock                  = false
+      resource_group_name = var.vnet.resource_group_name
     }
   }
 }
