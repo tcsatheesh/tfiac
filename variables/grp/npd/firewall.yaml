@@ -3,7 +3,128 @@ subscription_id: 883c9081-23ed-4674-95c5-45c74834e093
 resource_group_name: "stc-genai-network-nonprod-rg"
 location: "westeurope"
 name: "stc-genai-network-nonprod-vnet-firewall"
-policy_name: "stc-genai-network-nonprod-vnet-firewall-policy"
+sku_tier: "Basic"
+sku_name: "AZFW_VNet"
+policy:
+  name: "stc-genai-network-nonprod-vnet-firewall-policy"
+  sku: Basic
 public_ip_name: "stc-genai-network-nonprod-vnet-firewall-ip"
 management:
   public_ip_name: "stc-genai-network-nonprod-vnet-firewall-management-ip"
+ipgroups: {
+  market-development-subnets: {
+    name: "market-development-subnets",
+    cidrs: [
+      "10.240.1.0/26",
+      "10.240.1.128/28",
+      "10.240.1.144/28",
+      "10.240.2.0/26",
+      "10.240.2.128/28",
+      "10.240.2.144/28",
+      "10.240.6.0/26",
+      "10.240.6.128/28",
+      "10.240.6.144/28",
+      "10.240.7.0/26",
+      "10.240.7.128/28",
+      "10.240.7.144/28",
+      "10.240.8.0/26",
+      "10.240.8.128/28",
+      "10.240.8.144/28",
+      "10.240.9.0/26",
+      "10.240.9.128/28",
+      "10.240.9.144/28",
+      "10.240.10.0/26",
+      "10.240.10.128/28",
+      "10.240.10.144/28",
+      "10.240.11.0/26",
+      "10.240.11.128/28",
+      "10.240.11.144/28",
+      "10.240.12.0/26",
+      "10.240.12.128/28",
+      "10.240.12.144/28",
+      "10.240.13.0/26",
+      "10.240.13.128/28",
+      "10.240.13.144/28",
+      "10.240.14.0/26",
+      "10.240.14.128/28",
+      "10.240.14.144/28"
+    ]
+  },
+  group-development-subnets: {
+    name: "group-development-subnets",
+    cidrs: [
+      "10.240.4.0/26"
+    ]
+  },
+  market-pre-production-subnets: {
+    name: "market-pre-production-subnets",
+    cidrs: [
+      "10.240.1.64/26",
+      "10.240.1.160/28",
+      "10.240.1.176/28",
+      "10.240.2.64/26",
+      "10.240.2.160/28",
+      "10.240.2.176/28",
+      "10.240.6.64/26",
+      "10.240.6.160/28",
+      "10.240.6.176/28",
+      "10.240.6.192/28",
+      "10.240.7.64/26",
+      "10.240.7.160/28",
+      "10.240.7.176/28",
+      "10.240.8.64/26",
+      "10.240.8.160/28",
+      "10.240.8.176/28",
+      "10.240.9.64/26",
+      "10.240.9.160/28",
+      "10.240.9.176/28",
+      "10.240.10.64/26",
+      "10.240.10.160/28",
+      "10.240.10.176/28",
+      "10.240.11.64/26",
+      "10.240.11.160/28",
+      "10.240.11.176/28",
+      "10.240.12.64/26",
+      "10.240.12.160/28",
+      "10.240.12.176/28",
+      "10.240.13.64/26",
+      "10.240.13.160/28",
+      "10.240.13.176/28",
+      "10.240.14.64/26",
+      "10.240.14.160/28",
+      "10.240.14.176/28",
+    ]
+  },
+  group-pre-production-subnets: {
+    name: "group-pre-production-subnets",
+    cidrs: [
+      "10.240.4.64/26"
+    ]
+  },
+  group-api-management-subnet: {
+    name: "group-api-management-subnet",
+    cidrs: [
+      "10.240.14.144/28"
+    ]
+  },
+  pre-production-build-server: {
+    name: "pre-production-build-server",
+    cidrs: [
+      "10.240.4.164/32"
+    ]
+  },
+  portugal-pre-production-logicapp-subnets: {
+    name: "portugal-pre-production-logicapp-subnets",
+    cidrs: [
+      "10.240.2.160/28"
+    ]
+  },
+}
+rulecollections: {
+  azuread: [
+    "market-development-subnets",
+    "group-development-subnets",
+    "market-pre-production-subnets",
+    "group-pre-production-subnets",
+  ]
+}

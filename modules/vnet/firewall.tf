@@ -21,9 +21,10 @@ module "fw_managment_public_ip" {
 module "fwpolicy" {
   source              = "Azure/avm-res-network-firewallpolicy/azurerm"
   count               = local.firewall_enabled ? 1 : 0
-  name                = var.firewall.policy_name
+  name                = var.firewall.policy.name
   location            = var.firewall.location
   resource_group_name = var.firewall.resource_group_name
+  firewall_policy_sku = var.firewall.policy.sku
 }
 
 module "firewall" {
@@ -33,8 +34,8 @@ module "firewall" {
   enable_telemetry    = false
   location            = var.firewall.location
   resource_group_name = var.firewall.resource_group_name
-  firewall_sku_tier   = "Basic"
-  firewall_sku_name   = "AZFW_VNet"
+  firewall_sku_tier   = var.firewall.sku_tier
+  firewall_sku_name   = var.firewall.sku_name
   firewall_zones      = ["1", "2", "3"]
   firewall_ip_configuration = [
     {
@@ -57,4 +58,16 @@ module "firewall" {
       metric_categories     = ["AllMetrics"]
     }
   }
+  firewall_policy_id = module.fwpolicy[0].resource_id
 }
+
+resource "azurerm_ip_group" "this" {
+  for_each            = tomap(var.firewall.ipgroups)
+  name                = each.value.name
+  location            = var.firewall.location
+  resource_group_name = var.firewall.resource_group_name
+
+  cidrs = each.value.cidrs
+}
+
+
