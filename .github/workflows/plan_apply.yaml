@@ -111,8 +111,8 @@ jobs:
       run: |
         if [[ "${{ inputs.service }}" == "services" ]]; then
           echo "Running patch for AML Private Endpoint"
-          chmod +x ./patch/aml/patch.sh
-          ./patch/aml/patch.sh
+          chmod +x ./patch/patch.sh
+          ./patch/patch.sh
           echo "Patch completed"
         fi
     
@@ -281,8 +281,8 @@ jobs:
       run: |
         if [[ "${{ inputs.service }}" == "services" ]]; then
           echo "Running patch for AML Private Endpoint"
-          chmod +x ./patch/aml/patch.sh
-          ./patch/aml/patch.sh
+          chmod +x ./patch/patch.sh
+          ./patch/patch.sh
           echo "Patch completed"
         fi
   
