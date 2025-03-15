@@ -110,6 +110,16 @@ init_terraform() {
     -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
 }
 
+apply_patch() {
+    if [[ "$service" == "services" ]]; then
+        cd $current_working_directory
+        echo "Running patch for AML Private Endpoint"
+        chmod +x ./patch/aml/patch.sh
+        ./patch/aml/patch.sh
+        echo "Patch completed"
+    fi
+}
+
 if [[ "$action" == "init" ]]; then
     init_terraform
 fi
@@ -127,6 +137,7 @@ fi
 
 if [[ "$action" == "apply" ]]; then
     init_terraform
+    apply_patch
     cd $current_working_directory
     cd terraform/$service
     echo "Running terraform apply"
@@ -151,6 +162,7 @@ fi
 
 if [[ "$action" == "import" ]]; then
     init_terraform
+    apply_patch
     cd $current_working_directory
     echo "Running terraform import"
     python3 \
