@@ -65,17 +65,6 @@ module "subnets" {
   delegation        = each.value.delegation
 }
 
-data "azurerm_virtual_network" "remote" {
-  count               = local.peering_enabled ? 1 : 0
-  provider            = azurerm.remote_vnet
-  name                = var.remote_vnet.name
-  resource_group_name = var.remote_vnet.resource_group_name
-}
-
-locals {
-  peering_enabled = var.remote_vnet.name != var.vnet.name
-}
-
 module "peering" {
   source = "Azure/avm-res-network-virtualnetwork/azurerm//modules/peering"
   count  = local.peering_enabled ? 1 : 0

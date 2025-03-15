@@ -1,1 +1,8 @@
 ip: "10.0.7.4"
+resource_group_name: "stc-genai-network-nonprod-rg"
+location: "westeurope"
+name: "stc-genai-network-nonprod-vnet-firewall"
+firewall_policy_name: "stc-genai-network-nonprod-vnet-firewall-policy"
+public_ip_name: "stc-genai-network-nonprod-vnet-firewall-ip"
+management:
+  public_ip_name: "stc-genai-network-nonprod-vnet-firewall-management-ip"
