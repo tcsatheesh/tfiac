@@ -156,7 +156,7 @@ class ImportState:
                     resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}',
                 )
                 self._import_resource(
-                    name='module.vnet.module.firewall[0].azurerm_firewall_policy.this',
+                    name='module.vnet.module.fwpolicy[0].azurerm_firewall_policy.this',
                     resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_variables["policy_name"]}',
                 )
                 self._import_resource(
@@ -169,7 +169,7 @@ class ImportState:
                 )
                 self._import_resource(
                     name='module.vnet.module.firewall[0].azurerm_monitor_diagnostic_setting.this["to_law"]',
-                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}|to_law',
+                    resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}|diag',
                 )
 
             _dns_variables_file_path = os.path.join(
