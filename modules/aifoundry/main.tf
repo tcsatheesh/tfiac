@@ -20,8 +20,6 @@ resource "azurerm_ai_foundry" "this" {
   storage_account_id      = module.ai_foundry_storage.storage_account_id
   key_vault_id            = var.keyvault_id
   application_insights_id = var.app_insights_id
-
-
   identity {
     type = "SystemAssigned"
   }
@@ -35,4 +33,7 @@ resource "azurerm_ai_foundry_project" "this" {
   friendly_name                = each.value.friendly_name
   ai_services_hub_id           = azurerm_ai_foundry.this.id
   high_business_impact_enabled = true
+  identity {
+    type = "SystemAssigned"
+  }
 }

@@ -38,7 +38,6 @@ module "azureml" {
     resource_id = var.app_insights_id
     create_new  = false
   }
-
-  tags             = {}
   enable_telemetry = false
 }
+
