@@ -57,7 +57,9 @@ ai_language:
 aml:
   name: stcgenaidevtraml
   storage_account_name: stcgenaidevtrs02
-
+  compute_instances: {}
+uai:
+  name: stcgenaidevtrciumid01
 landing: null
 document_intelligence: null
 ai_search: null

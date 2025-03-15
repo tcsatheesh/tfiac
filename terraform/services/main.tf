@@ -207,6 +207,22 @@ module "cntreg" {
   }
 }
 
+module "uai" {
+  source     = "../../modules/uai"
+  count      = local.services.uai != null ? 1 : 0
+  dns        = local.dns
+  log        = local.log
+  vnet       = local.vnet
+  services   = local.services
+  depends_on = [azurerm_resource_group.rg]
+  providers = {
+    azurerm.services = azurerm
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
+}
+
 module "aml" {
   source                = "../../modules/aml"
   count                 = local.services.aml != null ? 1 : 0
@@ -217,6 +233,7 @@ module "aml" {
   app_insights_id       = module.appinsights[0].app_insights_id
   keyvault_id           = module.keyvault[0].keyvault_id
   container_registry_id = module.cntreg[0].container_registry_id
+  uai_id                = module.uai[0].uai_id
   depends_on            = [azurerm_resource_group.rg]
   providers = {
     azurerm.services = azurerm
