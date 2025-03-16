@@ -6,7 +6,6 @@ vnet:
     name: DevelopmentSubnet
 backend:
   key: tr/dev/services.tfstate
-
 # services to deploy
 app_insights:
   name: stcgenaidevtrain
@@ -67,6 +66,24 @@ aml:
   }
 uai:
   name: stcgenaidevtrciumid01
+apim:
+  name: "stcgenaipregrpapm"
+  location: "westeurope"
+  resource_group_name: stc-genai-pre-grp-rg
+  deploy_apim: false
+  apis :
+    openai:
+      name: trdevoai
+      display_name: trdevoai
+      path: trdevoai/openai
+    monitoring:
+      name: trdevmon
+      display_name: trdevmon
+      path: trdevmon/openai
+    ailanguage:
+      name: trdevlng
+      display_name: trdevlng
+      path: trdevlng
 landing: null
 document_intelligence: null
 ai_search: null

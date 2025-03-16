@@ -6,11 +6,11 @@ vnet:
     name: PreProductionSubnet
 backend:
   key: grp/pre/services.tfstate
-
 apim:
   name: "stcgenaipregrpapm"
   location: "westeurope"
   resource_group_name: stc-genai-pre-grp-rg
+  deploy_apim: true
   sku: 
     name: "Developer_1"
   publisher_name: "Admin"
@@ -40,6 +40,7 @@ apim:
       response:
         body_bytes: 32
         headers_to_log: ["x-correlation-id"]
+  apis: null
 open_ai:
   name: stcgenaipregrpoai
   location: swedencentral

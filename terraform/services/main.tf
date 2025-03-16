@@ -297,7 +297,24 @@ module "logic_app" {
 
 module "apimananagement" {
   source                          = "../../modules/apim"
-  count                           = local.services.apim != null ? 1 : 0
+  count                           = local.services.apim.deploy_apim ? 1 : 0
+  dns                             = local.dns
+  log                             = local.log
+  vnet                            = local.vnet
+  services                        = local.services
+  appinsights_instrumentation_key = module.appinsights[0].instrumentation_key
+  depends_on                      = [azurerm_resource_group.rg]
+  providers = {
+    azurerm.services = azurerm
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
+}
+
+module "apimanagementapi" {
+  source                          = "../../modules/apim/api"
+  count                           = local.services.apim.apis != null ? 1 : 0
   dns                             = local.dns
   log                             = local.log
   vnet                            = local.vnet
