@@ -126,5 +126,14 @@ rulecollections: {
     "group-development-subnets",
     "market-pre-production-subnets",
     "group-pre-production-subnets",
+  ],
+  aml: [
+    "market-development-subnets",
+    "group-development-subnets",
+    "market-pre-production-subnets",
+    "group-pre-production-subnets",
+  ],
+  buildsvr: [
+    "pre-production-build-server",
   ]
 }
