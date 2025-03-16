@@ -114,7 +114,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
         "dev.azure.com",
         "*.dev.azure.com",
         "aex.dev.azure.com",
-        "aexprodea1.vsaex.visualstudio.c,om",
+        "aexprodea1.vsaex.visualstudio.com",
         "*vstmrblob.vsassets.io",
         "amp.azure.net",
         "app.vssps.dev.azure.com",
