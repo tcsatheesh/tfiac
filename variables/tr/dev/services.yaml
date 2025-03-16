@@ -76,10 +76,12 @@ apim:
       name: trdevoai
       display_name: trdevoai
       path: trdevoai/openai
+      backend: gtpgenaidevtroai
     monitoring:
       name: trdevmon
       display_name: trdevmon
       path: trdevmon/openai
+      backend: gtpgenaidevtroai
     ailanguage:
       name: trdevlng
       display_name: trdevlng
