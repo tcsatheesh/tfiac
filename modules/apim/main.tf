@@ -28,3 +28,46 @@ resource "azurerm_api_management" "this" {
   }
   public_ip_address_id = module.apim_public_ip.public_ip_id
 }
+
+resource "azurerm_api_management_logger" "this" {
+  name                = "apimlogger"
+  api_management_name = azurerm_api_management.this.name
+  resource_group_name = var.services.apim.resource_group_name
+
+  application_insights {
+    instrumentation_key = var.appinsights_instrumentation_key
+  }
+}
+
+resource "azurerm_api_management_diagnostic" "this" {
+  identifier               = "applicationinsights"
+  resource_group_name      = var.services.apim.resource_group_name
+  api_management_name      = azurerm_api_management.this.name
+  api_management_logger_id = azurerm_api_management_logger.this.id
+
+  sampling_percentage       = 100.0
+  always_log_errors         = true
+  log_client_ip             = true
+  verbosity                 = "information"
+  http_correlation_protocol = "W3C"
+
+  frontend_request {
+    body_bytes     = var.services.apim.diagnostics.frontend.request.body_bytes
+    headers_to_log = var.services.apim.diagnostics.frontend.request.headers_to_log
+  }
+
+  frontend_response {
+    body_bytes     = var.services.apim.diagnostics.frontend.response.body_bytes
+    headers_to_log = var.services.apim.diagnostics.frontend.response.headers_to_log
+  }
+
+  backend_request {
+    body_bytes     = var.services.apim.diagnostics.backend.request.body_bytes
+    headers_to_log = var.services.apim.diagnostics.backend.request.headers_to_log
+  }
+
+  backend_response {
+    body_bytes     = var.services.apim.diagnostics.backend.response.body_bytes
+    headers_to_log = var.services.apim.diagnostics.backend.response.headers_to_log
+  }
+}

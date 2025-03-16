@@ -296,13 +296,14 @@ module "logic_app" {
 }
 
 module "apimananagement" {
-  source     = "../../modules/apim"
-  count      = local.services.apim != null ? 1 : 0
-  dns        = local.dns
-  log        = local.log
-  vnet       = local.vnet
-  services   = local.services
-  depends_on = [azurerm_resource_group.rg]
+  source                          = "../../modules/apim"
+  count                           = local.services.apim != null ? 1 : 0
+  dns                             = local.dns
+  log                             = local.log
+  vnet                            = local.vnet
+  services                        = local.services
+  appinsights_instrumentation_key = module.appinsights[0].instrumentation_key
+  depends_on                      = [azurerm_resource_group.rg]
   providers = {
     azurerm.services = azurerm
     azurerm.vnet     = azurerm.vnet

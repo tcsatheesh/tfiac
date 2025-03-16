@@ -25,8 +25,23 @@ apim:
     name: stc-genai-network-nonprod-vnet
     subnet: ApiManagementSubnet
     resource_group_name: stc-genai-network-nonprod-rg
+  diagnostics:
+    frontend:
+      request:
+        body_bytes: 32
+        headers_to_log: ["x-correlation-id"]
+      response:
+        body_bytes: 32
+        headers_to_log: ["x-correlation-id"]
+    backend:
+      request:
+        body_bytes: 32
+        headers_to_log: ["x-correlation-id"]
+      response:
+        body_bytes: 32
+        headers_to_log: ["x-correlation-id"]
 open_ai:
-  name: gtpgenaipregrpoai
+  name: stcgenaipregrpoai
   location: swedencentral
   deployments: {
       gpt-4o-mini:
@@ -45,9 +60,12 @@ open_ai:
         }
     }
 ai_language:
-  name: gtpgenaipregrplng
+  name: stcgenaipregrplng
 
-app_insights: null
+app_insights:
+  name: stcgenaipregrpain
+  internet_ingestion_enabled : true
+  internet_query_enabled : true
 key_vault: null
 container_registry: null
 landing: null
