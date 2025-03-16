@@ -294,3 +294,19 @@ module "logic_app" {
     azurerm.dns      = azurerm.dns
   }
 }
+
+module "apimananagement" {
+  source     = "../../modules/apim"
+  count      = local.services.apim != null ? 1 : 0
+  dns        = local.dns
+  log        = local.log
+  vnet       = local.vnet
+  services   = local.services
+  depends_on = [azurerm_resource_group.rg]
+  providers = {
+    azurerm.services = azurerm
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
+}

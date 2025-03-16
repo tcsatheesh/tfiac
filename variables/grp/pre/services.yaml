@@ -1,0 +1,61 @@
+subscription_id: 883c9081-23ed-4674-95c5-45c74834e093
+resource_group_name: stc-genai-pre-grp-rg
+location: westeurope
+vnet:
+  subnet:
+    name: PreProductionSubnet
+backend:
+  key: grp/pre/services.tfstate
+
+apim:
+  name: "stcgenaipregrpapm"
+  location: "westeurope"
+  resource_group_name: stc-genai-pre-grp-rg
+  sku: 
+    name: "Developer_1"
+  publisher_name: "Admin"
+  publisher_email: "admin@MngEnvMCAP118941.onmicrosoft.com"
+  virtual_network_type: External
+  public_ip:
+    name: "stcgenaipregrpapm-ip"
+    domain_name_label: "stcgenaipregrpapm-ip"
+    location: "westeurope"
+    resource_group_name: stc-genai-network-nonprod-rg
+  vnet:
+    name: stc-genai-network-nonprod-vnet
+    subnet: ApiManagementSubnet
+    resource_group_name: stc-genai-network-nonprod-rg
+open_ai:
+  name: gtpgenaipregrpoai
+  location: swedencentral
+  deployments: {
+      gpt-4o-mini:
+        {
+          name: "gpt-4o-mini-2024-07-18",
+          model:
+            { 
+              format: "OpenAI", 
+              name: "gpt-4o-mini", 
+              version: "2024-07-18"
+            },
+          scale: { 
+            type: "Standard",
+            count: 100
+          }
+        }
+    }
+ai_language:
+  name: gtpgenaipregrplng
+
+app_insights: null
+key_vault: null
+container_registry: null
+landing: null
+ai_services: null
+document_intelligence: null
+ai_search: null
+aml: null
+function_app: null
+logic_app: null
+ai_foundry: null
+uai: null
