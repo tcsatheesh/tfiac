@@ -67,7 +67,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
   network_rule_collection {
     # https://learn.microsoft.com/en-us/azure/devops/organizations/security/allow-list-ip-url?view=azure-devops&tabs=IP-V4#outbound-connections
     name     = "allow-buildserver-azuredevops-ipaddresses"
-    priority = 1003
+    priority = 1004
     action   = "Allow"
     rule {
       name             = "azuredevopsipaddresses"
@@ -320,7 +320,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
   }
   application_rule_collection {
     # https://github.com/microsoft/containerregistry/blob/main/docs/client-firewall-rules.md
-    name     = "allow-buildserver-visualstudio-download"
+    name     = "allow-buildserver-microsoft-artifact-registry"
     priority = 1030
     action   = "Allow"
     rule {
