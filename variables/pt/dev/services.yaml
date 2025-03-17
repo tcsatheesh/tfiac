@@ -4,9 +4,6 @@ location: westeurope
 vnet:
   subnet:
     name: DevelopmentSubnet
-backend:
-  key: pt/dev/services.tfstate
-
 # services to deploy
 app_insights:
   name: stcgenaidevptain

@@ -91,6 +91,3 @@ subnets:
     has_nsg_rules: false
     nsg_rules: {}
 
-
-backend:
-  key: pt/npd/vnet.tfstate

@@ -4,8 +4,6 @@ location: westeurope
 vnet:
   subnet:
     name: PreProductionSubnet
-backend:
-  key: grp/pre/services.tfstate
 apim:
   name: "stcgenaipregrpapm"
   location: "westeurope"

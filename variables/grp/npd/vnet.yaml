@@ -256,6 +256,3 @@ subnets:
     delegation:  []
     has_nsg_rules: false
     nsg_rules: {}
-
-backend:
-  key: grp/npd/vnet.tfstate

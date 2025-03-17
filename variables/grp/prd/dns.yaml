@@ -21,6 +21,3 @@ domain_names:
   amlapi: privatelink.api.azureml.ms
   amlnotebook: privatelink.notebooks.azure.net
 
-backend:
-  key: grp/prd/dns.tfstate
-
