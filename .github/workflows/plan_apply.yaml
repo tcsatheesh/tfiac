@@ -70,24 +70,9 @@ jobs:
       with:
         terraform_wrapper: false
 
-    # Setup Python
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
-
-    - name: Install dependencies
-      run: |
-        python --version
-        python -m venv ${GITHUB_WORKSPACE}/.iacvenv
-        ${GITHUB_WORKSPACE}/.iacvenv/bin/python -m pip install --upgrade pip
-        ${GITHUB_WORKSPACE}/.iacvenv/bin/pip install -r ./scripts/requirements.txt
-
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)
-
         current_working_directory=$(pwd)
         backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
         echo "Backend env file is $backend_env_file"
@@ -255,7 +240,6 @@ jobs:
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)
         current_working_directory=$(pwd)
         backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
         echo "Backend env file is $backend_env_file"
@@ -294,11 +278,6 @@ jobs:
         cd terraform/${{ inputs.service }}
         terraform ${{ inputs.action }} -auto-approve tfplan
 
-    - name: Remove virtual environment
-      if: always()
-      run: |
-        rm -rf ${GITHUB_WORKSPACE}/.iacvenv
-
   terraform-destroy:
     name: 'Terraform Destroy'
     if: |
@@ -326,23 +305,10 @@ jobs:
     # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
-    # Setup Python
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
-
-    - name: Install dependencies
-      run: |
-        python --version
-        python -m venv ${GITHUB_WORKSPACE}/.iacvenv
-        ${GITHUB_WORKSPACE}/.iacvenv/bin/python -m pip install --upgrade pip
-        ${GITHUB_WORKSPACE}/.iacvenv/bin/pip install -r ./scripts/requirements.txt
 
     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)
         current_working_directory=$(pwd)
         backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
         echo "Backend env file is $backend_env_file"
@@ -379,8 +345,3 @@ jobs:
         -var environment=${{ inputs.environment }} \
         -var env_type=$env_type \
         -auto-approve
-
-    - name: Remove virtual environment
-      if: always()
-      run: |
-        rm -rf ${GITHUB_WORKSPACE}/.iacvenv
