@@ -78,20 +78,14 @@ echo "Current working directory is $current_working_directory"
 init_terraform() {
 
     cd $current_working_directory
-
-    # Get the backend variables
-    export PYTHONPATH=$PYTHONPATH:$(pwd)
-    temp_backend_output_file=$(mktemp)
-    python3 \
-    ./scripts/src/backend.py \
-    --backend variables/grp/prd/bed.yaml \
-    --variables variables/$market/$environment/$service.yaml \
-    --output-file $temp_backend_output_file
+    backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
+    echo "Backend env file is $backend_env_file"
 
     # Read the backend output file and set the environment variables
-    source $temp_backend_output_file
-
-
+    source $backend_env_file
+    TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
+    echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
+    
     cd terraform/$service
 
     echo "Clearing terraform state"
