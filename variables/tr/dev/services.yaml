@@ -77,15 +77,24 @@ apim:
       display_name: trdevoai
       path: trdevoai/openai
       backend: gtpgenaidevtroai
+      policy: policies/openai/single.key.xml
+      jwt:
+        clientid: null
     monitoring:
       name: trdevmon
       display_name: trdevmon
       path: trdevmon/openai
       backend: gtpgenaidevtroai
+      policy: policies/openai/single.key.xml
+      jwt:
+        clientid: null
     ailanguage:
       name: trdevlng
       display_name: trdevlng
       path: trdevlng
+      policy: policies/ailanguage/single.key.xml
+      jwt:
+        clientid: null
 landing: null
 document_intelligence: null
 ai_search: null

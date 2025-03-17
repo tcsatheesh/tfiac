@@ -1,0 +1,33 @@
+<policies>
+    <!-- Throttle, authorize, validate, cache, or transform the requests -->
+    <inbound>
+        <base />
+        <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized" require-expiration-time="true" require-scheme="Bearer" require-signed-tokens="true">
+            <openid-config url="https://login.microsoftonline.com/${tenant-id}/v2.0/.well-known/openid-configuration" />
+            <audiences>
+                <audience>https://cognitiveservices.azure.com</audience>
+            </audiences>
+            <issuers>
+                <issuer>https://sts.windows.net/${tenant-id}/</issuer>
+            </issuers>
+            <required-claims>
+                <claim name="appid">
+                    <value>${client-id}</value>
+                </claim>
+            </required-claims>
+        </validate-jwt>
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com/" />        
+    </inbound>
+    <!-- Control if and how the requests are forwarded to services  -->
+    <backend>
+        <base />
+    </backend>
+    <!-- Customize the responses -->
+    <outbound>
+        <base />
+    </outbound>
+    <!-- Handle exceptions and customize error responses  -->
+    <on-error>
+        <base />
+    </on-error>
+</policies>

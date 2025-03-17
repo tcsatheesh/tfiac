@@ -67,26 +67,11 @@ resource "azurerm_api_management_api_policy" "openai" {
   api_management_name = var.services.apim.name
   resource_group_name = var.services.apim.resource_group_name
 
-  xml_content = <<XML
-<policies>
-    <inbound>
-        <base />
-        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-        <set-header name="x-openai-backend-id" exists-action="override">
-            <value>${var.services.apim.apis.openai.backend}</value>
-        </set-header>
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
-XML
+  xml_content = templatefile("${path.module}/${var.services.apim.apis.openai.policy}", {
+    backend-id = var.services.apim.apis.openai.backend
+    tenant-id  = data.azurerm_client_config.this.tenant_id
+    client-id  = var.services.apim.apis.openai.jwt.clientid
+  })
 }
 
 resource "azurerm_api_management_api_policy" "monitoring" {
@@ -94,26 +79,11 @@ resource "azurerm_api_management_api_policy" "monitoring" {
   api_management_name = var.services.apim.name
   resource_group_name = var.services.apim.resource_group_name
 
-  xml_content = <<XML
-<policies>
-    <inbound>
-        <base />
-        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-        <set-header name="x-openai-backend-id" exists-action="override">
-            <value>${var.services.apim.apis.monitoring.backend}</value>
-        </set-header>
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
-XML
+  xml_content = templatefile("${path.module}/${var.services.apim.apis.monitoring.policy}", {
+    backend-id = var.services.apim.apis.monitoring.backend
+    tenant-id  = data.azurerm_client_config.this.tenant_id
+    client-id  = var.services.apim.apis.monitoring.jwt.clientid
+  })
 }
 
 resource "azurerm_api_management_api_policy" "ailanguage" {
@@ -121,26 +91,9 @@ resource "azurerm_api_management_api_policy" "ailanguage" {
   api_management_name = var.services.apim.name
   resource_group_name = var.services.apim.resource_group_name
 
-  xml_content = <<XML
-<policies>
-    <!-- Throttle, authorize, validate, cache, or transform the requests -->
-    <inbound>
-        <authentication-managed-identity resource="https://cognitiveservices.azure.com/" />
-        <base />
-    </inbound>
-    <!-- Control if and how the requests are forwarded to services  -->
-    <backend>
-        <base />
-    </backend>
-    <!-- Customize the responses -->
-    <outbound>
-        <base />
-    </outbound>
-    <!-- Handle exceptions and customize error responses  -->
-    <on-error>
-        <base />
-    </on-error>
-</policies>
-XML
+  xml_content = templatefile("${path.module}/${var.services.apim.apis.ailanguage.policy}", {
+    tenant-id = data.azurerm_client_config.this.tenant_id
+    client-id = var.services.apim.apis.ailanguage.jwt.clientid
+  })
 }
 
