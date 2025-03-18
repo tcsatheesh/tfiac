@@ -124,6 +124,7 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
           ./scripts/src/import/${{ inputs.service }}.py \
+          --service ${{ inputs.service }} \
           --market ${{ inputs.market }} \
           --environment ${{ inputs.environment }} \
           --env-type $env_type \

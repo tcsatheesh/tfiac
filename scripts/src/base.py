@@ -153,6 +153,12 @@ class ImportStateBase:
             help="Log variables to use",
         )
         parser.add_argument(
+            "--service",
+            type=str,
+            required=True,
+            help="Service to use",
+        )
+        parser.add_argument(
             "--market",
             type=str,
             required=True,

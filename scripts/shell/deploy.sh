@@ -166,6 +166,7 @@ if [[ "$action" == "import" ]]; then
     echo "Running terraform import"
     python3 \
     ./scripts/src/import/$service.py \
+    --service $service \
     --market $market \
     --environment $environment \
     --env-type $env_type \
