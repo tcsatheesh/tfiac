@@ -26,7 +26,7 @@ class ImportState(ImportStateBase):
 
         _logger.info(f"Importing resource group {_resource_group_name}")
         self._import_resource(
-            name="module.log.azurerm_resource_group.avmrg",
+            name="module.dns.azurerm_resource_group.avmrg",
             resource_id=f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}",
         )
 

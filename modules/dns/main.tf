@@ -11,4 +11,5 @@ module "private_dns_zones" {
   source              = "Azure/avm-res-network-privatednszone/azurerm"
   resource_group_name = azurerm_resource_group.avmrg.name
   domain_name         = each.value
+  enable_telemetry    = false
 }
