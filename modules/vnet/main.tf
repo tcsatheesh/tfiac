@@ -23,7 +23,8 @@ module "nsg" {
   name                = each.value.nsg
   location            = var.vnet.location
 
-  security_rules = each.value.nsg_rules
+  security_rules   = each.value.nsg_rules
+  enable_telemetry = false
 }
 
 
@@ -43,6 +44,7 @@ module "vnet" {
       log_analytics_destination_type = "Dedicated"
     }
   }
+  enable_telemetry = false
 }
 
 module "subnets" {
