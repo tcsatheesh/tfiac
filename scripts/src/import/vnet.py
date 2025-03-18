@@ -131,7 +131,7 @@ class ImportState(ImportStateBase):
                 f"Importing firewall management public IP {_firewall_variables['management']['public_ip_name']}..."
             )
             self._import_resource(
-                name="module.vnet.module.firewall[0].module.fw_managment_public_ip[0].azurerm_public_ip.this",
+                name="module.vnet.module.firewall[0].module.fw_managment_public_ip.azurerm_public_ip.this",
                 resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/publicIPAddresses/{_firewall_variables["management"]["public_ip_name"]}',
             )
             _logger.info(f"Importing firewall diagnostics...")
@@ -144,7 +144,7 @@ class ImportState(ImportStateBase):
                 _ip_group_name = _value["name"]
                 _logger.info(f"Importing firewall IPGroup {_ip_group_name}...")
                 self._import_resource(
-                    name=f'module.vnet.azurerm_ip_group.this["{_ip_group_name}"]',
+                    name=f'module.vnet.module.firewall[0].azurerm_ip_group.this["{_ip_group_name}"]',
                     resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/ipGroups/{_ip_group_name}",
                 )
 
