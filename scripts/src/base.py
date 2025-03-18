@@ -206,7 +206,7 @@ class ImportStateBase:
         )
         _log_file_path = os.path.join(
             _log_folder,
-            "log.log",
+            f"{_args.service}.log",
         )
         _file_handler = logging.FileHandler(
             filename=_log_file_path,
