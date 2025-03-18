@@ -6,6 +6,7 @@ module "fw_public_ip" {
   resource_group_name = var.firewall.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
+  enable_telemetry    = false
 }
 
 module "fw_managment_public_ip" {
@@ -16,6 +17,7 @@ module "fw_managment_public_ip" {
   resource_group_name = var.firewall.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
+  enable_telemetry    = false
 }
 
 module "fwpolicy" {
@@ -25,6 +27,7 @@ module "fwpolicy" {
   location            = var.firewall.location
   resource_group_name = var.firewall.resource_group_name
   firewall_policy_sku = var.firewall.policy.sku
+  enable_telemetry    = false
 }
 
 module "firewall" {

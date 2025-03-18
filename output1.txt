@@ -1,0 +1,1645 @@
+Valid action: plan
+market is grp
+environment is npd
+service is vnet
+env_type is npd
+modules/vnet/rulecollections.tf
+Current working directory is /home/satheesh/projects/www.github.com/tcsatheesh/tfiac
+Backend env file is /home/satheesh/projects/www.github.com/tcsatheesh/tfiac/variables/grp/prd/bed.env
+TERRAFORM_BACKEND_AZURE_KEY is grp/npd/vnet.tfstate
+Clearing terraform state
+Running terraform init
+[0m[1mInitializing the backend...[0m
+[0m[32m
+Successfully configured the backend "azurerm"! Terraform will automatically
+use this backend unless the backend configuration changes.[0m
+[0m[1mInitializing modules...[0m
+- vnet in ../../modules/vnet
+- vnet.aml in ../../modules/vnet/rulecollection/aml
+- vnet.azuread in ../../modules/vnet/rulecollection/azuread
+- vnet.buildsvr in ../../modules/vnet/rulecollection/buildsvr
+- vnet.denyall in ../../modules/vnet/rulecollection/denyall
+Downloading registry.terraform.io/Azure/avm-res-network-azurefirewall/azurerm 0.3.0 for vnet.firewall...
+- vnet.firewall in .terraform/modules/vnet.firewall
+Downloading registry.terraform.io/Azure/avm-res-network-publicipaddress/azurerm 0.2.0 for vnet.fw_managment_public_ip...
+- vnet.fw_managment_public_ip in .terraform/modules/vnet.fw_managment_public_ip
+Downloading registry.terraform.io/Azure/avm-res-network-publicipaddress/azurerm 0.2.0 for vnet.fw_public_ip...
+- vnet.fw_public_ip in .terraform/modules/vnet.fw_public_ip
+Downloading registry.terraform.io/Azure/avm-res-network-firewallpolicy/azurerm 0.3.3 for vnet.fwpolicy...
+- vnet.fwpolicy in .terraform/modules/vnet.fwpolicy
+Downloading registry.terraform.io/Azure/avm-res-network-networksecuritygroup/azurerm 0.4.0 for vnet.nsg...
+- vnet.nsg in .terraform/modules/vnet.nsg
+Downloading registry.terraform.io/Azure/avm-res-network-virtualnetwork/azurerm 0.8.1 for vnet.peering...
+- vnet.peering in .terraform/modules/vnet.peering/modules/peering
+Downloading registry.terraform.io/Azure/avm-res-network-virtualnetwork/azurerm 0.8.1 for vnet.subnets...
+- vnet.subnets in .terraform/modules/vnet.subnets/modules/subnet
+Downloading registry.terraform.io/Azure/avm-res-network-virtualnetwork/azurerm 0.8.1 for vnet.vnet...
+- vnet.vnet in .terraform/modules/vnet.vnet
+- vnet.vnet.peering in .terraform/modules/vnet.vnet/modules/peering
+- vnet.vnet.subnet in .terraform/modules/vnet.vnet/modules/subnet
+[0m[1mInitializing provider plugins...[0m
+- Finding hashicorp/random versions matching ">= 3.5.0, ~> 3.5"...
+- Finding azure/azapi versions matching ">= 1.13.0, < 3.0.0"...
+- Finding hashicorp/azurerm versions matching ">= 3.7.0, >= 3.71.0, >= 3.116.0, ~> 4.0, < 5.0.0"...
+- Finding azure/modtm versions matching "~> 0.3"...
+- Installing azure/azapi v2.3.0...
+- Installed azure/azapi v2.3.0 (signed by a HashiCorp partner, key ID [0m[1m6F0B91BDE98478CF[0m[0m)
+- Installing hashicorp/azurerm v4.23.0...
+- Installed hashicorp/azurerm v4.23.0 (signed by HashiCorp)
+- Installing azure/modtm v0.3.5...
+- Installed azure/modtm v0.3.5 (signed by a HashiCorp partner, key ID [0m[1m6F0B91BDE98478CF[0m[0m)
+- Installing hashicorp/random v3.7.1...
+- Installed hashicorp/random v3.7.1 (signed by HashiCorp)
+Partner and community providers are signed by their developers.
+If you'd like to know more about provider signing, you can read about it here:
+https://www.terraform.io/docs/cli/plugins/signing.html
+Terraform has created a lock file [1m.terraform.lock.hcl[0m to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.[0m
+
+[0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
+[0m[32m
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.[0m
+Running terraform plan
+[0m[1mmodule.vnet.data.azurerm_log_analytics_workspace.this: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["amlapi"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["blob"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["cognitiveservices"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["openai"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["managedredis"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["keyvault"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["queue"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["containerregistry"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["cognitiveservices"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["website"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["enterpriseredis"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["amlapi"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.api.azureml.ms][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["aisearch"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["queue"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["openai"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["containerregistry"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["amlnotebook"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["aiservices"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["sql"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["managedredis"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.redis.azure.net][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["table"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["blob"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["redis"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["keyvault"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["file"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["enterpriseredis"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.redisenterprise.cache.azure.net][0m
+[0m[1mmodule.vnet.module.vnet.data.azurerm_client_config.this: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["website"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net][0m
+[0m[1mmodule.vnet.azurerm_resource_group.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg][0m
+[0m[1mmodule.vnet.module.vnet.data.azurerm_client_config.this: Read complete after 0s [id=Y2xpZW50Q29uZmlncy9jbGllbnRJZD0wNGIwNzc5NS04ZGRiLTQ2MWEtYmJlZS0wMmY5ZTFiZjdiNDY7b2JqZWN0SWQ9OWNhY2E1YWQtZjg3Mi00NzFjLWFjMjktYzY1MGEzMjc4M2VlO3N1YnNjcmlwdGlvbklkPTg4M2M5MDgxLTIzZWQtNDY3NC05NWM1LTQ1Yzc0ODM0ZTA5Mzt0ZW5hbnRJZD1mMTZhYmUzOS0xMzlkLTRkNDYtOGQ2NC1mNzYyOWYwM2MyNWE=][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["sql"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net][0m
+[0m[1mmodule.vnet.module.fw_public_ip[0].azurerm_public_ip.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/publicIPAddresses/stc-genai-network-nonprod-vnet-firewall-ip][0m
+[0m[1mmodule.vnet.module.fwpolicy[0].azurerm_firewall_policy.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/firewallPolicies/stc-genai-network-nonprod-vnet-firewall-policy][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["redis"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.redis.cache.windows.net][0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["market-pre-production-subnets"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["aisearch"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.aisearch.windows.net][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["aiservices"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com][0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["portugal-pre-production-logicapp-subnets"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/portugal-pre-production-logicapp-subnets][0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["pre-production-build-server"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["table"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net][0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["group-pre-production-subnets"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["amlnotebook"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.notebooks.azure.net][0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["group-api-management-subnet"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-api-management-subnet][0m
+[0m[1mmodule.vnet.data.azurerm_private_dns_zone.this["file"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["market-pre-production-subnets"]: Reading...[0m[0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["group-development-subnets"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets][0m
+[0m[1mmodule.vnet.azurerm_ip_group.this["market-development-subnets"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["pre-production-build-server"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["group-api-management-subnet"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["group-development-subnets"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["group-pre-production-subnets"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["market-development-subnets"]: Reading...[0m[0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["market-pre-production-subnets"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["portugal-pre-production-logicapp-subnets"]: Reading...[0m[0m
+[0m[1mmodule.vnet.module.fw_managment_public_ip[0].azurerm_public_ip.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/publicIPAddresses/stc-genai-network-nonprod-vnet-firewall-management-ip][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["group-development-subnets"]: Read complete after 1s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets][0m
+[0m[1mmodule.vnet.azurerm_route_table.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/routeTables/route-az-grp-firewall][0m
+[0m[1mmodule.vnet.module.vnet.azapi_resource.vnet: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.module.nsg["development"].azurerm_network_security_group.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/dev-nsg][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["group-pre-production-subnets"]: Read complete after 1s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets][0m
+[0m[1mmodule.vnet.module.nsg["firewall"].azurerm_network_security_group.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/firewall-nsg][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["group-api-management-subnet"]: Read complete after 1s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-api-management-subnet][0m
+[0m[1mmodule.vnet.module.nsg["firewall-mgmt"].azurerm_network_security_group.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/firewall-mgmt-nsg][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["pre-production-build-server"]: Read complete after 1s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server][0m
+[0m[1mmodule.vnet.module.nsg["pre-production"].azurerm_network_security_group.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/pre-nsg][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["portugal-pre-production-logicapp-subnets"]: Read complete after 0s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/portugal-pre-production-logicapp-subnets][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_group.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg][0m
+[0m[1mmodule.vnet.data.azurerm_ip_group.this["market-development-subnets"]: Read complete after 1s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets][0m
+[0m[1mmodule.vnet.data.azurerm_log_analytics_workspace.this: Read complete after 2s [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-logging-nonprod-rg/providers/Microsoft.OperationalInsights/workspaces/stc-genai-logging-nopnprod-lgn][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule05"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_for_Log_to_event_Hub_policy][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule13"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_on_Azure_Storage][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule12"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Authenticate_To_Azure_Active_Directory][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule03"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_to_sync_Rate_Limit_Inbound][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule15"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Access_KeyVault][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule14"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Publish_Monitoring_Logs][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule08"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_on_Azure_File_Share_for_GIT][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule04"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_on_Azure_SQL][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule10"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Publish_DiagnosticLogs_And_Metrics][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule06"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_on_Redis_Cache_outbound][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule01"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Management_endpoint_for_Azure_portal_and_Powershell][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule11"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Connect_To_SMTP_Relay_For_SendingEmails][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule02"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_on_Redis_Cache][0m
+[0m[1mmodule.vnet.module.nsg["development"].azurerm_network_security_rule.this["rule01"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/dev-nsg/securityRules/test-rule][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule09"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Azure_Infrastructure_Load_Balancer][0m
+[0m[1mmodule.vnet.module.nsg["api-management"].azurerm_network_security_rule.this["rule07"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg/securityRules/Dependency_To_sync_RateLimit_Outbound][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["table"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.table.core.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.module.vnet.azurerm_monitor_diagnostic_setting.this["sendToLogAnalytics"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet|sendToLogAnalytics][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["queue"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.queue.core.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["website"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurewebsites.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["aiservices"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["redis"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.redis.cache.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["keyvault"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["aisearch"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.aisearch.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["amlnotebook"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.notebooks.azure.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["file"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.file.core.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["containerregistry"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["openai"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["enterpriseredis"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.redisenterprise.cache.azure.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["blob"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["managedredis"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.redis.azure.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["sql"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["amlapi"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.api.azureml.ms/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.azurerm_private_dns_zone_virtual_network_link.this["cognitiveservices"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-dns-prod-rg/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com/virtualNetworkLinks/stc-genai-network-nonprod-vnet][0m
+[0m[1mmodule.vnet.module.subnets["development"].azapi_resource.subnet: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/DevelopmentSubnet][0m
+[0m[1mmodule.vnet.module.subnets["firewall-mgmt"].azapi_resource.subnet: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallManagementSubnet][0m
+[0m[1mmodule.vnet.module.subnets["firewall"].azapi_resource.subnet: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallSubnet][0m
+[0m[1mmodule.vnet.module.subnets["pre-production"].azapi_resource.subnet: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/PreProductionSubnet][0m
+[0m[1mmodule.vnet.module.subnets["api-management"].azapi_resource.subnet: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/ApiManagementSubnet][0m
+[0m[1mmodule.vnet.module.firewall[0].azurerm_firewall.this: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/azureFirewalls/stc-genai-network-nonprod-vnet-firewall][0m
+[0m[1mmodule.vnet.module.firewall[0].azurerm_monitor_diagnostic_setting.this["to_law"]: Refreshing state... [id=/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/azureFirewalls/stc-genai-network-nonprod-vnet-firewall|diag][0m
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  [32m+[0m create[0m
+  [33m~[0m update in-place[0m
+
+Terraform will perform the following actions:
+
+[1m  # module.vnet.module.aml.azurerm_firewall_policy_rule_collection_group.this[0m will be created
+[0m  [32m+[0m[0m resource "azurerm_firewall_policy_rule_collection_group" "this" {
+      [32m+[0m[0m firewall_policy_id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/firewallPolicies/stc-genai-network-nonprod-vnet-firewall-policy"
+      [32m+[0m[0m id                 = (known after apply)
+      [32m+[0m[0m name               = "AzureMachineLearningCollectionGroup"
+      [32m+[0m[0m priority           = 500
+
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-machinelearning"
+          [32m+[0m[0m priority = 1000
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureActiveDirectory",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "80",
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azureactivedirectory"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureActiveDirectory.ServiceEndpoint",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                  [32m+[0m[0m "8787",
+                  [32m+[0m[0m "18881",
+                ]
+              [32m+[0m[0m name                  = "azure-machine-learning-tcp"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureMachineLearning",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "5831",
+                ]
+              [32m+[0m[0m name                  = "azure-machine-learning-udp"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "UDP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "BatchNodeManagement.westeurope",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "batch-node-management"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureResourceManager",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-resource-manager"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "Storage.westeurope",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-storage"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "Storage.westeurope",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-front-door-frontend"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "MicrosoftContainerRegistry",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "microsoft-container-registry"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureFrontDoor.FirstParty",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "frontdoor-frontparty"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureMonitor",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-monitor"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "VirtualNetwork",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-virtual-network"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "Storage.westeurope",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "445",
+                ]
+              [32m+[0m[0m name                  = "azure-storage-file"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "VirtuaKeyvault.westeurope",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-keyvault"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+        }
+    }
+
+[1m  # module.vnet.module.azuread.azurerm_firewall_policy_rule_collection_group.this[0m will be created
+[0m  [32m+[0m[0m resource "azurerm_firewall_policy_rule_collection_group" "this" {
+      [32m+[0m[0m firewall_policy_id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/firewallPolicies/stc-genai-network-nonprod-vnet-firewall-policy"
+      [32m+[0m[0m id                 = (known after apply)
+      [32m+[0m[0m name               = "AzureActiveDirectoryCollectionGroup"
+      [32m+[0m[0m priority           = 300
+
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-azureactivedirectory"
+          [32m+[0m[0m priority = 400
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureActiveDirectory",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "80",
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azureactivedirectory"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureActiveDirectory.ServiceEndpoint",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azureactivedirectory-serviceendpoint"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-development-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/market-pre-production-subnets",
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/group-pre-production-subnets",
+                ]
+            }
+        }
+    }
+
+[1m  # module.vnet.module.buildsvr.azurerm_firewall_policy_rule_collection_group.this[0m will be created
+[0m  [32m+[0m[0m resource "azurerm_firewall_policy_rule_collection_group" "this" {
+      [32m+[0m[0m firewall_policy_id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/firewallPolicies/stc-genai-network-nonprod-vnet-firewall-policy"
+      [32m+[0m[0m id                 = (known after apply)
+      [32m+[0m[0m name               = "AzureBuildServerCollectionGroup"
+      [32m+[0m[0m priority           = 300
+
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-azuredevops"
+          [32m+[0m[0m priority = 1020
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "dev.azure.com",
+                  [32m+[0m[0m "*.dev.azure.com",
+                  [32m+[0m[0m "aex.dev.azure.com",
+                  [32m+[0m[0m "aexprodea1.vsaex.visualstudio.com",
+                  [32m+[0m[0m "*vstmrblob.vsassets.io",
+                  [32m+[0m[0m "amp.azure.net",
+                  [32m+[0m[0m "app.vssps.dev.azure.com",
+                  [32m+[0m[0m "app.vssps.visualstudio.com",
+                  [32m+[0m[0m "*.vsblob.visualstudio.com",
+                  [32m+[0m[0m "*.vssps.visualstudio.com",
+                  [32m+[0m[0m "*.vstmr.visualstudio.com",
+                  [32m+[0m[0m "azure.microsoft.com",
+                  [32m+[0m[0m "go.microsoft.com",
+                  [32m+[0m[0m "graph.microsoft.com",
+                  [32m+[0m[0m "login.microsoftonline.com",
+                  [32m+[0m[0m "management.azure.com",
+                  [32m+[0m[0m "management.core.windows.net",
+                  [32m+[0m[0m "microsoft.com",
+                  [32m+[0m[0m "microsoftonline.com",
+                  [32m+[0m[0m "static2.sharepointonline.com",
+                  [32m+[0m[0m "visualstudio.com",
+                  [32m+[0m[0m "vsrm.dev.azure.com",
+                  [32m+[0m[0m "vstsagentpackage.azureedge.net",
+                  [32m+[0m[0m "*.windows.net",
+                  [32m+[0m[0m "cdn.vsassets.io",
+                  [32m+[0m[0m "*.vsassets.io",
+                  [32m+[0m[0m "*gallerycdn.vsassets.io",
+                  [32m+[0m[0m "aadcdn.msauth.net",
+                  [32m+[0m[0m "aadcdn.msftauth.net",
+                  [32m+[0m[0m "amcdn.msftauth.net",
+                  [32m+[0m[0m "azurecomcdn.azureedge.net",
+                ]
+              [32m+[0m[0m name              = "azuredevops"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-github"
+          [32m+[0m[0m priority = 1021
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "github.com",
+                  [32m+[0m[0m "api.github.com",
+                  [32m+[0m[0m "copilot-telemetry.githubusercontent.com",
+                  [32m+[0m[0m "default.exp-tas.com",
+                  [32m+[0m[0m "copilot-proxy.githubusercontent.com",
+                  [32m+[0m[0m "origin-tracker.githubusercontent.com",
+                  [32m+[0m[0m "*.githubcopilot.com",
+                  [32m+[0m[0m "raw.githubusercontent.com",
+                  [32m+[0m[0m "objects.githubusercontent.com",
+                ]
+              [32m+[0m[0m name              = "github"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-vodafone-github"
+          [32m+[0m[0m priority = 1022
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "github.vodafone.com",
+                ]
+              [32m+[0m[0m name              = "vodafone-github"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-python-packages"
+          [32m+[0m[0m priority = 1023
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "pypi.org",
+                  [32m+[0m[0m "pypi.python.org",
+                  [32m+[0m[0m "pythonhosted.org",
+                  [32m+[0m[0m "files.pythonhosted.org",
+                ]
+              [32m+[0m[0m name              = "pythonpackages"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-conda-packages"
+          [32m+[0m[0m priority = 1024
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "repo.anaconda.com",
+                  [32m+[0m[0m "www.conda.io",
+                  [32m+[0m[0m "anaconda.org",
+                  [32m+[0m[0m "anaconda.com",
+                  [32m+[0m[0m "conda.anaconda.org",
+                ]
+              [32m+[0m[0m name              = "condapackages"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-microsoft-packages"
+          [32m+[0m[0m priority = 1025
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "packages.microsoft.com",
+                ]
+              [32m+[0m[0m name              = "microsoftpackages"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-ubuntu-packages"
+          [32m+[0m[0m priority = 1026
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "azure.archive.ubuntu.com",
+                  [32m+[0m[0m "deb.debian.org",
+                  [32m+[0m[0m "security.debian.org",
+                ]
+              [32m+[0m[0m name              = "ubuntupackages"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 80
+                  [32m+[0m[0m type = "Http"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-powershell-gallery"
+          [32m+[0m[0m priority = 1027
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "www.powershellgallery.com",
+                  [32m+[0m[0m "onegetcdn.azureedge.net",
+                  [32m+[0m[0m "powershellgallery.azureedge.net",
+                  [32m+[0m[0m "*.powershellgallery.com",
+                  [32m+[0m[0m "go.microsoft.com",
+                ]
+              [32m+[0m[0m name              = "powershellgallery"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-nuget"
+          [32m+[0m[0m priority = 1028
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "azurewebsites.net",
+                  [32m+[0m[0m "*.nuget.org",
+                ]
+              [32m+[0m[0m name              = "nuget"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-visualstudio-download"
+          [32m+[0m[0m priority = 1029
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "download.visualstudio.microsoft.com",
+                  [32m+[0m[0m "dotnetcli.azureedge.net",
+                  [32m+[0m[0m "builds.dotnet.microsoft.com",
+                ]
+              [32m+[0m[0m name              = "visualstudiodownload"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-microsoft-artifact-registry"
+          [32m+[0m[0m priority = 1030
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "mcr.microsoft.com",
+                  [32m+[0m[0m "*.data.mcr.microsoft.com",
+                ]
+              [32m+[0m[0m name              = "microsoftartifactregistry"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-azure-cli"
+          [32m+[0m[0m priority = 1031
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "aka.ms",
+                ]
+              [32m+[0m[0m name              = "azurecli"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-vm-guest-configuration"
+          [32m+[0m[0m priority = 1032
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "westeurope-gas.guestconfiguration.azure.com",
+                ]
+              [32m+[0m[0m name              = "azurevmguestconfiguration"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+      [32m+[0m[0m application_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-mend-installer"
+          [32m+[0m[0m priority = 1033
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_fqdns = [
+                  [32m+[0m[0m "downloads.mend.io",
+                ]
+              [32m+[0m[0m name              = "mendconfiguration"
+              [32m+[0m[0m source_ip_groups  = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+
+              [32m+[0m[0m protocols {
+                  [32m+[0m[0m port = 443
+                  [32m+[0m[0m type = "Https"
+                }
+            }
+        }
+
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-azureactivedirectory"
+          [32m+[0m[0m priority = 1000
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureActiveDirectory",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "80",
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azureactivedirectory"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureActiveDirectory.ServiceEndpoint",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azureactivedirectory-serviceendpoint"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+        }
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-azuremonitoring"
+          [32m+[0m[0m priority = 1001
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "ActionGroup",
+                  [32m+[0m[0m "ApplicationInsightsAvailability",
+                  [32m+[0m[0m "AzureMonitor",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azuremonitor"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+        }
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-azureresourcemanager"
+          [32m+[0m[0m priority = 1002
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "AzureResourceManager",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azure-resource-manager"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+        }
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-microsoftcontainerregistry"
+          [32m+[0m[0m priority = 1003
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "MicrosoftContainerRegistry",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "microsoft-container-registry"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+        }
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-azuredevops-ipaddresses"
+          [32m+[0m[0m priority = 1004
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "13.107.6.0/24",
+                  [32m+[0m[0m "13.107.9.0/24",
+                  [32m+[0m[0m "13.107.42.0/24",
+                  [32m+[0m[0m "13.107.43.0/24",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azuredevopsipaddresses"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+        }
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Allow"
+          [32m+[0m[0m name     = "allow-buildserver-microsoft365commonandofficeips"
+          [32m+[0m[0m priority = 1005
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "13.107.6.0/24",
+                  [32m+[0m[0m "13.107.9.0/24",
+                  [32m+[0m[0m "13.107.42.0/24",
+                  [32m+[0m[0m "13.107.43.0/24",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "80",
+                  [32m+[0m[0m "443",
+                ]
+              [32m+[0m[0m name                  = "azuredevopsipaddresses"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                ]
+              [32m+[0m[0m source_ip_groups      = [
+                  [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/ipGroups/pre-production-build-server",
+                ]
+            }
+        }
+    }
+
+[1m  # module.vnet.module.denyall.azurerm_firewall_policy_rule_collection_group.this[0m will be created
+[0m  [32m+[0m[0m resource "azurerm_firewall_policy_rule_collection_group" "this" {
+      [32m+[0m[0m firewall_policy_id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/firewallPolicies/stc-genai-network-nonprod-vnet-firewall-policy"
+      [32m+[0m[0m id                 = (known after apply)
+      [32m+[0m[0m name               = "DenyAllInternetCollectionGroup"
+      [32m+[0m[0m priority           = 500
+
+      [32m+[0m[0m network_rule_collection {
+          [32m+[0m[0m action   = "Deny"
+          [32m+[0m[0m name     = "deny-allinternet"
+          [32m+[0m[0m priority = 20000
+
+          [32m+[0m[0m rule {
+              [32m+[0m[0m destination_addresses = [
+                  [32m+[0m[0m "Internet",
+                ]
+              [32m+[0m[0m destination_ports     = [
+                  [32m+[0m[0m "*",
+                ]
+              [32m+[0m[0m name                  = "denyAll"
+              [32m+[0m[0m protocols             = [
+                  [32m+[0m[0m "TCP",
+                  [32m+[0m[0m "UDP",
+                ]
+              [32m+[0m[0m source_addresses      = [
+                  [32m+[0m[0m "*",
+                ]
+            }
+        }
+    }
+
+[1m  # module.vnet.module.subnets["api-management"].azapi_resource.subnet[0m will be updated in-place
+[0m  [33m~[0m[0m resource "azapi_resource" "subnet" {
+      [33m~[0m[0m body                      = {
+          [33m~[0m[0m properties = {
+              [32m+[0m[0m addressPrefix                     = [90mnull[0m[0m
+              [32m+[0m[0m natGateway                        = [90mnull[0m[0m
+              [32m+[0m[0m routeTable                        = [90mnull[0m[0m
+              [32m+[0m[0m serviceEndpointPolicies           = [90mnull[0m[0m
+              [32m+[0m[0m sharingScope                      = [90mnull[0m[0m
+                [90m# (7 unchanged attributes hidden)[0m[0m
+            }
+        }
+        id                        = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/ApiManagementSubnet"
+      [32m+[0m[0m locks                     = [
+          [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet",
+        ]
+        name                      = "ApiManagementSubnet"
+      [33m~[0m[0m output                    = {
+          [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/ApiManagementSubnet"
+          [31m-[0m[0m properties = {
+              [31m-[0m[0m addressPrefixes   = [
+                  [31m-[0m[0m "10.240.4.144/28",
+                ]
+              [31m-[0m[0m ipConfigurations  = [
+                  [31m-[0m[0m {},
+                  [31m-[0m[0m {},
+                ]
+              [31m-[0m[0m provisioningState = "Succeeded"
+            }
+          [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+        } -> (known after apply)
+      [33m~[0m[0m type                      = "Microsoft.Network/virtualNetworks/subnets@2024-05-01" [33m->[0m[0m "Microsoft.Network/virtualNetworks/subnets@2023-11-01"
+        [90m# (4 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # module.vnet.module.subnets["development"].azapi_resource.subnet[0m will be updated in-place
+[0m  [33m~[0m[0m resource "azapi_resource" "subnet" {
+      [33m~[0m[0m body                      = {
+          [33m~[0m[0m properties = {
+              [32m+[0m[0m addressPrefix                     = [90mnull[0m[0m
+              [32m+[0m[0m natGateway                        = [90mnull[0m[0m
+              [32m+[0m[0m serviceEndpointPolicies           = [90mnull[0m[0m
+              [33m~[0m[0m serviceEndpoints                  = [
+                  [33m~[0m[0m {
+                      [31m-[0m[0m locations = [
+                          [31m-[0m[0m "*",
+                        ]
+                        [90m# (1 unchanged attribute hidden)[0m[0m
+                    },
+                  [33m~[0m[0m {
+                      [31m-[0m[0m locations = [
+                          [31m-[0m[0m "westeurope",
+                          [31m-[0m[0m "northeurope",
+                        ]
+                        [90m# (1 unchanged attribute hidden)[0m[0m
+                    },
+                ]
+              [32m+[0m[0m sharingScope                      = [90mnull[0m[0m
+                [90m# (7 unchanged attributes hidden)[0m[0m
+            }
+        }
+        id                        = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/DevelopmentSubnet"
+      [32m+[0m[0m locks                     = [
+          [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet",
+        ]
+        name                      = "DevelopmentSubnet"
+      [33m~[0m[0m output                    = {
+          [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/DevelopmentSubnet"
+          [31m-[0m[0m properties = {
+              [31m-[0m[0m addressPrefixes   = [
+                  [31m-[0m[0m "10.240.4.0/26",
+                ]
+              [31m-[0m[0m provisioningState = "Succeeded"
+              [31m-[0m[0m serviceEndpoints  = [
+                  [31m-[0m[0m {
+                      [31m-[0m[0m locations         = [
+                          [31m-[0m[0m "*",
+                        ]
+                      [31m-[0m[0m provisioningState = "Succeeded"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m locations         = [
+                          [31m-[0m[0m "westeurope",
+                          [31m-[0m[0m "northeurope",
+                        ]
+                      [31m-[0m[0m provisioningState = "Succeeded"
+                    },
+                ]
+            }
+          [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+        } -> (known after apply)
+      [33m~[0m[0m type                      = "Microsoft.Network/virtualNetworks/subnets@2024-05-01" [33m->[0m[0m "Microsoft.Network/virtualNetworks/subnets@2023-11-01"
+        [90m# (4 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # module.vnet.module.subnets["firewall"].azapi_resource.subnet[0m will be updated in-place
+[0m  [33m~[0m[0m resource "azapi_resource" "subnet" {
+      [33m~[0m[0m body                      = {
+          [33m~[0m[0m properties = {
+              [32m+[0m[0m addressPrefix                     = [90mnull[0m[0m
+              [32m+[0m[0m natGateway                        = [90mnull[0m[0m
+              [32m+[0m[0m networkSecurityGroup              = [90mnull[0m[0m
+              [32m+[0m[0m routeTable                        = [90mnull[0m[0m
+              [32m+[0m[0m serviceEndpointPolicies           = [90mnull[0m[0m
+              [32m+[0m[0m sharingScope                      = [90mnull[0m[0m
+                [90m# (6 unchanged attributes hidden)[0m[0m
+            }
+        }
+        id                        = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallSubnet"
+      [32m+[0m[0m locks                     = [
+          [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet",
+        ]
+        name                      = "AzureFirewallSubnet"
+      [33m~[0m[0m output                    = {
+          [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallSubnet"
+          [31m-[0m[0m properties = {
+              [31m-[0m[0m addressPrefixes   = [
+                  [31m-[0m[0m "10.240.5.0/26",
+                ]
+              [31m-[0m[0m ipConfigurations  = [
+                  [31m-[0m[0m {},
+                ]
+              [31m-[0m[0m provisioningState = "Succeeded"
+            }
+          [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+        } -> (known after apply)
+      [33m~[0m[0m type                      = "Microsoft.Network/virtualNetworks/subnets@2024-05-01" [33m->[0m[0m "Microsoft.Network/virtualNetworks/subnets@2023-11-01"
+        [90m# (4 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # module.vnet.module.subnets["firewall-mgmt"].azapi_resource.subnet[0m will be updated in-place
+[0m  [33m~[0m[0m resource "azapi_resource" "subnet" {
+      [33m~[0m[0m body                      = {
+          [33m~[0m[0m properties = {
+              [32m+[0m[0m addressPrefix                     = [90mnull[0m[0m
+              [32m+[0m[0m natGateway                        = [90mnull[0m[0m
+              [32m+[0m[0m networkSecurityGroup              = [90mnull[0m[0m
+              [32m+[0m[0m routeTable                        = [90mnull[0m[0m
+              [32m+[0m[0m serviceEndpointPolicies           = [90mnull[0m[0m
+              [32m+[0m[0m sharingScope                      = [90mnull[0m[0m
+                [90m# (6 unchanged attributes hidden)[0m[0m
+            }
+        }
+        id                        = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallManagementSubnet"
+      [32m+[0m[0m locks                     = [
+          [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet",
+        ]
+        name                      = "AzureFirewallManagementSubnet"
+      [33m~[0m[0m output                    = {
+          [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallManagementSubnet"
+          [31m-[0m[0m properties = {
+              [31m-[0m[0m addressPrefixes   = [
+                  [31m-[0m[0m "10.240.5.64/26",
+                ]
+              [31m-[0m[0m ipConfigurations  = [
+                  [31m-[0m[0m {},
+                ]
+              [31m-[0m[0m provisioningState = "Succeeded"
+            }
+          [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+        } -> (known after apply)
+      [33m~[0m[0m type                      = "Microsoft.Network/virtualNetworks/subnets@2024-05-01" [33m->[0m[0m "Microsoft.Network/virtualNetworks/subnets@2023-11-01"
+        [90m# (4 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # module.vnet.module.subnets["pre-production"].azapi_resource.subnet[0m will be updated in-place
+[0m  [33m~[0m[0m resource "azapi_resource" "subnet" {
+      [33m~[0m[0m body                      = {
+          [33m~[0m[0m properties = {
+              [32m+[0m[0m addressPrefix                     = [90mnull[0m[0m
+              [32m+[0m[0m natGateway                        = [90mnull[0m[0m
+              [32m+[0m[0m serviceEndpointPolicies           = [90mnull[0m[0m
+              [33m~[0m[0m serviceEndpoints                  = [
+                  [33m~[0m[0m {
+                      [31m-[0m[0m locations = [
+                          [31m-[0m[0m "*",
+                        ]
+                        [90m# (1 unchanged attribute hidden)[0m[0m
+                    },
+                  [33m~[0m[0m {
+                      [31m-[0m[0m locations = [
+                          [31m-[0m[0m "westeurope",
+                          [31m-[0m[0m "northeurope",
+                        ]
+                        [90m# (1 unchanged attribute hidden)[0m[0m
+                    },
+                ]
+              [32m+[0m[0m sharingScope                      = [90mnull[0m[0m
+                [90m# (7 unchanged attributes hidden)[0m[0m
+            }
+        }
+        id                        = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/PreProductionSubnet"
+      [32m+[0m[0m locks                     = [
+          [32m+[0m[0m "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet",
+        ]
+        name                      = "PreProductionSubnet"
+      [33m~[0m[0m output                    = {
+          [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/PreProductionSubnet"
+          [31m-[0m[0m properties = {
+              [31m-[0m[0m addressPrefixes   = [
+                  [31m-[0m[0m "10.240.4.64/26",
+                ]
+              [31m-[0m[0m ipConfigurations  = [
+                  [31m-[0m[0m {},
+                  [31m-[0m[0m {},
+                ]
+              [31m-[0m[0m privateEndpoints  = [
+                  [31m-[0m[0m {},
+                  [31m-[0m[0m {},
+                ]
+              [31m-[0m[0m provisioningState = "Succeeded"
+              [31m-[0m[0m purpose           = "PrivateEndpoints"
+              [31m-[0m[0m serviceEndpoints  = [
+                  [31m-[0m[0m {
+                      [31m-[0m[0m locations         = [
+                          [31m-[0m[0m "*",
+                        ]
+                      [31m-[0m[0m provisioningState = "Succeeded"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m locations         = [
+                          [31m-[0m[0m "westeurope",
+                          [31m-[0m[0m "northeurope",
+                        ]
+                      [31m-[0m[0m provisioningState = "Succeeded"
+                    },
+                ]
+            }
+          [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+        } -> (known after apply)
+      [33m~[0m[0m type                      = "Microsoft.Network/virtualNetworks/subnets@2024-05-01" [33m->[0m[0m "Microsoft.Network/virtualNetworks/subnets@2023-11-01"
+        [90m# (4 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # module.vnet.module.vnet.azapi_resource.vnet[0m will be updated in-place
+[0m  [33m~[0m[0m resource "azapi_resource" "vnet" {
+      [33m~[0m[0m body                      = {
+          [32m+[0m[0m extendedLocation = [90mnull[0m[0m
+          [33m~[0m[0m properties       = {
+              [32m+[0m[0m bgpCommunities              = [90mnull[0m[0m
+              [32m+[0m[0m ddosProtectionPlan          = [90mnull[0m[0m
+              [32m+[0m[0m dhcpOptions                 = [90mnull[0m[0m
+              [32m+[0m[0m enableVmProtection          = false
+              [32m+[0m[0m encryption                  = [90mnull[0m[0m
+              [32m+[0m[0m flowTimeoutInMinutes        = [90mnull[0m[0m
+              [31m-[0m[0m privateEndpointVNetPolicies = "Disabled"
+              [31m-[0m[0m subnets                     = [
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/PreProductionSubnet"
+                      [31m-[0m[0m name       = "PreProductionSubnet"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes                   = [
+                              [31m-[0m[0m "10.240.4.64/26",
+                            ]
+                          [31m-[0m[0m defaultOutboundAccess             = false
+                          [31m-[0m[0m delegations                       = []
+                          [31m-[0m[0m networkSecurityGroup              = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/pre-nsg"
+                            }
+                          [31m-[0m[0m privateEndpointNetworkPolicies    = "Enabled"
+                          [31m-[0m[0m privateLinkServiceNetworkPolicies = "Enabled"
+                          [31m-[0m[0m routeTable                        = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/routeTables/route-az-grp-firewall"
+                            }
+                          [31m-[0m[0m serviceEndpoints                  = [
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations = [
+                                      [31m-[0m[0m "*",
+                                    ]
+                                  [31m-[0m[0m service   = "Microsoft.KeyVault"
+                                },
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations = [
+                                      [31m-[0m[0m "westeurope",
+                                      [31m-[0m[0m "northeurope",
+                                    ]
+                                  [31m-[0m[0m service   = "Microsoft.Storage"
+                                },
+                            ]
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/ApiManagementSubnet"
+                      [31m-[0m[0m name       = "ApiManagementSubnet"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes                   = [
+                              [31m-[0m[0m "10.240.4.144/28",
+                            ]
+                          [31m-[0m[0m defaultOutboundAccess             = false
+                          [31m-[0m[0m delegations                       = []
+                          [31m-[0m[0m networkSecurityGroup              = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/api-nsg"
+                            }
+                          [31m-[0m[0m privateEndpointNetworkPolicies    = "Enabled"
+                          [31m-[0m[0m privateLinkServiceNetworkPolicies = "Enabled"
+                          [31m-[0m[0m serviceEndpoints                  = []
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/DevelopmentSubnet"
+                      [31m-[0m[0m name       = "DevelopmentSubnet"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes                   = [
+                              [31m-[0m[0m "10.240.4.0/26",
+                            ]
+                          [31m-[0m[0m defaultOutboundAccess             = false
+                          [31m-[0m[0m delegations                       = []
+                          [31m-[0m[0m networkSecurityGroup              = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/networkSecurityGroups/dev-nsg"
+                            }
+                          [31m-[0m[0m privateEndpointNetworkPolicies    = "Enabled"
+                          [31m-[0m[0m privateLinkServiceNetworkPolicies = "Enabled"
+                          [31m-[0m[0m routeTable                        = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/routeTables/route-az-grp-firewall"
+                            }
+                          [31m-[0m[0m serviceEndpoints                  = [
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations = [
+                                      [31m-[0m[0m "*",
+                                    ]
+                                  [31m-[0m[0m service   = "Microsoft.KeyVault"
+                                },
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations = [
+                                      [31m-[0m[0m "westeurope",
+                                      [31m-[0m[0m "northeurope",
+                                    ]
+                                  [31m-[0m[0m service   = "Microsoft.Storage"
+                                },
+                            ]
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallSubnet"
+                      [31m-[0m[0m name       = "AzureFirewallSubnet"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes                   = [
+                              [31m-[0m[0m "10.240.5.0/26",
+                            ]
+                          [31m-[0m[0m defaultOutboundAccess             = false
+                          [31m-[0m[0m delegations                       = []
+                          [31m-[0m[0m privateEndpointNetworkPolicies    = "Enabled"
+                          [31m-[0m[0m privateLinkServiceNetworkPolicies = "Enabled"
+                          [31m-[0m[0m serviceEndpoints                  = []
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/subnets/AzureFirewallManagementSubnet"
+                      [31m-[0m[0m name       = "AzureFirewallManagementSubnet"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes                   = [
+                              [31m-[0m[0m "10.240.5.64/26",
+                            ]
+                          [31m-[0m[0m defaultOutboundAccess             = false
+                          [31m-[0m[0m delegations                       = []
+                          [31m-[0m[0m privateEndpointNetworkPolicies    = "Enabled"
+                          [31m-[0m[0m privateLinkServiceNetworkPolicies = "Enabled"
+                          [31m-[0m[0m serviceEndpoints                  = []
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/subnets"
+                    },
+                ]
+              [31m-[0m[0m virtualNetworkPeerings      = [
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/virtualNetworkPeerings/stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-pt-vnet-peer"
+                      [31m-[0m[0m name       = "stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-pt-vnet-peer"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m allowForwardedTraffic            = false
+                          [31m-[0m[0m allowGatewayTransit              = false
+                          [31m-[0m[0m allowVirtualNetworkAccess        = true
+                          [31m-[0m[0m doNotVerifyRemoteGateways        = false
+                          [31m-[0m[0m peerCompleteVnets                = true
+                          [31m-[0m[0m peeringState                     = "Connected"
+                          [31m-[0m[0m peeringSyncLevel                 = "FullyInSync"
+                          [31m-[0m[0m remoteAddressSpace               = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.2.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m remoteVirtualNetwork             = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-pt-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-pt-vnet"
+                            }
+                          [31m-[0m[0m remoteVirtualNetworkAddressSpace = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.2.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m useRemoteGateways                = false
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/virtualNetworkPeerings/stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-gb-vnet-peer"
+                      [31m-[0m[0m name       = "stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-gb-vnet-peer"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m allowForwardedTraffic            = false
+                          [31m-[0m[0m allowGatewayTransit              = false
+                          [31m-[0m[0m allowVirtualNetworkAccess        = true
+                          [31m-[0m[0m doNotVerifyRemoteGateways        = false
+                          [31m-[0m[0m peerCompleteVnets                = true
+                          [31m-[0m[0m peeringState                     = "Connected"
+                          [31m-[0m[0m peeringSyncLevel                 = "FullyInSync"
+                          [31m-[0m[0m remoteAddressSpace               = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.8.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m remoteVirtualNetwork             = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-gb-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-gb-vnet"
+                            }
+                          [31m-[0m[0m remoteVirtualNetworkAddressSpace = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.8.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m useRemoteGateways                = false
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet/virtualNetworkPeerings/stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-tr-vnet-peer"
+                      [31m-[0m[0m name       = "stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-tr-vnet-peer"
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m allowForwardedTraffic            = false
+                          [31m-[0m[0m allowGatewayTransit              = false
+                          [31m-[0m[0m allowVirtualNetworkAccess        = true
+                          [31m-[0m[0m doNotVerifyRemoteGateways        = false
+                          [31m-[0m[0m peerCompleteVnets                = true
+                          [31m-[0m[0m peeringState                     = "Connected"
+                          [31m-[0m[0m peeringSyncLevel                 = "FullyInSync"
+                          [31m-[0m[0m remoteAddressSpace               = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.1.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m remoteVirtualNetwork             = {
+                              [31m-[0m[0m id = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-tr-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-tr-vnet"
+                            }
+                          [31m-[0m[0m remoteVirtualNetworkAddressSpace = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.1.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m useRemoteGateways                = false
+                        }
+                      [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks/virtualNetworkPeerings"
+                    },
+                ]
+                [90m# (2 unchanged attributes hidden)[0m[0m
+            }
+        }
+        id                        = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet"
+        name                      = "stc-genai-network-nonprod-vnet"
+      [33m~[0m[0m output                    = {
+          [31m-[0m[0m id         = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/stc-genai-network-nonprod-rg/providers/Microsoft.Network/virtualNetworks/stc-genai-network-nonprod-vnet"
+          [31m-[0m[0m properties = {
+              [31m-[0m[0m addressSpace           = {
+                  [31m-[0m[0m addressPrefixes = [
+                      [31m-[0m[0m "10.240.4.0/23",
+                    ]
+                }
+              [31m-[0m[0m provisioningState      = "Succeeded"
+              [31m-[0m[0m resourceGuid           = "eda66aa1-74c7-4040-b259-79d538b7102a"
+              [31m-[0m[0m subnets                = [
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes   = [
+                              [31m-[0m[0m "10.240.4.64/26",
+                            ]
+                          [31m-[0m[0m ipConfigurations  = [
+                              [31m-[0m[0m {},
+                              [31m-[0m[0m {},
+                            ]
+                          [31m-[0m[0m privateEndpoints  = [
+                              [31m-[0m[0m {},
+                              [31m-[0m[0m {},
+                            ]
+                          [31m-[0m[0m provisioningState = "Succeeded"
+                          [31m-[0m[0m purpose           = "PrivateEndpoints"
+                          [31m-[0m[0m serviceEndpoints  = [
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations         = [
+                                      [31m-[0m[0m "*",
+                                    ]
+                                  [31m-[0m[0m provisioningState = "Succeeded"
+                                },
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations         = [
+                                      [31m-[0m[0m "westeurope",
+                                      [31m-[0m[0m "northeurope",
+                                    ]
+                                  [31m-[0m[0m provisioningState = "Succeeded"
+                                },
+                            ]
+                        }
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes   = [
+                              [31m-[0m[0m "10.240.4.144/28",
+                            ]
+                          [31m-[0m[0m ipConfigurations  = [
+                              [31m-[0m[0m {},
+                              [31m-[0m[0m {},
+                            ]
+                          [31m-[0m[0m provisioningState = "Succeeded"
+                        }
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes   = [
+                              [31m-[0m[0m "10.240.4.0/26",
+                            ]
+                          [31m-[0m[0m provisioningState = "Succeeded"
+                          [31m-[0m[0m serviceEndpoints  = [
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations         = [
+                                      [31m-[0m[0m "*",
+                                    ]
+                                  [31m-[0m[0m provisioningState = "Succeeded"
+                                },
+                              [31m-[0m[0m {
+                                  [31m-[0m[0m locations         = [
+                                      [31m-[0m[0m "westeurope",
+                                      [31m-[0m[0m "northeurope",
+                                    ]
+                                  [31m-[0m[0m provisioningState = "Succeeded"
+                                },
+                            ]
+                        }
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes   = [
+                              [31m-[0m[0m "10.240.5.0/26",
+                            ]
+                          [31m-[0m[0m ipConfigurations  = [
+                              [31m-[0m[0m {},
+                            ]
+                          [31m-[0m[0m provisioningState = "Succeeded"
+                        }
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m addressPrefixes   = [
+                              [31m-[0m[0m "10.240.5.64/26",
+                            ]
+                          [31m-[0m[0m ipConfigurations  = [
+                              [31m-[0m[0m {},
+                            ]
+                          [31m-[0m[0m provisioningState = "Succeeded"
+                        }
+                    },
+                ]
+              [31m-[0m[0m virtualNetworkPeerings = [
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m provisioningState                = "Succeeded"
+                          [31m-[0m[0m remoteAddressSpace               = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.2.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m remoteVirtualNetworkAddressSpace = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.2.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m resourceGuid                     = "b17fc92a-7f68-051b-22de-76a5838d2b2c"
+                        }
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m provisioningState                = "Succeeded"
+                          [31m-[0m[0m remoteAddressSpace               = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.8.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m remoteVirtualNetworkAddressSpace = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.8.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m resourceGuid                     = "86af267d-9656-0220-07d0-b8dab23397f2"
+                        }
+                    },
+                  [31m-[0m[0m {
+                      [31m-[0m[0m properties = {
+                          [31m-[0m[0m provisioningState                = "Succeeded"
+                          [31m-[0m[0m remoteAddressSpace               = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.1.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m remoteVirtualNetworkAddressSpace = {
+                              [31m-[0m[0m addressPrefixes = [
+                                  [31m-[0m[0m "10.240.1.0/24",
+                                ]
+                            }
+                          [31m-[0m[0m resourceGuid                     = "2b6a9d1b-f397-0584-1099-17b51d72baff"
+                        }
+                    },
+                ]
+            }
+          [31m-[0m[0m type       = "Microsoft.Network/virtualNetworks"
+        } -> (known after apply)
+      [33m~[0m[0m type                      = "Microsoft.Network/virtualNetworks@2024-05-01" [33m->[0m[0m "Microsoft.Network/virtualNetworks@2023-11-01"
+        [90m# (5 unchanged attributes hidden)[0m[0m
+    }
+
+[1mPlan:[0m 4 to add, 6 to change, 0 to destroy.
+[0m[90m
+─────────────────────────────────────────────────────────────────────────────[0m
+
+Note: You didn't use the -out option to save this plan, so Terraform can't
+guarantee to take exactly these actions if you run "terraform apply" now.

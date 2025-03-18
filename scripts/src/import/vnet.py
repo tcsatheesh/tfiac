@@ -50,6 +50,16 @@ class ImportState(ImportStateBase):
             resource_id=f"/subscriptions/{_vnet_subscription_id}/resourceGroups/{_vnet_resource_group_name}/providers/Microsoft.Network/routeTables/{_route_table_name}",
         )
 
+        _dns_subscription_id = _dns_variables["subscription_id"]
+        _dns_resource_group_name = _dns_variables["resource_group_name"]
+
+        for _key2, _value2 in _dns_variables["domain_names"].items():
+            _logger.info(f"Importing DNS key {_key2} value {_value2}")
+            self._import_resource(
+                name=f'module.vnet.azurerm_private_dns_zone_virtual_network_link.this["{_key2}"]',
+                resource_id=f"/subscriptions/{_dns_subscription_id}/resourceGroups/{_dns_resource_group_name}/providers/Microsoft.Network/privateDnsZones/{_value2}/virtualNetworkLinks/{_vnet_name}",
+            )
+
         for _key, _value in _vnet_variables["subnets"].items():
             _logger.debug(f"{_key}: {_value}")
             _nsg_name = _value["nsg"]
@@ -99,17 +109,16 @@ class ImportState(ImportStateBase):
             _firewall_name = _firewall_variables["name"]
             _logger.info("Importing firewall...")
             _firewall_name = _firewall_variables["name"]
+            _firewall_policy_name = _firewall_variables["policy"]["name"]
             _logger.info(f"Importing firewall {_firewall_name}...")
             self._import_resource(
                 name="module.vnet.module.firewall[0].azurerm_firewall.this",
                 resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}",
             )
-            _logger.info(
-                f"Importing firewall policy {_firewall_variables['policy']['name']}..."
-            )
+            _logger.info(f"Importing firewall policy {_firewall_policy_name}...")
             self._import_resource(
                 name="module.vnet.module.fwpolicy[0].azurerm_firewall_policy.this",
-                resource_id=f'/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_variables["policy"]["name"]}',
+                resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_policy_name}",
             )
             _logger.info(
                 f"Importing firewall public IP {_firewall_variables['public_ip_name']}..."
@@ -131,14 +140,31 @@ class ImportState(ImportStateBase):
                 resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/azureFirewalls/{_firewall_name}|diag",
             )
 
-        _dns_subscription_id = _dns_variables["subscription_id"]
-        _dns_resource_group_name = _dns_variables["resource_group_name"]
+            for _key, _value in _firewall_variables["ipgroups"].items():
+                _ip_group_name = _value["name"]
+                _logger.info(f"Importing firewall IPGroup {_ip_group_name}...")
+                self._import_resource(
+                    name=f'module.vnet.azurerm_ip_group.this["{_ip_group_name}"]',
+                    resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/ipGroups/{_ip_group_name}",
+                )
 
-        for _key2, _value2 in _dns_variables["domain_names"].items():
-            _logger.info(f"Importing DNS key {_key2} value {_value2}")
+            for _key_rcg, _value_rcg in _firewall_variables["rulecollections"].items():
+                _rcg_name = _value_rcg["name"]
+                _logger.info(
+                    f"Importing firewall policy rule collection group key {_key_rcg} value {_rcg_name}"
+                )
+                self._import_resource(
+                    name=f"module.vnet.module.{_key_rcg}.azurerm_firewall_policy_rule_collection_group.this",
+                    resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_policy_name}/ruleCollectionGroups/{_rcg_name}",
+                )
+            _key_rcg = "denyall"
+            _rcg_name = "DenyAllInternetCollectionGroup"
+            _logger.info(
+                f"Importing firewall policy rule collection group key {_key_rcg} value {_rcg_name}"
+            )
             self._import_resource(
-                name=f'module.vnet.azurerm_private_dns_zone_virtual_network_link.this["{_key2}"]',
-                resource_id=f"/subscriptions/{_dns_subscription_id}/resourceGroups/{_dns_resource_group_name}/providers/Microsoft.Network/privateDnsZones/{_value2}/virtualNetworkLinks/{_vnet_name}",
+                name=f"module.vnet.module.{_key_rcg}.azurerm_firewall_policy_rule_collection_group.this",
+                resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_policy_name}/ruleCollectionGroups/{_rcg_name}",
             )
 
 

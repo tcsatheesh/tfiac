@@ -121,19 +121,28 @@ ipgroups: {
   },
 }
 rulecollections: {
-  azuread: [
-    "market-development-subnets",
-    "group-development-subnets",
-    "market-pre-production-subnets",
-    "group-pre-production-subnets",
-  ],
-  aml: [
-    "market-development-subnets",
-    "group-development-subnets",
-    "market-pre-production-subnets",
-    "group-pre-production-subnets",
-  ],
-  buildsvr: [
-    "pre-production-build-server",
-  ]
+  azuread: {
+    name: "AzureActiveDirectoryCollectionGroup",
+    ipgroups: [
+      "market-development-subnets",
+      "group-development-subnets",
+      "market-pre-production-subnets",
+      "group-pre-production-subnets",
+    ]
+  },
+  aml: {
+  name: "AzureMachineLearningCollectionGroup",
+    ipgroups: [
+      "market-development-subnets",
+      "group-development-subnets",
+      "market-pre-production-subnets",
+      "group-pre-production-subnets",
+    ]
+  },
+  buildsvr: {
+  name: "AzureBuildServerCollectionGroup",
+    ipgroups:  [
+      "pre-production-build-server",
+      ]
+  },
 }
