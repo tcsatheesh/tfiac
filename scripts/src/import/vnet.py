@@ -54,7 +54,7 @@ class ImportState(ImportStateBase):
         _dns_resource_group_name = _dns_variables["resource_group_name"]
 
         for _key2, _value2 in _dns_variables["domain_names"].items():
-            _logger.info(f"Importing DNS key {_key2} value {_value2}")
+            _logger.info(f"Importing virtual link to DNS key {_key2} value {_value2}")
             self._import_resource(
                 name=f'module.vnet.azurerm_private_dns_zone_virtual_network_link.this["{_key2}"]',
                 resource_id=f"/subscriptions/{_dns_subscription_id}/resourceGroups/{_dns_resource_group_name}/providers/Microsoft.Network/privateDnsZones/{_value2}/virtualNetworkLinks/{_vnet_name}",
