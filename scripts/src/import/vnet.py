@@ -154,7 +154,7 @@ class ImportState(ImportStateBase):
                     f"Importing firewall policy rule collection group key {_key_rcg} value {_rcg_name}"
                 )
                 self._import_resource(
-                    name=f"module.vnet.module.{_key_rcg}.azurerm_firewall_policy_rule_collection_group.this",
+                    name=f"module.vnet.module.firewall[0].module.{_key_rcg}.azurerm_firewall_policy_rule_collection_group.this",
                     resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_policy_name}/ruleCollectionGroups/{_rcg_name}",
                 )
             _key_rcg = "denyall"
@@ -163,7 +163,7 @@ class ImportState(ImportStateBase):
                 f"Importing firewall policy rule collection group key {_key_rcg} value {_rcg_name}"
             )
             self._import_resource(
-                name=f"module.vnet.module.{_key_rcg}.azurerm_firewall_policy_rule_collection_group.this",
+                name=f"module.vnet.module.firewall[0].module.{_key_rcg}.azurerm_firewall_policy_rule_collection_group.this",
                 resource_id=f"/subscriptions/{_firewall_subscription_id}/resourceGroups/{_firewall_resource_group_name}/providers/Microsoft.Network/firewallPolicies/{_firewall_policy_name}/ruleCollectionGroups/{_rcg_name}",
             )
 
