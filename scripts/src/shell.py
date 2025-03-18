@@ -27,8 +27,8 @@ class ShellHandler:
         _args = self._args
 
         _command = command
-        self._logger.info(f"Working directory: {cwd}")
-        self._logger.info(f"Executing shell command: {_command}")
+        self._logger.debug(f"Working directory: {cwd}")
+        self._logger.debug(f"Executing shell command: {_command}")
         if _args.yes:
             try:
                 _output = subprocess.run(
@@ -37,14 +37,14 @@ class ShellHandler:
                     capture_output=True,
                     cwd=cwd,
                 )
-                self._logger.info(
+                self._logger.debug(
                     f"Shell command output return code: {_output.returncode}"
                 )
 
                 if _output.returncode == 0:
                     if _output.stdout:
                         _stdout = _output.stdout.decode("utf-8")
-                        self._logger.info(f"Shell command output: {_stdout}")
+                        self._logger.debug(f"Shell command output: {_stdout}")
                         if json_output:
                             return json.loads(_stdout)
                 else:

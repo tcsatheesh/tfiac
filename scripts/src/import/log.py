@@ -17,52 +17,62 @@ class ImportState:
         self._logger = kwargs.get("logger", None)
         self.shell_handler = kwargs.get("shell_handler", None)
 
+    def _import_variables(
+        self,
+        file_path,
+    ):
+        _variables_file_path = os.path.join(
+            os.path.abspath(os.getcwd()),
+            file_path,
+        )
+        _variables_file_path = os.path.abspath(
+            _variables_file_path,
+        )
+        if not os.path.exists(_variables_file_path):
+            self._logger.error(
+                f"Variables file not found at {_variables_file_path}"
+            )
+            raise FileNotFoundError(
+                f"Variables file not found at {_variables_file_path}"
+            )
+        else:
+            self._logger.info(
+                f"Importing variables from {_variables_file_path}"
+            )
+            with open(_variables_file_path, "r") as file:
+                _variables = yaml.safe_load(file)
+        return _variables
+
     def _import_log(
         self,
     ):
         _args = self.args
         _logger = self._logger
         _logger.info("Importing Log Analytics state...")
-        _log_variables_file_path = os.path.join(
-            os.path.abspath(os.getcwd()),
-            _args.variables,
+        _log_variables = self._import_variables(
+            file_path=_args.variables,
         )
-        _log_variables_file_path = os.path.abspath(
-            _log_variables_file_path,
+        _subscription_id = _log_variables["subscription_id"]
+        _resource_group_name = _log_variables["resource_group_name"]
+        _workspace_name = _log_variables["workspace_name"]
+
+        _command = [
+            "terraform",
+            "import",
+            "-var",
+            f"market={_args.market}",
+            "-var",
+            f"environment={_args.environment}",
+            "-var",
+            f"env_type={_args.env_type}",
+            f'module.log.module.log_analytics_workspace.azurerm_log_analytics_workspace.this',
+            f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/{_workspace_name}",
+        ]
+        _logger.info("Import command: %s", _command)
+        _output = self.shell_handler.execute_shell_command(
+            cwd=self.args.folder,
+            command=_command,
         )
-
-        if not os.path.exists(_log_variables_file_path):
-            self._logger.error(
-                f"Log Analytics variables file not found at {_log_variables_file_path}"
-            )
-        else:
-            self._logger.info(
-                f"Importing Log Analytics variables from {_log_variables_file_path}"
-            )
-            with open(_log_variables_file_path, "r") as file:
-                _log_variables = yaml.safe_load(file)
-
-            _subscription_id = _log_variables["subscription_id"]
-            _resource_group_name = _log_variables["resource_group_name"]
-            _workspace_name = _log_variables["workspace_name"]
-
-            _command = [
-                "terraform",
-                "import",
-                "-var",
-                f"market={_args.market}",
-                "-var",
-                f"environment={_args.environment}",
-                "-var",
-                f"env_type={_args.env_type}",
-                f'module.log.module.log_analytics_workspace.azurerm_log_analytics_workspace.this',
-                f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/{_workspace_name}",
-            ]
-            _logger.info("Import command: %s", _command)
-            _output = self.shell_handler.execute_shell_command(
-                cwd=self.args.folder,
-                command=_command,
-            )
 
 
 if __name__ == "__main__":
@@ -93,6 +103,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Remote VNet variables to use",
+    )
+    parser.add_argument(
+        "--firewall-variables",
+        type=str,
+        required=True,
+        help="Firewall variables to use",
     )
     parser.add_argument(
         "--market",

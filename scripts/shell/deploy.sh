@@ -4,9 +4,13 @@ environment=$3
 service=$4
 
 # check if the action is valid
-if [[ "$action" != "init" && "$action" != "plan" && "$action" != "apply" && "$action" != "destroy" && "$action" != "import" && "$action" != "reset" ]]; then
+# if [[ "$action" != "init" && "$action" != "plan" && "$action" != "apply" && "$action" != "destroy" && "$action" != "import" && "$action" != "reset" && "$action" != "release" ]]; then
+actions=("init" "plan" "apply" "destroy" "import" "reset" "release", "list", "show")
+if [[ ${actions[@]} =~ $action ]]; then
+    echo "Valid action: $action"
+else
     echo "Invalid action: $action"
-    echo "Valid actions are: init, plan, apply, destroy, import, reset"
+    echo "Valid actions are: init, plan, apply, destroy, import, reset, release, list"
     echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
     exit 1
 fi
@@ -158,6 +162,7 @@ if [[ "$action" == "import" ]]; then
     init_terraform
     apply_patch
     cd $current_working_directory
+    export PYTHONPATH=$current_working_directory
     echo "Running terraform import"
     python3 \
     ./scripts/src/import/$service.py \
@@ -173,13 +178,51 @@ if [[ "$action" == "import" ]]; then
 fi
 
 if [[ "$action" == "reset" ]]; then
-    export PYTHONPATH=$PYTHONPATH:$(pwd)
     cd $current_working_directory
     echo "Running terraform reset"
-    python3 \
-    ./scripts/src/__init__.py \
-    reset \
-    --folder terraform/$service \
-    --variables variables/$market/$environment/$service.yaml \
-    --yes
+    backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
+    echo "Backend env file is $backend_env_file"
+    source $backend_env_file
+    TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
+    echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
+    
+    az storage blob delete \
+    --subscription $TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID \
+    --account-name $TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME \
+    --container-name $TERRAFORM_BACKEND_AZURE_CONTAINER_NAME \
+    --name $TERRAFORM_BACKEND_AZURE_KEY \
+    --auth-mode login
+fi
+
+if [[ "$action" == "release" ]]; then
+    cd $current_working_directory
+    echo "Running storage blob release"
+    backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
+    echo "Backend env file is $backend_env_file"
+    source $backend_env_file
+    TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
+    echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
+    
+    az storage blob lease break \
+    --subscription $TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID \
+    --account-name $TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME \
+    --container-name $TERRAFORM_BACKEND_AZURE_CONTAINER_NAME \
+    --auth-mode login \
+    --blob-name $TERRAFORM_BACKEND_AZURE_KEY
+fi
+
+if [[ "$action" == "list" ]]; then
+        init_terraform
+    cd $current_working_directory
+    cd terraform/$service
+    echo "Running terraform destroy"
+    terraform state list
+fi
+
+if [[ "$action" == "show" ]]; then
+        init_terraform
+    cd $current_working_directory
+    cd terraform/$service
+    echo "Running terraform destroy"
+    terraform show
 fi

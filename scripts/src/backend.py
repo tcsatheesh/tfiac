@@ -198,7 +198,7 @@ class Backend:
         else:
             self._logger.error(f"Folder {_folder} not found.")
 
-        _backend_variables = self.get_backend_variables()
+        # _backend_variables = self.get_backend_variables()
 
         self._remove_terraform_files(
             folder=_folder,
@@ -228,6 +228,24 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Variables file",
+    )
+    parser.add_argument(
+        "--market",
+        type=str,
+        required=True,
+        help="Market",
+    )
+    parser.add_argument(
+        "--environment",
+        type=str,
+        required=True,
+        help="Environment",
+    )
+    parser.add_argument(
+        "--env-type",
+        type=str,
+        required=True,
+        help="Environment type",
     )
     parser.add_argument(
         "--output-file",
