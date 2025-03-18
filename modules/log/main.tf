@@ -13,4 +13,5 @@ module "log_analytics_workspace" {
   log_analytics_workspace_identity = {
     type = "SystemAssigned"
   }
+  enable_telemetry = false
 }

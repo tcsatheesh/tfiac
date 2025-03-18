@@ -170,10 +170,12 @@ if [[ "$action" == "import" ]]; then
     --environment $environment \
     --env-type $env_type \
     --folder terraform/$service \
-    --variables variables/$market/$environment/$service.yaml \
+    --services-variables variables/$market/$environment/$service.yaml \
+    --vnet-variables variables/$market/$env_type/vnet.yaml \
     --dns-variables variables/grp/prd/dns.yaml \
     --remote-vnet-variables variables/grp/$env_type/vnet.yaml \
     --firewall-variables variables/grp/$env_type/firewall.yaml \
+    --log-variables variables/grp/$env_type/log.yaml \
     --yes
 fi
 

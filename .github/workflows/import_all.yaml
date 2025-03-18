@@ -123,15 +123,17 @@ jobs:
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           ${GITHUB_WORKSPACE}/.iacvenv/bin/python \
-          ./scripts/src/import/${{ github.event.inputs.service }}.py \
-          --market ${{ github.event.inputs.market }} \
-          --environment ${{ github.event.inputs.environment }} \
+          ./scripts/src/import/${{ inputs.service }}.py \
+          --market ${{ inputs.market }} \
+          --environment ${{ inputs.environment }} \
           --env-type $env_type \
-          --folder terraform/${{ github.event.inputs.service }} \
-          --variables variables/${{ github.event.inputs.market }}/${{ github.event.inputs.environment }}/${{ github.event.inputs.service }}.yaml \
+          --folder terraform/${{ inputs.service }} \
+          --services-variables variables/${{ inputs.market }}/${{ inputs.environment }}/${{ inputs.service }}.yaml \
+          --vnet-variables variables/${{ inputs.market }}/$env_type/vnet.yaml \
           --dns-variables variables/grp/prd/dns.yaml \
           --remote-vnet-variables variables/grp/$env_type/vnet.yaml \
           --firewall-variables variables/grp/$env_type/firewall.yaml \
+          --log-variables variables/grp/$env_type/log.yaml \
           --yes
 
       - name: Remove virtual environment
