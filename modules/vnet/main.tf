@@ -98,3 +98,20 @@ resource "azurerm_private_dns_zone_virtual_network_link" "this" {
   registration_enabled  = false
 }
 
+module "firewall" {
+  source                        = "./firewall"
+  count                         = local.firewall_enabled ? 1 : 0
+  dns                           = var.dns
+  log                           = var.log
+  vnet                          = var.vnet
+  firewall                      = var.firewall
+  remote_vnet                   = var.remote_vnet
+  firewall_subnet_id            = module.subnets["firewall"].resource_id
+  firewall_management_subnet_id = module.subnets["firewall-mgmt"].resource_id
+  providers = {
+    azurerm.vnet        = azurerm.vnet
+    azurerm.log         = azurerm.log
+    azurerm.dns         = azurerm.dns
+    azurerm.remote_vnet = azurerm.remote_vnet
+  }
+}
