@@ -79,6 +79,22 @@ terraform fmt -recursive
 current_working_directory=$(pwd)
 echo "Current working directory is $current_working_directory"
 
+apply_patch() {
+    if [[ "$service" == "services" ]]; then
+        cd $current_working_directory
+        echo "Running patch for AML Private Endpoint"
+        patch_file_path="./patch/patch.sh"
+        if test -e $patch_file_path; then
+            chmod +x $patch_file_path
+            ./patch/patch.sh
+        else
+            echo "Patch file $patch_file_path not found"
+            exit 1
+        fi
+        echo "Patch completed"
+    fi
+}
+
 init_terraform() {
 
     cd $current_working_directory
@@ -106,23 +122,10 @@ init_terraform() {
     -backend-config="storage_account_name=$TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME" \
     -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
     -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
+
+    apply_patch
 }
 
-apply_patch() {
-    if [[ "$service" == "services" ]]; then
-        cd $current_working_directory
-        echo "Running patch for AML Private Endpoint"
-        patch_file_path="./patch/patch.sh"
-        if test -e $patch_file_path; then
-            chmod +x $patch_file_path
-            ./patch/patch.sh
-        else
-            echo "Patch file $patch_file_path not found"
-            exit 1
-        fi
-        echo "Patch completed"
-    fi
-}
 
 if [[ "$action" == "init" ]]; then
     init_terraform
@@ -141,7 +144,6 @@ fi
 
 if [[ "$action" == "apply" ]]; then
     init_terraform
-    apply_patch
     cd $current_working_directory
     cd terraform/$service
     echo "Running terraform apply"
@@ -166,7 +168,6 @@ fi
 
 if [[ "$action" == "import" ]]; then
     init_terraform
-    apply_patch
     cd $current_working_directory
     export PYTHONPATH=$current_working_directory
     echo "Running terraform import"
