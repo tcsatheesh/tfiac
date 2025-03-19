@@ -50,5 +50,6 @@ module "aiservices" {
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }
+  enable_telemetry = false
 }
 

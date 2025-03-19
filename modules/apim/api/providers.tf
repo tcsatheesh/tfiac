@@ -6,7 +6,9 @@ terraform {
         azurerm.services,
         azurerm.log,
         azurerm.vnet,
-      azurerm.dns]
+        azurerm.dns,
+        azurerm.apim
+      ]
     }
   }
 }

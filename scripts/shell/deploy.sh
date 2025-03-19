@@ -112,8 +112,14 @@ apply_patch() {
     if [[ "$service" == "services" ]]; then
         cd $current_working_directory
         echo "Running patch for AML Private Endpoint"
-        chmod +x ./patch/patch.sh
-        ./patch/aml/patch.sh
+        patch_file_path="./patch/patch.sh"
+        if test -e $patch_file_path; then
+            chmod +x $patch_file_path
+            ./patch/patch.sh
+        else
+            echo "Patch file $patch_file_path not found"
+            exit 1
+        fi
         echo "Patch completed"
     fi
 }

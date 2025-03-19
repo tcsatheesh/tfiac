@@ -1,4 +1,5 @@
 resource "azurerm_api_management_api" "openai" {
+  provider            = azurerm.apim
   name                = var.services.apim.apis.openai.name
   resource_group_name = var.services.apim.resource_group_name
   api_management_name = var.services.apim.name
@@ -18,6 +19,7 @@ resource "azurerm_api_management_api" "openai" {
 }
 
 resource "azurerm_api_management_api" "monitoring" {
+  provider            = azurerm.apim
   name                = var.services.apim.apis.monitoring.name
   resource_group_name = var.services.apim.resource_group_name
   api_management_name = var.services.apim.name
@@ -37,6 +39,7 @@ resource "azurerm_api_management_api" "monitoring" {
 }
 
 resource "azurerm_api_management_api" "ailanguage" {
+  provider            = azurerm.apim
   name                = var.services.apim.apis.ailanguage.name
   resource_group_name = var.services.apim.resource_group_name
   api_management_name = var.services.apim.name
@@ -52,6 +55,7 @@ resource "azurerm_api_management_api" "ailanguage" {
 }
 
 resource "azurerm_api_management_api_operation" "redactpii" {
+  provider            = azurerm.apim
   operation_id        = "redactpii"
   api_name            = azurerm_api_management_api.ailanguage.name
   api_management_name = var.services.apim.name
@@ -63,6 +67,7 @@ resource "azurerm_api_management_api_operation" "redactpii" {
 }
 
 resource "azurerm_api_management_api_policy" "openai" {
+  provider            = azurerm.apim
   api_name            = azurerm_api_management_api.openai.name
   api_management_name = var.services.apim.name
   resource_group_name = var.services.apim.resource_group_name
@@ -75,6 +80,7 @@ resource "azurerm_api_management_api_policy" "openai" {
 }
 
 resource "azurerm_api_management_api_policy" "monitoring" {
+  provider            = azurerm.apim
   api_name            = azurerm_api_management_api.monitoring.name
   api_management_name = var.services.apim.name
   resource_group_name = var.services.apim.resource_group_name
@@ -87,6 +93,7 @@ resource "azurerm_api_management_api_policy" "monitoring" {
 }
 
 resource "azurerm_api_management_api_policy" "ailanguage" {
+  provider            = azurerm.apim
   api_name            = azurerm_api_management_api.ailanguage.name
   api_management_name = var.services.apim.name
   resource_group_name = var.services.apim.resource_group_name

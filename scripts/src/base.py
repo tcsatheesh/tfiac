@@ -78,8 +78,39 @@ class ImportStateBase:
                 _variables = yaml.safe_load(file)
         return _variables
 
+    def _import_resource_group(
+            self,
+            name,
+            subscription_id,
+            resource_group_name
+    ):
+        _resource_id = f"/subscriptions/{subscription_id}"
+        _resource_id += f"/resourceGroups/{resource_group_name}"
+        self._import_resource_id(
+            name=name,
+            resource_id=_resource_id,
+        )        
+
     def _import_resource(
         self,
+        name,
+        subscription_id,
+        resource_group_name,
+        resource_type,
+        resource,
+    ):
+        _resource_id = f"/subscriptions/{subscription_id}"
+        _resource_id += f"/resourceGroups/{resource_group_name}"
+        _resource_id += f"/providers/{resource_type}"
+        _resource_id += f"/{resource}"
+        self._import_resource_id(
+            name=name,
+            resource_id=_resource_id,
+        )
+
+    def _import_resource_id(
+        self,
+
         name,
         resource_id,
     ):
