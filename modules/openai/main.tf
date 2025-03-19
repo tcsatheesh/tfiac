@@ -30,5 +30,6 @@ module "openai" {
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }
-  enable_telemetry = false
+  enable_telemetry      = false
+  custom_subdomain_name = var.services.open_ai.custom_subdomain_name
 }

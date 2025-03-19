@@ -18,6 +18,7 @@ container_registry:
 open_ai:
   name: stcgenaidevtroai
   location: swedencentral
+  custom_subdomain_name: stcgenaidevtroai 
   deployments: {
       gpt-4o-mini:
         {
@@ -51,6 +52,7 @@ ai_services:
   storage_account_name: stcgenaidevtra05
 ai_language:
   name: stcgenaidevtrlng
+  custom_subdomain_name: stcgenaidevtrlng
 aml:
   name: stcgenaidevtraml
   storage_account_name: stcgenaidevtrs02

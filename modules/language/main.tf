@@ -28,5 +28,6 @@ module "ai_language" {
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
     }
   }
-  enable_telemetry = false
+  enable_telemetry      = false
+  custom_subdomain_name = var.services.ai_language.custom_subdomain_name
 }

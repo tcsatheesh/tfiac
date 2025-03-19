@@ -344,6 +344,7 @@ class ImportState(ImportStateBase):
                 resource=f"accounts/{_open_ai_name}/deployments/{_deployment_name}",
             )
 
+
         _ai_foundry_storage_account_name = _services_variables["ai_foundry"]["storage_account_name"]
         self._import_storage(
             storage_subscription_id=_services_subscription_id,
@@ -373,6 +374,15 @@ class ImportState(ImportStateBase):
             module_name="module.aiservices[0].module.ai_services_storage.module.this"
         )
 
+        _uai_name = _services_variables["uai"]["name"]
+        _logger.info(f"Importing Azure UAI {_uai_name}")
+        self._import_resource(
+            name=" module.uai[0].module.this.azurerm_user_assigned_identity.this",
+            subscription_id=_services_subscription_id,
+            resource_group_name=_services_resource_group_name,
+            resource_type="Microsoft.ManagedIdentity",
+            resource=f"userAssignedIdentities/{_uai_name}",
+        )
 
 if __name__ == "__main__":
     _import_state = ImportState()
