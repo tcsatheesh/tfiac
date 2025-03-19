@@ -29,17 +29,17 @@ module "this" {
       resource_group_name             = var.vnet.resource_group_name
     }
   }
-  containers = {
-    blob_container0 = {
-      name = "raw"
-    }
-    blob_container1 = {
-      name = "structured"
-    }
-    blob_container2 = {
-      name = "curated"
-    }
-  }
+  # containers = {
+  #   blob_container0 = {
+  #     name = "raw"
+  #   }
+  #   blob_container1 = {
+  #     name = "structured"
+  #   }
+  #   blob_container2 = {
+  #     name = "curated"
+  #   }
+  # }
   diagnostic_settings_storage_account = {
     storage = {
       name                  = "diag"
@@ -88,5 +88,6 @@ module "this" {
       metric_categories     = ["Capacity", "Transaction"]
     }
   }
+  enable_telemetry = false
 }
 
