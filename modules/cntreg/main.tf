@@ -19,8 +19,9 @@ module "containerregistry" {
   }
   diagnostic_settings = {
     to_la = {
-      name                  = "tola_${var.services.container_registry.name}"
-      workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
+      name                           = "tola_${var.services.container_registry.name}"
+      workspace_resource_id          = data.azurerm_log_analytics_workspace.this.id
+      log_analytics_destination_type = "Dedicated"
     }
   }
   enable_telemetry = false

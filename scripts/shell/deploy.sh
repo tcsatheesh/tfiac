@@ -11,14 +11,14 @@ if [[ ${actions[@]} =~ $action ]]; then
 else
     echo "Invalid action: $action"
     echo "Valid actions are: init, plan, apply, destroy, import, reset, release, list"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
     exit 1
 fi
 
 # check if the market is in the format market=<market> else exit with error message
 if [[ "$market" != market=* ]]; then
     echo "Invalid market format: $market"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
     exit 1
 else
     market=$(echo $market | cut -d'=' -f2)
@@ -28,14 +28,14 @@ fi
 if [[ "$market" != "grp" && "$market" != "pt" && "$market" != "tr" && "$market" != "gb" && "$market" != "de" && "$market" != "ro" && "$market" != "cz" && "$market" != "ie" ]]; then
     echo "Invalid market: $market"
     echo "Valid markets are: grp, pt, tr, gb, de, ro, cz, ie"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
     exit 1
 fi
 
 # check if the environment is in the format environment=<dev|pre|npd|prd> else exit with error message
 if [[ "$environment" != environment=* ]]; then
     echo "Invalid environment format: $environment"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
     exit 1
 else
     environment=$(echo $environment | cut -d'=' -f2)
@@ -48,10 +48,10 @@ if [[ "$environment" != "dev" && "$environment" != "pre" && "$environment" != "n
     exit 1
 fi
 
-# check if the service is in the format service=<service|vnet|dns|log> else exit with error message
+# check if the service is in the format service=<services|vnet|dns|log> else exit with error message
 if [[ "$service" != service=* ]]; then
     echo "Invalid service format: $service"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<service|vnet|dns|log>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
     exit 1
 else
     service=$(echo $service | cut -d'=' -f2)

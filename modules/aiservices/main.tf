@@ -46,8 +46,9 @@ module "aiservices" {
   }
   diagnostic_settings = {
     to_la = {
-      name                  = format("tola_%s", var.services.ai_services.name)
-      workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
+      name                           = format("tola_%s", var.services.ai_services.name)
+      workspace_resource_id          = data.azurerm_log_analytics_workspace.this.id
+      log_analytics_destination_type = "Dedicated"
     }
   }
   enable_telemetry = false
