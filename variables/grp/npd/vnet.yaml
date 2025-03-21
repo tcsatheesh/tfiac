@@ -256,3 +256,13 @@ subnets:
     delegation:  []
     has_nsg_rules: false
     nsg_rules: {}
+  buildsvr:
+    name: "BuildServerSubnet"
+    address_prefixes: ["10.240.4.160/28"]
+    nsg: "stc-genai-network-nonprod-vnet-BuildServerSubnet-NSG"
+    add_route_table: true
+    add_nsg: true
+    service_endpoints: []
+    delegation:  []
+    has_nsg_rules: false
+    nsg_rules: {}

@@ -143,7 +143,7 @@ rulecollections: {
   name: "AzureBuildServerCollectionGroup",
     ipgroups:  [
       "pre-production-build-server",
-      ]
+    ]
   },
   gbfnap: {
   name: "AzureGBSuperCollectionGroup",
@@ -152,6 +152,7 @@ rulecollections: {
       "group-development-subnets",
       "market-pre-production-subnets",
       "group-pre-production-subnets",
-      ]
+      "pre-production-build-server",
+    ]
   },
 }

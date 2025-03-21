@@ -1,0 +1,25 @@
+subscription_id: "883c9081-23ed-4674-95c5-45c74834e093"
+resource_group_name: "stc-genai-buildserver-nonprod-rg"
+location: "westeurope"
+name: "stcgenaibldsvr"
+os_type: "Windows"
+sku_size: "Standard_E8as_v5"
+zone: 1
+source_image_reference:
+  publisher: "MicrosoftWindowsServer"
+  offer: "WindowsServer"
+  sku: "2022-datacenter-g2"
+  version: "latest"
+vnet:
+  nic:
+    name: "stcgenaibuildserver-nic"
+  subnet:
+    name: "BuildServerSubnet"
+  public_ip:
+    enabled: false
+    name: "stcgenaibuildserver-pip"
+disk1:
+  name: "stcgenaibuildserver-disk1"
+  size: 128
+  caching: "ReadWrite"
+  storage_account_type: "Premium_LRS"

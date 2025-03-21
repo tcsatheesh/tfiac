@@ -5,7 +5,7 @@ service=$4
 
 # check if the action is valid
 # if [[ "$action" != "init" && "$action" != "plan" && "$action" != "apply" && "$action" != "destroy" && "$action" != "import" && "$action" != "reset" && "$action" != "release" ]]; then
-actions=("init" "plan" "apply" "destroy" "import" "reset" "release", "list", "show")
+actions=("init", "plan", "apply", "destroy", "import", "reset", "release", "list", "show")
 if [[ ${actions[@]} =~ $action ]]; then
     echo "Valid action: $action"
 else
@@ -51,14 +51,17 @@ fi
 # check if the service is in the format service=<services|vnet|dns|log> else exit with error message
 if [[ "$service" != service=* ]]; then
     echo "Invalid service format: $service"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|buildsvr|vnet|dns|log>"
     exit 1
 else
     service=$(echo $service | cut -d'=' -f2)
 fi
 
-# check if the service is valid from dns, log, vnet, services
-if [[ "$service" != "dns" && "$service" != "log" && "$service" != "vnet" && "$service" != "services" ]]; then
+# check if the service is valid from dns, log, vnet, buildsvr, services
+services=("services", "dns", "log", "vnet", "buildsvr")
+if [[ ${services[@]} =~ $service ]]; then
+    echo "Valid service: $service"
+else
     echo "Invalid service: $service"
     echo "Valid services are: dns, log, vnet, services"
     exit 1
@@ -82,6 +85,8 @@ echo "Current working directory is $current_working_directory"
 apply_patch() {
     if [[ "$service" == "services" ]]; then
         cd $current_working_directory
+        echo "Changeing directory to $current_working_directory"
+
         echo "Running patch for AML Private Endpoint"
         patch_file_path="./patch/patch.sh"
         if test -e $patch_file_path; then
@@ -107,6 +112,7 @@ init_terraform() {
     echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
     
     cd terraform/$service
+    echo "Changing directory to terraform/$service"
 
     echo "Clearing terraform state"
     rm -rf .terraform
@@ -145,7 +151,9 @@ fi
 if [[ "$action" == "apply" ]]; then
     init_terraform
     cd $current_working_directory
+    echo "Changing directory to $current_working_directory"
     cd terraform/$service
+    echo "Changing directory to terraform/$service"
     echo "Running terraform apply"
     terraform apply \
     -var market=$market \
