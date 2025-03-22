@@ -17,7 +17,7 @@ resource "azurerm_bastion_host" "azure_bastion_instance" {
   name                = var.vnet.bastion.name
   location            = var.vnet.bastion.location
   resource_group_name = var.vnet.bastion.resource_group_name
-  sku                 = "Developer"
+  sku                 = "Standard"
   tunneling_enabled   = true
 
   ip_configuration {
