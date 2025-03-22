@@ -23,7 +23,7 @@ module "nsg" {
   name                = each.value.nsg
   location            = var.vnet.location
 
-  security_rules   = each.value.nsg_rules
+  security_rules   = each.value.has_nsg_rules ? local.nsg_rules["${each.key}"] : null
   enable_telemetry = false
 }
 
@@ -63,8 +63,9 @@ module "subnets" {
     id = azurerm_route_table.this.id
   } : null
 
-  service_endpoints = each.value.service_endpoints
-  delegation        = each.value.delegation
+  service_endpoints               = each.value.service_endpoints
+  delegation                      = each.value.delegation
+  default_outbound_access_enabled = true
 }
 
 module "peering" {
@@ -113,5 +114,15 @@ module "firewall" {
     azurerm.log         = azurerm.log
     azurerm.dns         = azurerm.dns
     azurerm.remote_vnet = azurerm.remote_vnet
+  }
+}
+
+module "bastion" {
+  source            = "./bastion"
+  count             = var.vnet.bastion != null ? 1 : 0
+  vnet              = var.vnet
+  bastion_subnet_id = module.subnets["bastion"].resource_id
+  providers = {
+    azurerm.vnet = azurerm.vnet
   }
 }

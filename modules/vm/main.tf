@@ -1,13 +1,41 @@
+module "vm_sku" {
+  source  = "Azure/avm-utl-sku-finder/azapi"
+  version = "0.3.0"
+
+  location      = var.buildsvr.location
+  cache_results = true
+
+  vm_filters = {
+    min_vcpus                      = 8
+    max_vcpus                      = 8
+    encryption_at_host_supported   = true
+    accelerated_networking_enabled = true
+    premium_io_supported           = true
+    location_zone                  = var.buildsvr.zone
+  }
+  enable_telemetry = false
+}
+
+module "vm_public_ip" {
+  source              = "Azure/avm-res-network-publicipaddress/azurerm"
+  name                = var.buildsvr.vnet.public_ip.name
+  location            = var.vnet.location
+  resource_group_name = var.vnet.resource_group_name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  enable_telemetry    = false
+}
+
+
 module "buildsvr" {
   source = "Azure/avm-res-compute-virtualmachine/azurerm"
   #version = "0.17.0
-
   enable_telemetry    = false
   location            = var.buildsvr.location
   resource_group_name = var.buildsvr.resource_group_name
   os_type             = var.buildsvr.os_type
   name                = var.buildsvr.name
-  sku_size            = var.buildsvr.sku_size
+  sku_size            = module.vm_sku.sku
   zone                = var.buildsvr.zone
 
 
@@ -15,13 +43,13 @@ module "buildsvr" {
 
   network_interfaces = {
     network_interface_1 = {
-      name = var.buildsvr.vnet.nic.name
+      name                = var.buildsvr.vnet.nic.name
+      resource_group_name = var.vnet.resource_group_name
       ip_configurations = {
         ip_configuration_1 = {
           name                          = "${var.buildsvr.name}-ipconfig1"
           private_ip_subnet_resource_id = data.azurerm_subnet.this.id
-          create_public_ip_address      = var.buildsvr.vnet.public_ip.enabled
-          public_ip_address_name        = var.buildsvr.vnet.public_ip.name
+          public_ip_address_id          = module.vm_public_ip.public_ip_id
         }
       }
       diagnostic_settings = {
@@ -29,7 +57,6 @@ module "buildsvr" {
           name                  = "${var.buildsvr.name}-ipconfig1-to-la"
           workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
           metric_categories     = ["AllMetrics"]
-          log_categories        = ["AllLogs"]
         }
       }
     }
@@ -64,7 +91,6 @@ module "buildsvr" {
       name                  = "${var.buildsvr.name}-vm-to-la"
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
       metric_categories     = ["AllMetrics"]
-      log_categories        = ["AllLogs"]
     }
   }
 }

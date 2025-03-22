@@ -16,7 +16,7 @@ vnet:
   subnet:
     name: "BuildServerSubnet"
   public_ip:
-    enabled: false
+    enabled: true
     name: "stcgenaibuildserver-pip"
 disk1:
   name: "stcgenaibuildserver-disk1"

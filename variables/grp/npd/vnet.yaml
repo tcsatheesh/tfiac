@@ -14,20 +14,7 @@ subnets:
     add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
     delegation:  []
-    has_nsg_rules: true
-    nsg_rules: {
-      rule01: {
-        name: "test-rule",
-        access: "Deny",
-        destination_address_prefix: "*",
-        destination_port_ranges: ["80-88"],
-        direction: "Outbound",
-        priority: 100,
-        protocol: "Tcp",
-        source_address_prefix: "*",
-        source_port_range: "*",
-      }
-    }
+    has_nsg_rules: false
   pre-production:
     name: "PreProductionSubnet"
     address_prefixes: ["10.240.4.64/26"]
@@ -37,7 +24,6 @@ subnets:
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
     delegation:  []
     has_nsg_rules: false
-    nsg_rules: {}
   api-management:
     name: "ApiManagementSubnet"
     address_prefixes: ["10.240.4.144/28"]
@@ -47,195 +33,6 @@ subnets:
     service_endpoints: []
     delegation:  []
     has_nsg_rules: true
-    nsg_rules: { 
-      rule01: {
-        name: "Management_endpoint_for_Azure_portal_and_Powershell",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["3443"],
-        source_address_prefix: "ApiManagement",
-        destination_address_prefix: "VirtualNetwork",
-        access: "Allow",
-        priority: 120,
-        direction: "Inbound",
-      },
-      rule02: {
-        name: "Dependency_on_Redis_Cache",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["6381-6383"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "VirtualNetwork",
-        access: "Allow",
-        priority: 130,
-        direction: "Inbound",
-      },
-      rule03: {
-        name: "Dependency_to_sync_Rate_Limit_Inbound",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["4290"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "VirtualNetwork",
-        access: "Allow",
-        priority: 135,
-        direction: "Inbound",
-      },
-      rule04: {
-        name: "Dependency_on_Azure_SQL",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["1433"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "Sql",
-        access: "Allow",
-        priority: 140,
-        direction: "Outbound",
-      },
-      rule05: {
-        name: "Dependency_for_Log_to_event_Hub_policy",
-        protocol: "*",
-        source_port_range: "*",
-        destination_port_ranges: ["5671"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "EventHub",
-        access: "Allow",
-        priority: 150,
-        direction: "Outbound",
-      },
-      rule06: {
-        name: "Dependency_on_Redis_Cache_outbound",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["6381-6383"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "VirtualNetwork",
-        access: "Allow",
-        priority: 160,
-        direction: "Outbound",
-      },
-      rule07: {
-        name: "Dependency_To_sync_RateLimit_Outbound",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["4290"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "VirtualNetwork",
-        access: "Allow",
-        priority: 165,
-        direction: "Outbound",
-      },
-      rule08: {
-        name: "Dependency_on_Azure_File_Share_for_GIT",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["445"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "Storage",
-        access: "Allow",
-        priority: 170,
-        direction: "Outbound",
-      },
-      rule09: {
-        name: "Azure_Infrastructure_Load_Balancer",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["6390"],
-        source_address_prefix: "AzureLoadBalancer",
-        destination_address_prefix: "VirtualNetwork",
-        access: "Allow",
-        priority: 180,
-        direction: "Inbound",
-      },
-      rule10: {
-        name: "Publish_DiagnosticLogs_And_Metrics",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: [
-            "443",
-            "12000",
-            "1886"
-          ],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "AzureMonitor",
-        access: "Allow",
-        priority: 185,
-        direction: "Outbound",
-      },
-      rule11: {
-        name: "Connect_To_SMTP_Relay_For_SendingEmails",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: [
-            "25",
-            "587",
-            "25028"
-          ],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "Internet",
-        access: "Allow",
-        priority: 190,
-        direction: "Outbound",
-      },
-      rule12: {
-        name: "Authenticate_To_Azure_Active_Directory",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: [
-            "80",
-            "443"
-          ],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "AzureActiveDirectory",
-        access: "Allow",
-        priority: 200,
-        direction: "Outbound",
-      },
-      rule13: {
-        name: "Dependency_on_Azure_Storage",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["443"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "Storage",
-        access: "Allow",
-        priority: 100,
-        direction: "Outbound",
-      },
-      rule14: {
-        name: "Publish_Monitoring_Logs",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["443"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "AzureCloud",
-        access: "Allow",
-        priority: 300,
-        direction: "Outbound",
-      },
-      rule15: {
-        name: "Access_KeyVault",
-        protocol: "Tcp",
-        source_port_range: "*",
-        destination_port_ranges: ["443"],
-        source_address_prefix: "VirtualNetwork",
-        destination_address_prefix: "AzureKeyVault",
-        access: "Allow",
-        priority: 350,
-        direction: "Outbound",
-      },
-      # rule16: {
-      #   name: "Deny_All_Internet_Outbound",
-      #   protocol: "*",
-      #   source_port_range: "*",
-      #   destination_port_range: "*",
-      #   source_address_prefix: "VirtualNetwork",
-      #   destination_address_prefix: "Internet",
-      #   access: "Deny",
-      #   priority: 999,
-      #   direction: "Outbound",
-      # },
-    }
   firewall:
     name: "AzureFirewallSubnet"
     address_prefixes: ["10.240.5.0/26"]
@@ -245,7 +42,6 @@ subnets:
     service_endpoints: []
     delegation:  []
     has_nsg_rules: false
-    nsg_rules: {}
   firewall-mgmt:
     name: "AzureFirewallManagementSubnet"
     address_prefixes: ["10.240.5.64/26"]
@@ -255,7 +51,6 @@ subnets:
     service_endpoints: []
     delegation:  []
     has_nsg_rules: false
-    nsg_rules: {}
   buildsvr:
     name: "BuildServerSubnet"
     address_prefixes: ["10.240.4.160/28"]
@@ -265,4 +60,18 @@ subnets:
     service_endpoints: []
     delegation:  []
     has_nsg_rules: false
-    nsg_rules: {}
+  bastion:
+    name: "AzureBastionSubnet"
+    address_prefixes: ["10.240.4.192/28"]
+    nsg: "stc-genai-network-nonprod-vnet-AzureBastionSubnet-NSG"
+    add_route_table: false
+    add_nsg: true
+    service_endpoints: []
+    delegation:  []
+    has_nsg_rules: true
+bastion:
+  name: "stcgenaibastion"
+  location: "westeurope"
+  resource_group_name: "stc-genai-network-nonprod-rg"
+  public_ip:
+    name: "stcgenaibastion-pip"
