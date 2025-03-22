@@ -23,3 +23,18 @@ module "search_service" {
   }
 }
 
+resource "azurerm_search_shared_private_link_service" "storage" {
+  name               = "${var.services.ai_search.name}-to-${var.services.storage.name}"
+  search_service_id  = module.search_service.resource_id
+  subresource_name   = "blob"
+  target_resource_id = var.storage_account_id
+  request_message    = "please approve"
+}
+
+resource "azurerm_search_shared_private_link_service" "openai" {
+  name               = "${var.services.ai_search.name}-to-${var.services.open_ai.name}"
+  search_service_id  = module.search_service.resource_id
+  subresource_name   = "account"
+  target_resource_id = var.open_ai_id
+  request_message    = "please approve"
+}

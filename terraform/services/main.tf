@@ -190,6 +190,9 @@ module "ai_search" {
   log        = local.log
   vnet       = local.vnet
   services   = local.services
+  storage_account_id = module.landing_zone[0].storage_account_id
+  open_ai_id = module.openai[0].open_ai_id
+
   depends_on = [azurerm_resource_group.rg]
   providers = {
     azurerm.services = azurerm
