@@ -16,17 +16,6 @@ module "vm_sku" {
   enable_telemetry = false
 }
 
-module "vm_public_ip" {
-  source              = "Azure/avm-res-network-publicipaddress/azurerm"
-  name                = var.buildsvr.vnet.public_ip.name
-  location            = var.vnet.location
-  resource_group_name = var.vnet.resource_group_name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-  enable_telemetry    = false
-}
-
-
 module "buildsvr" {
   source = "Azure/avm-res-compute-virtualmachine/azurerm"
   #version = "0.17.0
@@ -49,7 +38,6 @@ module "buildsvr" {
         ip_configuration_1 = {
           name                          = "${var.buildsvr.name}-ipconfig1"
           private_ip_subnet_resource_id = data.azurerm_subnet.this.id
-          public_ip_address_id          = module.vm_public_ip.public_ip_id
         }
       }
       diagnostic_settings = {
