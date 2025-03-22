@@ -16,6 +16,10 @@ resource "azurerm_route_table" "this" {
   }
 }
 
+module "nsgrules" {
+  source = "./nsgrules"
+}
+
 module "nsg" {
   for_each            = tomap(var.vnet.subnets)
   source              = "Azure/avm-res-network-networksecuritygroup/azurerm"
@@ -23,7 +27,7 @@ module "nsg" {
   name                = each.value.nsg
   location            = var.vnet.location
 
-  security_rules   = each.value.has_nsg_rules ? local.nsg_rules["${each.key}"] : null
+  security_rules   = each.value.has_nsg_rules ? module.nsgrules.nsg_rules["${each.key}"] : null
   enable_telemetry = false
 }
 
