@@ -4,7 +4,7 @@ name: "stc-genai-network-nonprod-tr-vnet"
 location: "westeurope"
 address_space: ["10.240.1.0/24"]
 route_table_name: "route-to-firewall"
-
+bastion: null
 vnet_peering:
   local_name: stc-genai-network-nonprod-tr-vnet-to-stc-genai-network-nonprod-vnet-peer
   remote_name: stc-genai-network-nonprod-vnet-to-stc-genai-network-nonprod-tr-vnet-peer
@@ -18,8 +18,7 @@ subnets:
     add_nsg: true
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
     delegation:  []
-    has_nsg_rules: true
-    nsg_rules: {}
+    has_nsg_rules: false
   dev-function-app:
     name: "FunctionAppSubnet"
     address_prefixes: ["10.240.1.144/28"]
@@ -34,7 +33,6 @@ subnets:
         }
       }]
     has_nsg_rules: false
-    nsg_rules: {}
   dev-logic-app:
     name: "LogicAppSubnet"
     address_prefixes: ["10.240.1.128/28"]
@@ -49,7 +47,6 @@ subnets:
         }
       }]
     has_nsg_rules: false
-    nsg_rules: {}
   pre-production:
     name: "PreProductionSubnet"
     address_prefixes: ["10.240.1.64/26"]
@@ -59,7 +56,6 @@ subnets:
     service_endpoints: ["Microsoft.Storage", "Microsoft.KeyVault"]
     delegation:  []
     has_nsg_rules: false
-    nsg_rules: {}
   pre-production-function-app:
     name: "FunctionAppSubnetPre"
     address_prefixes: ["10.240.1.176/28"]
@@ -74,7 +70,6 @@ subnets:
         }
       }]
     has_nsg_rules: false
-    nsg_rules: {}
   pre-production-logic-app:
     name: "LogicAppSubnetPre"
     address_prefixes: ["10.240.1.160/28"]
@@ -89,5 +84,4 @@ subnets:
         }
       }]
     has_nsg_rules: false
-    nsg_rules: {}
 
