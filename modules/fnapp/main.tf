@@ -13,8 +13,8 @@ module "function_app_storage" {
   vnet                          = var.vnet
   services                      = var.services
   storage_account_name          = var.services.function_app.storage_account_name
-  public_network_access_enabled = false
-  shared_access_key_enabled     = true # TODO: fix later
+  public_network_access_enabled = true
+  shared_access_key_enabled     = false
 
   providers = {
     azurerm.services = azurerm.services

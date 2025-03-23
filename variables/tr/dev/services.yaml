@@ -77,7 +77,7 @@ apim:
       name: trdevoai
       display_name: trdevoai
       path: trdevoai/openai
-      backend: gtpgenaidevtroai
+      backend: stcgenaidevtroai
       policy: policies/openai/single.key.xml
       jwt:
         clientid: null
@@ -85,7 +85,7 @@ apim:
       name: trdevmon
       display_name: trdevmon
       path: trdevmon/openai
-      backend: gtpgenaidevtroai
+      backend: stcgenaidevtroai
       policy: policies/openai/single.key.xml
       jwt:
         clientid: null
@@ -99,5 +99,13 @@ apim:
 landing: null
 document_intelligence: null
 ai_search: null
-function_app: null
+function_app:
+  name: stcgenaidevtrfna
+  storage_account_name: stcgenaidevtrs03
+  service_plan_name: stcgenaidevtrfnp
+  subnet_name: FunctionAppSubnet
+  docker:
+    registry_server_url: https://stcgenaidevtrcon.azurecr.io
+    image_name: devtrfunctionapp
+    image_tag: latest
 logic_app: null
