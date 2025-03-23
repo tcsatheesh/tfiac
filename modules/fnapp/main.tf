@@ -42,6 +42,9 @@ resource "azurerm_linux_function_app" "fnapp" {
     WEBSITE_CONTENTOVERVNET             = "1"
     FUNCTIONS_WORKER_RUNTIME            = "python"
     PYTHONDONTWRITEBYTECODE             = "1"
+    WEBSITE_CONTENTSHARE                = var.services.function_app.name
+    WEBSITE_CONTENTAZUREFILECONNECTIONSTRING = module.function_app_storage.storage_connection_string
+
   }
   site_config {
     always_on                               = true

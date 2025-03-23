@@ -9,3 +9,7 @@ output "storage_account_name" {
 output "storage_account_key" {
   value = module.this.resource.primary_access_key
 }
+
+output "storage_connection_string" {
+  value = module.this.resource.primary_connection_string
+}
