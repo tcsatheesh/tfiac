@@ -48,7 +48,6 @@ resource "azurerm_linux_function_app" "fnapp" {
   }
   site_config {
     always_on                               = true
-    application_insights_key                = var.app_insights_instrumentation_key
     application_insights_connection_string  = var.app_insights_connection_string
     container_registry_use_managed_identity = true
     minimum_tls_version                     = "1.2"
