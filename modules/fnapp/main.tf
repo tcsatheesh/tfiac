@@ -36,6 +36,7 @@ resource "azurerm_linux_function_app" "fnapp" {
   resource_group_name           = var.services.resource_group_name
   service_plan_id               = azurerm_service_plan.this.id
   storage_account_name          = module.function_app_storage.storage_account_name
+  storage_account_access_key    = module.function_app_storage.storage_account_access_key
   storage_uses_managed_identity = false
   https_only                    = true
   public_network_access_enabled = false
