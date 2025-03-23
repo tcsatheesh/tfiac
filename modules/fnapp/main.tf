@@ -40,6 +40,8 @@ resource "azurerm_linux_function_app" "fnapp" {
     WEBSITES_ENABLE_APP_SERVICE_STORAGE = false
     WEBSITE_VNET_ROUTE_ALL              = "1"
     WEBSITE_CONTENTOVERVNET             = "1"
+    FUNCTIONS_WORKER_RUNTIME            = "python"
+    PYTHONDONTWRITEBYTECODE             = "1"
   }
   site_config {
     always_on                               = true

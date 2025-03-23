@@ -105,7 +105,7 @@ function_app:
   service_plan_name: stcgenaidevtrfnp
   subnet_name: FunctionAppSubnet
   docker:
-    registry_server_url: https://stcgenaidevtrcon.azurecr.io
+    registry_server_url: stcgenaidevtrcon.azurecr.io
     image_name: devtrfunctionapp
     image_tag: latest
 logic_app: null
