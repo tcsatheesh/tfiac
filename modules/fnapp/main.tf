@@ -14,7 +14,7 @@ module "function_app_storage" {
   services                      = var.services
   storage_account_name          = var.services.function_app.storage_account_name
   public_network_access_enabled = true
-  shared_access_key_enabled     = false
+  shared_access_key_enabled     = true
 
   providers = {
     azurerm.services = azurerm.services
