@@ -37,12 +37,12 @@ resource "azurerm_linux_function_app" "fnapp" {
   vnet_image_pull_enabled       = true
   virtual_network_subnet_id     = data.azurerm_subnet.this.id
   app_settings = {
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE = false
-    WEBSITE_VNET_ROUTE_ALL              = "1"
-    WEBSITE_CONTENTOVERVNET             = "1"
-    FUNCTIONS_WORKER_RUNTIME            = "python"
-    PYTHONDONTWRITEBYTECODE             = "1"
-    WEBSITE_CONTENTSHARE                = var.services.function_app.name
+    WEBSITES_ENABLE_APP_SERVICE_STORAGE      = false
+    WEBSITE_VNET_ROUTE_ALL                   = "1"
+    WEBSITE_CONTENTOVERVNET                  = "1"
+    FUNCTIONS_WORKER_RUNTIME                 = "python"
+    PYTHONDONTWRITEBYTECODE                  = "1"
+    WEBSITE_CONTENTSHARE                     = var.services.function_app.name
     WEBSITE_CONTENTAZUREFILECONNECTIONSTRING = module.function_app_storage.storage_connection_string
 
   }
