@@ -24,6 +24,12 @@ module "function_app_storage" {
   }
 }
 
+resource "azurerm_storage_share" "this" {
+  name               = var.services.function_app.name
+  storage_account_id = module.function_app_storage.storage_account_id
+  quota              = 500
+}
+
 resource "azurerm_linux_function_app" "fnapp" {
   name                          = var.services.function_app.name
   location                      = var.services.location
@@ -47,7 +53,7 @@ resource "azurerm_linux_function_app" "fnapp" {
 
   }
   site_config {
-    always_on                               = true
+    always_on                               = false # should be false for Elastic Premium
     application_insights_connection_string  = var.app_insights_connection_string
     container_registry_use_managed_identity = true
     minimum_tls_version                     = "1.2"
