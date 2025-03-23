@@ -70,4 +70,6 @@ resource "azurerm_linux_function_app" "fnapp" {
   identity {
     type = "SystemAssigned"
   }
+
+  depends_on = [ azurerm_storage_share.this ]
 }
