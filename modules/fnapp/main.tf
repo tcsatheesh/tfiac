@@ -36,8 +36,7 @@ resource "azurerm_linux_function_app" "fnapp" {
   resource_group_name           = var.services.resource_group_name
   service_plan_id               = azurerm_service_plan.this.id
   storage_account_name          = module.function_app_storage.storage_account_name
-  storage_account_access_key    = module.function_app_storage.storage_account_access_key
-  storage_uses_managed_identity = false
+  storage_account_access_key    = module.function_app_storage.storage_account_key
   https_only                    = true
   public_network_access_enabled = false
   functions_extension_version   = "~4"
@@ -49,7 +48,7 @@ resource "azurerm_linux_function_app" "fnapp" {
     WEBSITE_CONTENTOVERVNET                  = "1"
     FUNCTIONS_WORKER_RUNTIME                 = "python"
     PYTHONDONTWRITEBYTECODE                  = "1"
-    WEBSITE_CONTENTSHARE                     = var.services.function_app.name
+    WEBSITE_CONTENTSHARE                     = azurerm_storage_share.this.name
     WEBSITE_CONTENTAZUREFILECONNECTIONSTRING = module.function_app_storage.storage_connection_string
 
   }
@@ -61,9 +60,10 @@ resource "azurerm_linux_function_app" "fnapp" {
     vnet_route_all_enabled                  = true
     application_stack {
       docker {
-        registry_url = var.services.function_app.docker.registry_server_url
-        image_name   = var.services.function_app.docker.image_name
-        image_tag    = var.services.function_app.docker.image_tag
+        registry_url      = var.services.function_app.docker.registry_url
+        registry_username = var.services.function_app.docker.registry_username
+        image_name        = var.services.function_app.docker.image_name
+        image_tag         = var.services.function_app.docker.image_tag
       }
     }
   }
@@ -71,6 +71,4 @@ resource "azurerm_linux_function_app" "fnapp" {
   identity {
     type = "SystemAssigned"
   }
-
-  depends_on = [azurerm_storage_share.this]
 }
