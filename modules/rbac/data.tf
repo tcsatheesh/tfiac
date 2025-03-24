@@ -30,7 +30,15 @@ data "azurerm_container_registry" "acr" {
 }
 
 data "azurerm_linux_function_app" "fnapp" {
+  count               = var.services.function_app != null ? 1 : 0
   name                = var.services.function_app.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_storage_account" "landing" {
+  count               = var.services.landing != null ? 1 : 0
+  name                = var.services.landing.storage_account_name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
