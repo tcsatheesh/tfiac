@@ -29,7 +29,7 @@ data "azurerm_container_registry" "acr" {
   provider            = azurerm.services
 }
 
-data "azurerm_function_app" "fnapp" {
+data "azurerm_linux_function_app" "fnapp" {
   name                = var.services.function_app.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
