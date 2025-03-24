@@ -65,7 +65,6 @@ resource "azurerm_linux_function_app" "fnapp" {
       }
     }
   }
-
   identity {
     type = "SystemAssigned"
   }
