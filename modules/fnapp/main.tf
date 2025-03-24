@@ -42,9 +42,6 @@ resource "azurerm_linux_function_app" "fnapp" {
   functions_extension_version                    = "~4"
   vnet_image_pull_enabled                        = true
   virtual_network_subnet_id                      = data.azurerm_subnet.this.id
-  content_share_force_disabled                   = false
-  ftp_publish_basic_authentication_enabled       = false
-  webdeploy_publish_basic_authentication_enabled = false
   app_settings = {
     WEBSITES_ENABLE_APP_SERVICE_STORAGE      = false
     WEBSITE_VNET_ROUTE_ALL                   = "1"
@@ -53,7 +50,6 @@ resource "azurerm_linux_function_app" "fnapp" {
     PYTHONDONTWRITEBYTECODE                  = "1"
     WEBSITE_CONTENTSHARE                     = azurerm_storage_share.this.name
     WEBSITE_CONTENTAZUREFILECONNECTIONSTRING = module.function_app_storage.storage_connection_string
-    SCM_DO_BUILD_DURING_DEPLOYMENT           = false
   }
   site_config {
     always_on                               = false # should be false for Elastic Premium
