@@ -42,3 +42,104 @@ data "azurerm_storage_account" "landing" {
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
+
+data "azurerm_storage_account" "aml_storage" {
+  count               = var.services.aml != null ? 1 : 0
+  name                = var.services.aml.storage_account_name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_storage_account" "function_app_storage" {
+  count               = var.services.function_app != null ? 1 : 0
+  name                = var.services.function_app.storage_account_name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_storage_account" "logic_app_storage" {
+  count               = var.services.logic_app != null ? 1 : 0
+  name                = var.services.logic_app.storage_account_name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_storage_account" "ai_services_storage" {
+  count               = var.services.ai_services != null ? 1 : 0
+  name                = var.services.ai_services.storage_account_name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_storage_account" "ai_foundry_storage" {
+  count               = var.services.ai_foundry != null ? 1 : 0
+  name                = var.services.ai_foundry.storage_account_name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_key_vault" "key_vault" {
+  name                = var.services.keyvault_name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_application_insights" "app_insights" {
+  name                = var.services.app_insights.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_resource_group" "rg" {
+  name     = var.services.resource_group_name
+  provider = azurerm.services
+}
+
+data "azurerm_cognitive_account" "openai" {
+  name                = var.services.openai.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azapi_resource" "azureml" {
+  count               = var.services.aml != null ? 1 : 0
+  type                = "Microsoft.MachineLearningServices/workspaces"
+  name                = var.services.openai.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_ai_foundry" "ai_foundry" {
+  count               = var.services.ai_foundry != null ? 1 : 0
+  name                = var.services.ai_foundry.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_ai_services" "ai_services" {
+  count               = var.services.ai_services != null ? 1 : 0
+  name                = var.services.ai_services.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_cognitive_account" "ai_language" {
+  count               = var.services.ai_language != null ? 1 : 0
+  name                = var.services.ai_language.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_cognitive_account" "docint" {
+  count               = var.services.document_intelligence != null ? 1 : 0
+  name                = var.services.document_intelligence.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_search_service" "search" {
+  count               = var.services.search != null ? 1 : 0
+  name                = var.services.search.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}

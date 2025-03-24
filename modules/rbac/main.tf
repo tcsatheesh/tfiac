@@ -4,3 +4,4 @@ resource "azurerm_role_assignment" "container_registry_acrpull" {
   role_definition_name = "AcrPull"
   principal_id         = data.azurerm_linux_function_app.fnapp[0].identity[0].principal_id
 }
+
