@@ -1,6 +1,6 @@
 resource "azurerm_role_assignment" "container_registry_acrpull" {
   provider             = azurerm.services
-  scope                = var.container_registry_id
+  scope                = data.azurerm_container_registry.acr.id
   role_definition_name = "AcrPull"
-  principal_id         = var.function_app_managed_identity_id
+  principal_id         = data.azurerm_function_app.fnapp.identity[0].principal_id
 }

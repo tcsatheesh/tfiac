@@ -100,9 +100,9 @@ landing: null
 document_intelligence: null
 ai_search: null
 function_app:
-  name: stcgenaidevtrfna1
+  name: stcgenaidevtrfna
   storage_account_name: stcgenaidevtrs03
-  service_plan_name: stcgenaidevtrfnp1
+  service_plan_name: stcgenaidevtrfnp
   subnet_name: FunctionAppSubnet
   docker:
     registry_url: https://stcgenaidevtrcon.azurecr.io
@@ -110,4 +110,3 @@ function_app:
     image_name: devtrfunctionapp
     image_tag: latest
 logic_app: null
-rbac: 1

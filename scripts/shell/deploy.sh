@@ -25,7 +25,10 @@ else
 fi
 
 # check if the market is valid from grp, pt, tr, gb, de, ro, cz, ie
-if [[ "$market" != "grp" && "$market" != "pt" && "$market" != "tr" && "$market" != "gb" && "$market" != "de" && "$market" != "ro" && "$market" != "cz" && "$market" != "ie" ]]; then
+markets=("grp", "pt", "tr", "gb", "de", "ro", "cz", "ie")
+if [[ ${markets[@]} =~ $market ]]; then
+    echo "Valid market: $market"
+else
     echo "Invalid market: $market"
     echo "Valid markets are: grp, pt, tr, gb, de, ro, cz, ie"
     echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
@@ -58,7 +61,7 @@ else
 fi
 
 # check if the service is valid from dns, log, vnet, buildsvr, services
-services=("services", "dns", "log", "vnet", "buildsvr")
+services=("services", "dns", "log", "vnet", "buildsvr", "rbac")
 if [[ ${services[@]} =~ $service ]]; then
     echo "Valid service: $service"
 else

@@ -22,3 +22,15 @@ data "azurerm_log_analytics_workspace" "this" {
   name                = var.log.workspace_name
   resource_group_name = var.log.resource_group_name
 }
+
+data "azurerm_container_registry" "acr" {
+  name                = var.services.container_registry.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}
+
+data "azurerm_function_app" "fnapp" {
+  name                = var.services.function_app.name
+  resource_group_name = var.services.resource_group_name
+  provider            = azurerm.services
+}

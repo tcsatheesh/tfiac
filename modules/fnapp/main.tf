@@ -31,17 +31,17 @@ resource "azurerm_storage_share" "this" {
 }
 
 resource "azurerm_linux_function_app" "fnapp" {
-  name                                           = var.services.function_app.name
-  location                                       = var.services.location
-  resource_group_name                            = var.services.resource_group_name
-  service_plan_id                                = azurerm_service_plan.this.id
-  storage_account_name                           = module.function_app_storage.storage_account_name
-  storage_account_access_key                     = module.function_app_storage.storage_account_key
-  https_only                                     = true
-  public_network_access_enabled                  = true
-  functions_extension_version                    = "~4"
-  vnet_image_pull_enabled                        = true
-  virtual_network_subnet_id                      = data.azurerm_subnet.this.id
+  name                          = var.services.function_app.name
+  location                      = var.services.location
+  resource_group_name           = var.services.resource_group_name
+  service_plan_id               = azurerm_service_plan.this.id
+  storage_account_name          = module.function_app_storage.storage_account_name
+  storage_account_access_key    = module.function_app_storage.storage_account_key
+  https_only                    = true
+  public_network_access_enabled = true
+  functions_extension_version   = "~4"
+  vnet_image_pull_enabled       = true
+  virtual_network_subnet_id     = data.azurerm_subnet.this.id
   app_settings = {
     WEBSITES_ENABLE_APP_SERVICE_STORAGE      = false
     WEBSITE_VNET_ROUTE_ALL                   = "1"
