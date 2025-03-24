@@ -272,3 +272,21 @@ module "apimanagementapi" {
     azurerm.apim     = azurerm.apim
   }
 }
+
+module "rbac" {
+  source                           = "../../modules/rbac"
+  count                            = local.services.rbac != null ? 1 : 0
+  dns                              = local.dns
+  log                              = local.log
+  vnet                             = local.vnet
+  services                         = local.services
+  container_registry_id            = module.cntreg[0].container_registry_id
+  function_app_id                  = module.function_app[0].function_app_id
+  function_app_managed_identity_id = module.function_app[0].managed_identity_id
+  providers = {
+    azurerm.services = azurerm
+    azurerm.vnet     = azurerm.vnet
+    azurerm.log      = azurerm.log
+    azurerm.dns      = azurerm.dns
+  }
+}
