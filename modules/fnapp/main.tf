@@ -68,4 +68,12 @@ resource "azurerm_linux_function_app" "fnapp" {
   identity {
     type = "SystemAssigned"
   }
+
+  lifecycle {
+    ignore_changes = [
+      app_settings["WEBSITE_VNET_ROUTE_ALL"],
+      app_settings["BUILD_ID"],
+      site_config[0].application_stack[0].docker[0].image_tag,
+    ]
+  }
 }
