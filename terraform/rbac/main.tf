@@ -4,6 +4,7 @@ module "rbac" {
   log      = local.log
   vnet     = local.vnet
   services = local.services
+  rbac     = local.rbac
   providers = {
     azurerm.services = azurerm
     azurerm.vnet     = azurerm.vnet

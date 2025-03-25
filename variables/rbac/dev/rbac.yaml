@@ -1,0 +1,6 @@
+groups:
+  development_team: "Development Team"
+
+service_principals:
+  deployment: github-actions
+  runtime: github-actions
