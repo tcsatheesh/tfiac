@@ -1,10 +1,11 @@
 market=$1
 environment=$2
 subscription=$3
-apply=$4
+client=$4
+apply=$5
 
 echo_usage() {
-    echo "Usage: $0 market=<market> environment=<dev|pre|npd|prd> subscription=<subscription id> apply=<true|false>"
+    echo "Usage: $0 market=<market> environment=<dev|pre|npd|prd> subscription=<subscription id> client=<client_name> apply=<true|false>"
 }
 
 # check if the market is in the format market=<market> else exit with error message
@@ -55,6 +56,15 @@ else
     subscription=$(echo $subscription | cut -d'=' -f2)
 fi
 
+if [[ "$client" != client=* ]]; then
+    echo "Invalid client format: $client"
+    echo_usage
+    exit 1
+else
+    client_name=$(echo $client | cut -d'=' -f2)
+fi
+
+
 if [[ "$apply" != apply=* ]]; then
     echo "Invalid apply format: $apply"
     echo_usage
@@ -82,7 +92,7 @@ if [[ "$environment" == "prd" ]]; then
     env_type="prod"
 fi
 
-AZURE_CLIENT_NAME="gtp-genai-$env_type-devops-$market-sp"
+AZURE_CLIENT_NAME=$client_name
 echo -e "\nAzure Client Name: $AZURE_CLIENT_NAME"
 
 AZURE_CLIENT_ID=$(az ad app list --display-name $AZURE_CLIENT_NAME | grep appId | awk -F ': ' '{print $2}' | tr -d '",')
