@@ -111,6 +111,12 @@ echo "Current working directory is $current_working_directory"
 
 terraform fmt -recursive
 
+source_backend() {
+    backend_env_file="$current_working_directory/variables/grp/$env_type/bed.env"
+    echo "Backend env file is $backend_env_file"
+    source $backend_env_file
+}
+
 apply_patch() {
     if [[ "$service" == "services" ]]; then
         change_to_current_working_directory
@@ -132,11 +138,8 @@ apply_patch() {
 init_terraform() {
 
     change_to_current_working_directory
-    backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
-    echo "Backend env file is $backend_env_file"
+    source_backend
 
-    # Read the backend output file and set the environment variables
-    source $backend_env_file
     TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
     echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
     
@@ -234,9 +237,9 @@ fi
 if [[ "$action" == "reset" ]]; then
     change_to_current_working_directory
     echo "Running terraform reset"
-    backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
-    echo "Backend env file is $backend_env_file"
-    source $backend_env_file
+    
+    source_backend
+    
     TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
     echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
     
@@ -251,9 +254,9 @@ fi
 if [[ "$action" == "release" ]]; then
     change_to_current_working_directory
     echo "Running storage blob release"
-    backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
-    echo "Backend env file is $backend_env_file"
-    source $backend_env_file
+    
+    source_backend
+
     TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
     echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
     
@@ -266,7 +269,7 @@ if [[ "$action" == "release" ]]; then
 fi
 
 if [[ "$action" == "list" ]]; then
-        init_terraform
+    init_terraform
     change_to_current_working_directory
     change_to_service_directory
     echo "Running terraform destroy"
@@ -274,7 +277,7 @@ if [[ "$action" == "list" ]]; then
 fi
 
 if [[ "$action" == "show" ]]; then
-        init_terraform
+    init_terraform
     change_to_current_working_directory
     change_to_service_directory
     echo "Running terraform destroy"
