@@ -79,7 +79,7 @@ data "azurerm_storage_account" "ai_foundry_storage" {
 }
 
 data "azurerm_key_vault" "key_vault" {
-  name                = var.services.keyvault_name
+  name                = var.services.key_vault.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
@@ -95,29 +95,31 @@ data "azurerm_resource_group" "rg" {
   provider = azurerm.services
 }
 
-data "azurerm_cognitive_account" "openai" {
-  name                = var.services.openai.name
+data "azurerm_cognitive_account" "open_ai" {
+  name                = var.services.open_ai.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
 
-data "azapi_resource" "azureml" {
+data "azurerm_resources" "azureml" {
   count               = var.services.aml != null ? 1 : 0
   type                = "Microsoft.MachineLearningServices/workspaces"
-  name                = var.services.openai.name
+  name                = var.services.aml.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
 
-data "azurerm_ai_foundry" "ai_foundry" {
+data "azurerm_resources" "ai_foundry" {
   count               = var.services.ai_foundry != null ? 1 : 0
+  type                = "Microsoft.MachineLearningServices/workspaces"
   name                = var.services.ai_foundry.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
 
-data "azurerm_ai_services" "ai_services" {
+data "azurerm_resources" "ai_services" {
   count               = var.services.ai_services != null ? 1 : 0
+  type                = "Microsoft.CognitiveServices/accounts"
   name                = var.services.ai_services.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
@@ -137,9 +139,9 @@ data "azurerm_cognitive_account" "docint" {
   provider            = azurerm.services
 }
 
-data "azurerm_search_service" "search" {
-  count               = var.services.search != null ? 1 : 0
-  name                = var.services.search.name
+data "azurerm_search_service" "ai_search" {
+  count               = var.services.ai_search != null ? 1 : 0
+  name                = var.services.ai_search.name
   resource_group_name = var.services.resource_group_name
   provider            = azurerm.services
 }
