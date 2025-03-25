@@ -6,7 +6,7 @@ module "containerregistry" {
   sku                           = "Premium"
   zone_redundancy_enabled       = false
   retention_policy_in_days      = 7
-  public_network_access_enabled = true
+  public_network_access_enabled = false
   private_endpoints = {
     primary = {
       name                            = "pe-${var.services.container_registry.name}"

@@ -38,7 +38,7 @@ resource "azurerm_linux_function_app" "fnapp" {
   storage_account_name          = module.function_app_storage.storage_account_name
   storage_account_access_key    = module.function_app_storage.storage_account_key
   https_only                    = true
-  public_network_access_enabled = true
+  public_network_access_enabled = false
   functions_extension_version   = "~4"
   vnet_image_pull_enabled       = true
   virtual_network_subnet_id     = data.azurerm_subnet.this.id
