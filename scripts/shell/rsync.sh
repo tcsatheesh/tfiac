@@ -13,5 +13,4 @@ rsync -av --exclude-from=$exclude_from $dir1/modules $dir2
 rsync -av --exclude-from=$exclude_from $dir1/patch $dir2
 rsync -av --exclude-from=$exclude_from $dir1/scripts $dir2
 rsync -av --exclude-from=$exclude_from $dir1/terraform $dir2
-rsync -av --exclude-from=$exclude_from $dir1/variables $dir2
 rsync -av --exclude-from=$exclude_from $dir1/.gitignore $dir2
