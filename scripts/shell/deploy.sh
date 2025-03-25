@@ -2,6 +2,25 @@ action=$1
 market=$2
 environment=$3
 service=$4
+backend=$5
+
+current_working_directory=$(pwd)
+
+echo_usage() {
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log> backend=<true|false>"
+}
+
+change_to_current_working_directory() {
+    # change to the current working directory
+    cd $current_working_directory
+    echo "Changed directory to $current_working_directory"
+}
+
+change_to_service_directory() {
+    # change to the service directory
+    cd $current_working_directory/terraform/$service
+    echo "Changed directory to $current_working_directory/terraform/$service"
+}
 
 # check if the action is valid
 # if [[ "$action" != "init" && "$action" != "plan" && "$action" != "apply" && "$action" != "destroy" && "$action" != "import" && "$action" != "reset" && "$action" != "release" ]]; then
@@ -11,14 +30,14 @@ if [[ ${actions[@]} =~ $action ]]; then
 else
     echo "Invalid action: $action"
     echo "Valid actions are: init, plan, apply, destroy, import, reset, release, list"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
+    echo_usage
     exit 1
 fi
 
 # check if the market is in the format market=<market> else exit with error message
 if [[ "$market" != market=* ]]; then
     echo "Invalid market format: $market"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
+    echo_usage
     exit 1
 else
     market=$(echo $market | cut -d'=' -f2)
@@ -31,14 +50,14 @@ if [[ ${markets[@]} =~ $market ]]; then
 else
     echo "Invalid market: $market"
     echo "Valid markets are: grp, pt, tr, gb, de, ro, cz, ie"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
+    echo_usage
     exit 1
 fi
 
 # check if the environment is in the format environment=<dev|pre|npd|prd> else exit with error message
 if [[ "$environment" != environment=* ]]; then
     echo "Invalid environment format: $environment"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
+    echo_usage
     exit 1
 else
     environment=$(echo $environment | cut -d'=' -f2)
@@ -54,7 +73,7 @@ fi
 # check if the service is in the format service=<services|vnet|dns|log> else exit with error message
 if [[ "$service" != service=* ]]; then
     echo "Invalid service format: $service"
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|buildsvr|vnet|dns|log>"
+    echo_usage
     exit 1
 else
     service=$(echo $service | cut -d'=' -f2)
@@ -70,6 +89,15 @@ else
     exit 1
 fi
 
+# check if the backend is in the format backend=<true|false> else exit with error message
+if [[ "$backend" != backend=* ]]; then
+    echo "Invalid backend format: $backend"
+    echo_usage
+    exit 1
+else
+    backend=$(echo $backend | cut -d'=' -f2)
+fi
+
 env_type="npd"
 if [[ "$environment" == "prd" ]]; then
     env_type="prd"
@@ -79,15 +107,13 @@ echo "market is $market"
 echo "environment is $environment"
 echo "service is $service"
 echo "env_type is $env_type"
+echo "Current working directory is $current_working_directory"
 
 terraform fmt -recursive
 
-current_working_directory=$(pwd)
-echo "Current working directory is $current_working_directory"
-
 apply_patch() {
     if [[ "$service" == "services" ]]; then
-        cd $current_working_directory
+        change_to_current_working_directory
         echo "Changeing directory to $current_working_directory"
 
         echo "Running patch for AML Private Endpoint"
@@ -105,7 +131,7 @@ apply_patch() {
 
 init_terraform() {
 
-    cd $current_working_directory
+    change_to_current_working_directory
     backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
     echo "Backend env file is $backend_env_file"
 
@@ -114,7 +140,7 @@ init_terraform() {
     TERRAFORM_BACKEND_AZURE_KEY=$market/$environment/$service.tfstate
     echo "TERRAFORM_BACKEND_AZURE_KEY is $TERRAFORM_BACKEND_AZURE_KEY"
     
-    cd terraform/$service
+    change_to_service_directory
     echo "Changing directory to terraform/$service"
 
     echo "Clearing terraform state"
@@ -125,12 +151,18 @@ init_terraform() {
 
     echo "Running terraform init"
 
-    terraform init \
-    -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
-    -backend-config="resource_group_name=$TERRAFORM_BACKEND_AZURE_RESOURCE_GROUP_NAME" \
-    -backend-config="storage_account_name=$TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME" \
-    -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
-    -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
+    if [[ "$backend" == "true" ]]; then
+        echo "Enabling backend"
+        terraform init \
+        -backend-config="subscription_id=$TERRAFORM_BACKEND_AZURE_SUBSCRIPTION_ID" \
+        -backend-config="resource_group_name=$TERRAFORM_BACKEND_AZURE_RESOURCE_GROUP_NAME" \
+        -backend-config="storage_account_name=$TERRAFORM_BACKEND_AZURE_STORAGE_ACCOUNT_NAME" \
+        -backend-config="container_name=$TERRAFORM_BACKEND_AZURE_CONTAINER_NAME" \
+        -backend-config="key=$TERRAFORM_BACKEND_AZURE_KEY"
+    else
+        echo "Disabling backend"
+        terraform init -backend=false
+    fi
 
     apply_patch
 }
@@ -142,20 +174,21 @@ fi
 
 if [[ "$action" == "plan" ]]; then
     init_terraform
-    cd $current_working_directory
-    cd terraform/$service
+    change_to_current_working_directory
+    change_to_service_directory
     echo "Running terraform plan"
     terraform plan \
     -var market=$market \
     -var environment=$environment \
     -var env_type=$env_type
+    -backend
 fi
 
 if [[ "$action" == "apply" ]]; then
     init_terraform
-    cd $current_working_directory
+    change_to_current_working_directory
     echo "Changing directory to $current_working_directory"
-    cd terraform/$service
+    change_to_service_directory
     echo "Changing directory to terraform/$service"
     echo "Running terraform apply"
     terraform apply \
@@ -167,8 +200,8 @@ fi
 
 if [[ "$action" == "destroy" ]]; then
     init_terraform
-    cd $current_working_directory
-    cd terraform/$service
+    change_to_current_working_directory
+    change_to_service_directory
     echo "Running terraform destroy"
     terraform destroy \
     -var market=$market \
@@ -179,7 +212,7 @@ fi
 
 if [[ "$action" == "import" ]]; then
     init_terraform
-    cd $current_working_directory
+    change_to_current_working_directory
     export PYTHONPATH=$current_working_directory
     echo "Running terraform import"
     python3 \
@@ -199,7 +232,7 @@ if [[ "$action" == "import" ]]; then
 fi
 
 if [[ "$action" == "reset" ]]; then
-    cd $current_working_directory
+    change_to_current_working_directory
     echo "Running terraform reset"
     backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
     echo "Backend env file is $backend_env_file"
@@ -216,7 +249,7 @@ if [[ "$action" == "reset" ]]; then
 fi
 
 if [[ "$action" == "release" ]]; then
-    cd $current_working_directory
+    change_to_current_working_directory
     echo "Running storage blob release"
     backend_env_file="$current_working_directory/variables/grp/prd/bed.env"
     echo "Backend env file is $backend_env_file"
@@ -234,16 +267,16 @@ fi
 
 if [[ "$action" == "list" ]]; then
         init_terraform
-    cd $current_working_directory
-    cd terraform/$service
+    change_to_current_working_directory
+    change_to_service_directory
     echo "Running terraform destroy"
     terraform state list
 fi
 
 if [[ "$action" == "show" ]]; then
         init_terraform
-    cd $current_working_directory
-    cd terraform/$service
+    change_to_current_working_directory
+    change_to_service_directory
     echo "Running terraform destroy"
     terraform show
 fi
