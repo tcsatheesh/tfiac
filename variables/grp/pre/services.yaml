@@ -5,6 +5,7 @@ vnet:
   subnet:
     name: PreProductionSubnet
 apim:
+  subscription_id: 883c9081-23ed-4674-95c5-45c74834e093
   name: "stcgenaipregrpapm"
   location: "westeurope"
   resource_group_name: stc-genai-pre-grp-rg
@@ -42,6 +43,7 @@ apim:
 open_ai:
   name: stcgenaipregrpoai
   location: swedencentral
+  custom_subdomain_name: stcgenaipregrpoai
   deployments: {
       gpt-4o-mini:
         {
@@ -60,7 +62,7 @@ open_ai:
     }
 ai_language:
   name: stcgenaipregrplng
-
+  custom_subdomain_name: stcgenaipregrplng
 app_insights:
   name: stcgenaipregrpain
   internet_ingestion_enabled : true
