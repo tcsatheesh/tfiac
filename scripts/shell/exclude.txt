@@ -1,0 +1,9 @@
+.git
+.terraform
+.terraform.lock.hcl
+AzuriteConfig
+LICENSE
+temp
+.vscode
+variables
+__pycache__
