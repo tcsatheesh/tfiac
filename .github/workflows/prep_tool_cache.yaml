@@ -9,7 +9,7 @@ permissions:
 jobs:
   upload_tool_cache:
     environment: grp-npd
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Clear any existing tool cache
         run: |
