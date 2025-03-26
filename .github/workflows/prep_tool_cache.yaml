@@ -9,7 +9,7 @@ permissions:
 jobs:
   upload_tool_cache:
     environment: grp-npd
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Azure login
         uses: azure/login@v2
