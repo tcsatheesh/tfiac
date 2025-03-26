@@ -5,7 +5,7 @@ permissions:
   id-token: write
   contents: read
   pull-requests: write
-  
+
 jobs:
   upload_tool_cache:
     environment: grp-npd
@@ -24,6 +24,7 @@ jobs:
       - name: Archive tool cache
         run: |
           cd "${{ runner.tool_cache }}"
+          ls -la .
           tar -czf tool_cache.tar.gz *
       - name: Upload tool cache artifact
         uses: actions/upload-artifact@v4
