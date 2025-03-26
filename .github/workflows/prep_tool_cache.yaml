@@ -11,10 +11,10 @@ jobs:
     environment: grp-npd
     runs-on: ubuntu-latest
     steps:
-      - name: Clear any existing tool cache
-        run: |
-          mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
-          mkdir -p "${{ runner.tool_cache }}"
+    #   - name: Clear any existing tool cache
+    #     run: |
+    #       mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
+    #       mkdir -p "${{ runner.tool_cache }}"
       - name: Azure login
         uses: azure/login@v2
         with:
