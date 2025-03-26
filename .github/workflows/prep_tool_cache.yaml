@@ -1,0 +1,20 @@
+name: Upload Azure Login tool cache
+on: push
+jobs:
+  upload_tool_cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clear any existing tool cache
+        run: |
+          mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
+          mkdir -p "${{ runner.tool_cache }}"
+      - name: Azure Login tool cache
+        uses: Azure/login@v2
+      - name: Archive tool cache
+        run: |
+          cd "${{ runner.tool_cache }}"
+          tar -czf tool_cache.tar.gz *
+      - name: Upload tool cache artifact
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{runner.tool_cache}}/tool_cache.tar.gz
