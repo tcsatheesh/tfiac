@@ -1,5 +1,11 @@
 name: Upload Azure Login tool cache
 on: push
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  
 jobs:
   upload_tool_cache:
     environment: grp-npd
