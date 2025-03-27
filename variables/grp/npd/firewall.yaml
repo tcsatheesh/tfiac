@@ -11,6 +11,8 @@ policy:
 public_ip_name: "stc-genai-network-nonprod-vnet-firewall-ip"
 management:
   public_ip_name: "stc-genai-network-nonprod-vnet-firewall-management-ip"
+diagnostic_settings:
+  name: "NonProdFirewallDiagnosticLogs"
 ipgroups: {
   market-development-subnets: {
     name: "market-development-subnets",

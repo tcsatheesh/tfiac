@@ -4,7 +4,7 @@ environment=$3
 service=$4
 backend="backend=true"
 
-export ARM_SKIP_PROVIDER_REGISTRATION="true"
+# export ARM_SKIP_PROVIDER_REGISTRATION="true"
 
 current_working_directory=$(pwd)
 

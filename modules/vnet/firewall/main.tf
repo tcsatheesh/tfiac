@@ -50,8 +50,8 @@ module "firewall" {
   }
 
   diagnostic_settings = {
-    to_law = {
-      name                  = "diag"
+    sendToLogAnalytics = {
+      name                  = var.firewall.diagnostic_settings.name
       workspace_resource_id = data.azurerm_log_analytics_workspace.this.id
       log_groups            = ["allLogs"]
       metric_categories     = ["AllMetrics"]

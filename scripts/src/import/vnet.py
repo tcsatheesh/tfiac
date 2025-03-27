@@ -78,16 +78,21 @@ class ImportState(ImportStateBase):
             _logger.debug(f"{_key}: {_value}")
             _nsg_name = _value["nsg"]
             _subnet_name = _value["name"]
-            _logger.info(
-                f"Importing VNet {_vnet_name} key {_subnet_name} nsg {_nsg_name}..."
-            )
-            self._import_resource(
-                name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_group.this',
-                subscription_id=_vnet_subscription_id,
-                resource_group_name=_vnet_resource_group_name,
-                resource_type="Microsoft.Network/networkSecurityGroups",
-                resource=_nsg_name,
-            )
+            if _value["add_nsg"]:
+                _logger.info(
+                    f"Importing VNet {_vnet_name} key {_subnet_name} nsg {_nsg_name}..."
+                )
+                self._import_resource(
+                    name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_group.this',
+                    subscription_id=_vnet_subscription_id,
+                    resource_group_name=_vnet_resource_group_name,
+                    resource_type="Microsoft.Network/networkSecurityGroups",
+                    resource=_nsg_name,
+                )
+            else:
+                _logger.info(
+                    f"No NSG to import for subnet {_subnet_name} and nsg {_nsg_name}"
+                )
             _logger.info(f"Importing VNet {_vnet_name} subnet {_subnet_name}...")
             self._import_resource(
                 name=f'module.vnet.module.subnets["{_key}"].azapi_resource.subnet',
@@ -96,15 +101,23 @@ class ImportState(ImportStateBase):
                 resource_type="Microsoft.Network/virtualNetworks",
                 resource=f"{_vnet_name}/subnets/{_subnet_name}",
             )
-            # for _key1, _value1 in _value["nsg_rules"].items():
-            #     _logger.info(f"Importing nsg rule {_key1}")
-            #     self._import_resource(
-            #         name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_rule.this["{_key1}"]',
-            #         subscription_id=_vnet_subscription_id,
-            #         resource_group_name=_vnet_resource_group_name,
-            #         resource_type="Microsoft.Network/networkSecurityGroups",
-            #         resource=f'{_nsg_name}/securityRules/{_value1["name"]}',
-            #     )
+            if _value["has_nsg_rules"]:
+                _logger.info(
+                    f"Importing NSG rules for subnet {_subnet_name} and nsg {_nsg_name}"
+                )
+                # for _key1, _value1 in _value["nsg_rules"].items():
+                #     _logger.info(f"Importing nsg rule {_key1}")
+                #     self._import_resource(
+                #         name=f'module.vnet.module.nsg["{_key}"].azurerm_network_security_rule.this["{_key1}"]',
+                #         subscription_id=_vnet_subscription_id,
+                #         resource_group_name=_vnet_resource_group_name,
+                #         resource_type="Microsoft.Network/networkSecurityGroups",
+                #         resource=f'{_nsg_name}/securityRules/{_value1["name"]}',
+                #     )
+            else:
+                _logger.info(
+                    f"No NSG rules to import for subnet {_subnet_name} and nsg {_nsg_name}"
+                )
 
         if "vnet_peering" in _vnet_variables:
             _remote_vnet_subscription_id = _remote_vnet_variables["subscription_id"]

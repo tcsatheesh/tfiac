@@ -24,29 +24,34 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
-  subscription_id = local.services.subscription_id
+  subscription_id                 = local.services.subscription_id
+  resource_provider_registrations = "none"
 }
 
 provider "azurerm" {
   features {}
-  alias           = "vnet"
-  subscription_id = local.vnet.subscription_id
+  alias                           = "vnet"
+  subscription_id                 = local.vnet.subscription_id
+  resource_provider_registrations = "none"
 }
 
 provider "azurerm" {
   features {}
-  alias           = "log"
-  subscription_id = local.log.subscription_id
+  alias                           = "log"
+  subscription_id                 = local.log.subscription_id
+  resource_provider_registrations = "none"
 }
 
 provider "azurerm" {
   features {}
-  alias           = "dns"
-  subscription_id = local.dns.subscription_id
+  alias                           = "dns"
+  subscription_id                 = local.dns.subscription_id
+  resource_provider_registrations = "none"
 }
 
 provider "azurerm" {
   features {}
-  alias           = "apim"
-  subscription_id = local.services.apim.subscription_id
+  alias                           = "apim"
+  subscription_id                 = local.services.apim.subscription_id
+  resource_provider_registrations = "none"
 }

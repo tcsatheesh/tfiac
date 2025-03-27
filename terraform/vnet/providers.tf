@@ -25,13 +25,6 @@ provider "azurerm" {
     }
   }
   storage_use_azuread             = true
-  subscription_id                 = local.services.subscription_id
-  resource_provider_registrations = "none"
-}
-
-provider "azurerm" {
-  features {}
-  alias                           = "vnet"
   subscription_id                 = local.vnet.subscription_id
   resource_provider_registrations = "none"
 }
@@ -57,8 +50,14 @@ provider "azurerm" {
   resource_provider_registrations = "none"
 }
 
-resource "azurerm_resource_group" "rg" {
-  name     = local.services.resource_group_name
-  location = local.services.location
+provider "azurerm" {
+  features {}
+  alias                           = "remote_vnet"
+  subscription_id                 = local.remote_vnet.subscription_id
+  resource_provider_registrations = "none"
 }
 
+resource "azurerm_resource_group" "rg" {
+  name     = local.vnet.resource_group_name
+  location = local.vnet.location
+}
