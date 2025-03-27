@@ -56,9 +56,8 @@ jobs:
   terraform-plan:
     name: 'Terraform Plan'
     if: |
-      github.ref == 'refs/heads/master' 
-      && inputs.action == 'apply'
-    runs-on: ubuntu-latest
+      inputs.action == 'apply'
+    runs-on: ${{ inputs.environment == 'prd' && 'prod' || 'ubuntu-latest' }}
     environment: ${{ inputs.market }}-${{ inputs.environment }}
     env:
       #this is needed since we are running terraform with read-only permissions
@@ -188,7 +187,7 @@ jobs:
       
     # If this is a PR post the changes
     - name: Push Terraform Output to PR
-      if: github.ref != 'refs/heads/master'
+      if: github.ref != 'refs/heads/main'
       uses: actions/github-script@v7
       env:
         SUMMARY: "${{ steps.tf-plan-string.outputs.summary }}"
@@ -206,11 +205,10 @@ jobs:
   terraform-apply:
     name: 'Terraform Apply'
     if: |
-      github.ref == 'refs/heads/master' 
-      && needs.terraform-plan.outputs.tfplanExitCode == 2 
+      needs.terraform-plan.outputs.tfplanExitCode == 2 
       && inputs.apply
       && inputs.action == 'apply'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.environment == 'prd' && 'prod' || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
     env:
       #this is needed since we are running terraform with read-only permissions
@@ -277,10 +275,9 @@ jobs:
   terraform-destroy:
     name: 'Terraform Destroy'
     if: |
-      github.ref == 'refs/heads/master' 
-      && inputs.action == 'destroy' 
+      inputs.action == 'destroy' 
       && inputs.apply
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.environment == 'prd' && 'prod' || 'ubuntu-latest' }}
     environment: ${{ inputs.environment }}
     env:
       #this is needed since we are running terraform with read-only permissions

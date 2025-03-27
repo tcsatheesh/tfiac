@@ -178,3 +178,6 @@ __azurite_db*__.json
 temp
 .vscode
 .env
+
+
+!.github/actions/azure/login/v2/lib

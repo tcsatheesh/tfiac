@@ -36,7 +36,7 @@ permissions:
 jobs:
   terraform-import:
     name: "Terraform Import"
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.environment == 'prd' && 'prod' || 'ubuntu-latest' }}
     environment: ${{ inputs.market }}-${{ inputs.environment }}
     env:
       #this is needed since we are running terraform with read-only permissions

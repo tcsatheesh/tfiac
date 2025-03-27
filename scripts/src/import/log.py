@@ -26,16 +26,20 @@ class ImportState(ImportStateBase):
         _workspace_name = _log_variables["workspace_name"]
 
         _logger.info(f"Importing resource group {_resource_group_name}")
-        self._import_resource(
+        self._import_resource_group(
             name="module.log.azurerm_resource_group.avmrg",
-            resource_id=f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}",
+            subscription_id=_subscription_id,
+            resource_group_name=_resource_group_name,
         )
         _logger.info(
             f"Importing Log Analytics workspace {_workspace_name} in resource group {_resource_group_name}"
         )
         self._import_resource(
             name="module.log.module.log_analytics_workspace.azurerm_log_analytics_workspace.this",
-            resource_id=f"/subscriptions/{_subscription_id}/resourceGroups/{_resource_group_name}/providers/Microsoft.OperationalInsights/workspaces/{_workspace_name}",
+            subscription_id=_subscription_id,
+            resource_group_name=_resource_group_name,
+            resource_type="Microsoft.OperationalInsights/workspaces",
+            resource=_workspace_name,
         )
 
 

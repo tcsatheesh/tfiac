@@ -1,11 +1,11 @@
 market=$1
 environment=$2
 subscription=$3
-client=$4
+client_name=$4
 apply=$5
 
 echo_usage() {
-    echo "Usage: $0 market=<market> environment=<dev|pre|npd|prd> subscription=<subscription id> client=<client_name> apply=<true|false>"
+    echo "Usage: $0 market=<market> environment=<dev|pre|npd|prd> subscription=<subscription id> client_name=<client_name> apply=<true|false>"
 }
 
 # check if the market is in the format market=<market> else exit with error message
@@ -56,12 +56,12 @@ else
     subscription=$(echo $subscription | cut -d'=' -f2)
 fi
 
-if [[ "$client" != client=* ]]; then
-    echo "Invalid client format: $client"
+if [[ "$client_name" != client_name=* ]]; then
+    echo "Invalid client format: $client_name"
     echo_usage
     exit 1
 else
-    client_name=$(echo $client | cut -d'=' -f2)
+    client_name=$(echo $client_name | cut -d'=' -f2)
 fi
 
 

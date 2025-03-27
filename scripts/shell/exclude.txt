@@ -7,3 +7,5 @@ temp
 .vscode
 variables
 __pycache__
+.github/actions
+test.az.login.yaml

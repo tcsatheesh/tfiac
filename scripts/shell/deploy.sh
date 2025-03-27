@@ -2,12 +2,14 @@ action=$1
 market=$2
 environment=$3
 service=$4
-backend=$5
+backend="backend=true"
+
+export ARM_SKIP_PROVIDER_REGISTRATION="true"
 
 current_working_directory=$(pwd)
 
 echo_usage() {
-    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log> backend=<true|false>"
+    echo "Usage: $0 <action> market=<market> environment=<dev|pre|npd|prd> service=<services|vnet|dns|log>"
 }
 
 change_to_current_working_directory() {
@@ -184,7 +186,6 @@ if [[ "$action" == "plan" ]]; then
     -var market=$market \
     -var environment=$environment \
     -var env_type=$env_type
-    -backend
 fi
 
 if [[ "$action" == "apply" ]]; then
@@ -272,7 +273,7 @@ if [[ "$action" == "list" ]]; then
     init_terraform
     change_to_current_working_directory
     change_to_service_directory
-    echo "Running terraform destroy"
+    echo "Running terraform state list"
     terraform state list
 fi
 
@@ -280,6 +281,6 @@ if [[ "$action" == "show" ]]; then
     init_terraform
     change_to_current_working_directory
     change_to_service_directory
-    echo "Running terraform destroy"
+    echo "Running terraform show"
     terraform show
 fi
