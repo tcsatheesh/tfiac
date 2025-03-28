@@ -58,6 +58,8 @@ jobs:
         if: always()
         run: |
           cd ${{ runner.tool_cache }}/../_actions
-          tar -czf /tmp/upload-artifact.tar.gz upload-artifact
-          tar -czf /tmp/github-script.tar.gz github-script
-          tar -czf /tmp/download-artifact.tar.gz download-artifact
+          tar -czf /tmp/azure.login.tar.gz azure
+          tar -czf /tmp/hashicorp.terraform.tar.gz hashicorp
+          tar -czf /tmp/upload-artifact.tar.gz actions/upload-artifact
+          tar -czf /tmp/github-script.tar.gz actions/github-script
+          tar -czf /tmp/download-artifact.tar.gz actions/download-artifact
