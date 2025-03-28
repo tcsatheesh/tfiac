@@ -50,10 +50,12 @@ jobs:
                   body: body
               })                
       - name: List _actions
+        if: always()
         run: |
           # ls -la ${{ runner.tool_cache }}/../_actions
           find ${{ runner.tool_cache }}/../_actions -type f
       - name: Zip up action
+        if: always()
         run: |
           cd ${{ runner.tool_cache }}/../_actions
           tar -czf /tmp/upload-artifact.tar.gz upload-artifact
