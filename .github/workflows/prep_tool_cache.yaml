@@ -25,6 +25,30 @@ jobs:
       - name: List tools cache
         run: |
           ls -la ${{ runner.tool_cache }}
+      - name: Publish Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitignore
+          path: ${{ github.workspace }}/.gitignore
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: gitignore
+          path: ${{ github.workspace }}/.gitignore1
+      - name: Push Terraform Output to PR
+        uses: actions/github-script@v7
+        env:
+          SUMMARY: "test"
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+              const body = `${process.env.SUMMARY}`;
+              github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: body
+              })                
       - name: List _actions
         run: |
           # ls -la ${{ runner.tool_cache }}/../_actions
@@ -32,4 +56,6 @@ jobs:
       - name: Zip up action
         run: |
           cd ${{ runner.tool_cache }}/../_actions
-          tar -czf /tmp/hashicorp.tar.gz hashicorp
+          tar -czf /tmp/upload-artifact.tar.gz upload-artifact
+          tar -czf /tmp/github-script.tar.gz github-script
+          tar -czf /tmp/download-artifact.tar.gz download-artifact
