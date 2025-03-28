@@ -36,7 +36,7 @@ permissions:
 jobs:
   terraform-import:
     name: "Terraform Import"
-    runs-on: ${{ inputs.environment == 'prd' && 'prod' || 'ubuntu-latest' }}
+    runs-on: self-hosted
     environment: ${{ inputs.market }}-${{ inputs.environment }}
     env:
       #this is needed since we are running terraform with read-only permissions
