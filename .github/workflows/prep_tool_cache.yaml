@@ -22,3 +22,10 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
+      - name: List tools cache
+        run: |
+          ls -la ${{ runner.tool_cache }}
+      - name: List _actions
+        run: |
+          ls -la ${{ runner.tool_cache }}/../_actions
+          
