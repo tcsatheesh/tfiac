@@ -1,4 +1,4 @@
-name: Upload Azure Login tool cache
+name: Get tools for self-hosted runners
 on: push
 
 permissions:
