@@ -17,13 +17,8 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: Archive tool cache
-        run: |
-          cd "${{ runner.tool_cache }}"
-          cd "../_actions"
-          ls -la .
-        #   tar -czf tool_cache.tar.gz *
-      - name: Upload tool cache artifact
-        uses: actions/upload-artifact@v4
+      # Install the latest version of the Terraform CLI
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          path: ${{runner.tool_cache}}/tool_cache.tar.gz
+          terraform_wrapper: false
