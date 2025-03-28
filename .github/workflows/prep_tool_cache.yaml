@@ -28,4 +28,7 @@ jobs:
       - name: List _actions
         run: |
           ls -la ${{ runner.tool_cache }}/../_actions
-          
+      - name: Zip up action
+        run: |
+          cd ${{ runner.tool_cache }}/../_actions
+          tar -czf /tmp/hashicorp.tar.gz hashicorp
