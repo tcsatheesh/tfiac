@@ -10,7 +10,7 @@ route:
 subnets:
   development:
     name: "DevelopmentSubnet"
-    address_prefixes: ["10.240.4.0/26"]
+    address_prefix: "10.240.4.0/26"
     nsg: "dev-nsg"
     add_route_table: true
     add_nsg: true
@@ -19,7 +19,7 @@ subnets:
     has_nsg_rules: false
   pre-production:
     name: "PreProductionSubnet"
-    address_prefixes: ["10.240.4.64/26"]
+    address_prefix: "10.240.4.64/26"
     nsg: "pre-nsg"
     add_route_table: true
     add_nsg: true
@@ -28,7 +28,7 @@ subnets:
     has_nsg_rules: false
   api-management:
     name: "ApiManagementSubnet"
-    address_prefixes: ["10.240.4.144/28"]
+    address_prefix: "10.240.4.144/28"
     nsg: "api-nsg"
     add_route_table: false
     add_nsg: true
@@ -37,7 +37,7 @@ subnets:
     has_nsg_rules: true
   firewall:
     name: "AzureFirewallSubnet"
-    address_prefixes: ["10.240.5.0/26"]
+    address_prefix: "10.240.5.0/26"
     nsg: "firewall-nsg"
     add_route_table: false
     add_nsg: false
@@ -46,7 +46,7 @@ subnets:
     has_nsg_rules: false
   firewall-mgmt:
     name: "AzureFirewallManagementSubnet"
-    address_prefixes: ["10.240.5.64/26"]
+    address_prefix: "10.240.5.64/26"
     nsg: "firewall-mgmt-nsg"
     add_route_table: false
     add_nsg: false
@@ -55,7 +55,7 @@ subnets:
     has_nsg_rules: false
   buildsvr:
     name: "BuildServerSubnet"
-    address_prefixes: ["10.240.4.160/28"]
+    address_prefix: "10.240.4.160/28"
     nsg: "stc-genai-network-nonprod-vnet-BuildServerSubnet-NSG"
     add_route_table: true
     add_nsg: true
@@ -64,7 +64,7 @@ subnets:
     has_nsg_rules: false
   bastion:
     name: "AzureBastionSubnet"
-    address_prefixes: ["10.240.4.192/28"]
+    address_prefix: "10.240.4.192/28"
     nsg: "stc-genai-network-nonprod-vnet-AzureBastionSubnet-NSG"
     add_route_table: false
     add_nsg: true
