@@ -26,12 +26,12 @@ jobs:
         run: |
           ls -la ${{ runner.tool_cache }}
       - name: Publish Terraform Plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: gitignore
           path: ${{ github.workspace }}/.gitignore
       - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: gitignore
           path: ${{ github.workspace }}/.gitignore1
