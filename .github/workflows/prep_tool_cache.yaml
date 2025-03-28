@@ -27,7 +27,8 @@ jobs:
           ls -la ${{ runner.tool_cache }}
       - name: List _actions
         run: |
-          ls -la ${{ runner.tool_cache }}/../_actions
+          # ls -la ${{ runner.tool_cache }}/../_actions
+          find ${{ runner.tool_cache }}/../_actions -type f
       - name: Zip up action
         run: |
           cd ${{ runner.tool_cache }}/../_actions
