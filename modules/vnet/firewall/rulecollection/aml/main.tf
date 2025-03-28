@@ -28,7 +28,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
       name                  = "azure-machine-learning-tcp"
       protocols             = ["TCP"]
       source_ip_groups      = var.source_ip_groups
-      destination_addresses = ["AzureActiveDirectory.ServiceEndpoint"]
+      destination_addresses = ["AzureMachineLearning"]
       destination_ports     = ["443", "8787", "18881"]
     }
     rule {
@@ -63,7 +63,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
       name                  = "azure-front-door-frontend"
       protocols             = ["TCP"]
       source_ip_groups      = var.source_ip_groups
-      destination_addresses = ["Storage.westeurope"]
+      destination_addresses = ["AzureFrontDoor.Frontend"]
       destination_ports     = ["443"]
     }
     rule {
@@ -105,7 +105,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
       name                  = "azure-keyvault"
       protocols             = ["TCP"]
       source_ip_groups      = var.source_ip_groups
-      destination_addresses = ["VirtuaKeyvault.westeurope"]
+      destination_addresses = ["Keyvault.westeurope"]
       destination_ports     = ["443"]
     }
   }

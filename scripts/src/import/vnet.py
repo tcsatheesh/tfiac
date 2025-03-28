@@ -189,8 +189,9 @@ class ImportState(ImportStateBase):
                 resource=f'{_firewall_variables["management"]["public_ip_name"]}',
             )
             _logger.info(f"Importing firewall diagnostics...")
+            _firewall_diagnostics_name = _firewall_variables["diagnostic_settings"]["name"]
             self._import_resource(
-                name='module.vnet.module.firewall[0].module.firewall.azurerm_monitor_diagnostic_setting.this["to_law"]',
+                name=f'module.vnet.module.firewall[0].module.firewall.azurerm_monitor_diagnostic_setting.this["{_firewall_diagnostics_name}"]',
                 subscription_id=_firewall_subscription_id,
                 resource_group_name=_firewall_resource_group_name,
                 resource_type="Microsoft.Network/azureFirewalls",

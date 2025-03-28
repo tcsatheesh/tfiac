@@ -6,6 +6,7 @@ module "fw_public_ip" {
   allocation_method   = "Static"
   sku                 = "Standard"
   enable_telemetry    = false
+  zones               = null
 }
 
 module "fw_managment_public_ip" {
@@ -16,6 +17,7 @@ module "fw_managment_public_ip" {
   allocation_method   = "Static"
   sku                 = "Standard"
   enable_telemetry    = false
+  zones               = null
 }
 
 module "fwpolicy" {
@@ -35,7 +37,7 @@ module "firewall" {
   resource_group_name = var.firewall.resource_group_name
   firewall_sku_tier   = var.firewall.sku_tier
   firewall_sku_name   = var.firewall.sku_name
-  firewall_zones      = ["1", "2", "3"]
+  firewall_zones      = null
   firewall_ip_configuration = [
     {
       name                 = "IpConf"

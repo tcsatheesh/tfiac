@@ -3,7 +3,9 @@ resource_group_name: "stc-genai-network-nonprod-gb-rg"
 name: "stc-genai-network-nonprod-gb-vnet"
 location: "westeurope"
 address_space: ["10.240.8.0/24"]
-route_table_name: "route-to-firewall"
+route:
+  table_name: "route-to-firewall"
+  route_name: "route-to-firewall"
 bastion: null
 vnet_peering:
   local_name: stc-genai-network-nonprod-gb-vnet-to-stc-genai-network-nonprod-vnet-peer

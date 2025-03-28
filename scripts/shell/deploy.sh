@@ -180,12 +180,29 @@ fi
 if [[ "$action" == "plan" ]]; then
     init_terraform
     change_to_current_working_directory
+
+    plan_folder_path="$current_working_directory/temp/plan/$market/$environment/$service"
+    echo "Creating plan folder $plan_folder_path"
+    mkdir -p $plan_folder_path
+    plan_file_path="$plan_folder_path/tfplan"
+    echo "Plan file path is $plan_file_path"
+
     change_to_service_directory
+
     echo "Running terraform plan"
     terraform plan \
     -var market=$market \
     -var environment=$environment \
-    -var env_type=$env_type
+    -var env_type=$env_type \
+    -no-color -out $plan_file_path
+
+    terraform show -json $plan_file_path > $plan_folder_path/tfplan.json
+    terraform show -json $plan_file_path | jq -r '.resource_changes[] | select(.change.actions[0] == "create") | .address' > $plan_folder_path/create.txt
+    terraform show -json $plan_file_path | jq -r '.resource_changes[] | select(.change.actions[0] == "update") | .address' > $plan_folder_path/update.txt
+    terraform show -json $plan_file_path | jq -r '.resource_changes[] | select(.change.actions[0] == "delete") | .address' > $plan_folder_path/delete.txt
+    terraform show -json $plan_file_path | jq -r '.resource_changes[] | select(.change.actions[0] == "no-op") | .address' > $plan_folder_path/no-op.txt
+
+    terraform show -no-color $plan_file_path > $plan_folder_path/tfplan.txt
 fi
 
 if [[ "$action" == "apply" ]]; then

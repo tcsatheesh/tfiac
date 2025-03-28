@@ -15,7 +15,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
   priority           = 300
   network_rule_collection {
     name     = "allow-azureactivedirectory"
-    priority = 400
+    priority = 1000
     action   = "Allow"
     rule {
       name                  = "azureactivedirectory"

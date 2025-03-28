@@ -120,3 +120,4 @@ class ShellHandler:
             file.write(" ".join(_command_1) + " \\\n")
             file.write(_command_2 + " \\\n")
             file.write(_command_3 + " \n")
+            file.write("\n")

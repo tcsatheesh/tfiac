@@ -12,7 +12,7 @@ variable "source_ip_groups" {}
 resource "azurerm_firewall_policy_rule_collection_group" "this" {
   name               = var.rule_collection_group_name
   firewall_policy_id = var.firewall_policy_id
-  priority           = 500
+  priority           = 300
   application_rule_collection {
     name     = "allow-gb-super"
     priority = 1000

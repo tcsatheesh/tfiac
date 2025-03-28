@@ -57,7 +57,3 @@ provider "azurerm" {
   resource_provider_registrations = "none"
 }
 
-resource "azurerm_resource_group" "rg" {
-  name     = local.vnet.resource_group_name
-  location = local.vnet.location
-}

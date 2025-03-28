@@ -252,12 +252,12 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
       name             = "ubuntupackages"
       source_ip_groups = var.source_ip_groups
       protocols {
-        port = "443"
-        type = "Https"
-      }
-      protocols {
         port = "80"
         type = "Http"
+      }
+      protocols {
+        port = "443"
+        type = "Https"
       }
       destination_fqdns = [
         "azure.archive.ubuntu.com",
@@ -384,7 +384,8 @@ resource "azurerm_firewall_policy_rule_collection_group" "this" {
         type = "Https"
       }
       destination_fqdns = [
-        "downloads.mend.io"
+        "downloads.mend.io",
+        "sonarqube.chatbot-prd.aws.cps.vodafone.com"
       ]
     }
   }
