@@ -28,6 +28,7 @@ locals {
     environment = var.environment
     region      = var.region
     repo        = var.repo
+    purpose     = "net"
     services    = [for k, s in local.service_specs : { type = s.type, count = s.count, subnets = s.subnets } if s.include]
   }
 }

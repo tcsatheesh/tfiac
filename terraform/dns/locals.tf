@@ -42,6 +42,7 @@ locals {
     environment = var.environment
     region      = var.region
     repo        = var.repo
+    purpose     = "dns"
     services = [
       {
         type  = "private_dns_zone"

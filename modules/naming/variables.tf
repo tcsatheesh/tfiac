@@ -15,6 +15,7 @@ variable "input" {
     environment = string
     region      = string
     repo        = string
+    purpose     = optional(string, null)
 
     services = list(object({
       type  = string
@@ -56,5 +57,14 @@ variable "input" {
   validation {
     condition     = length(var.input.repo) > 0
     error_message = "input.repo is required (FR-001 / FR-014); pass the consumer repository identifier verbatim."
+  }
+
+  validation {
+    # When provided, `purpose` is woven into the per-stack RG name as
+    #   rg-<tenant>-<environment>-<purpose>-<region>-001
+    # so multiple stacks pointing at the same (tenant, env, region) tuple
+    # land in distinct RGs (e.g. dns, log, net). Null = legacy shape.
+    condition     = var.input.purpose == null || can(regex("^[a-z0-9]{2,4}$", var.input.purpose))
+    error_message = "input.purpose, when set, must be a 2–4 char lowercase alphanumeric token (e.g. dns, log, net)."
   }
 }

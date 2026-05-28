@@ -60,6 +60,7 @@ variable "input" {
     environment = string
     region      = string
     repo        = string
+    purpose     = optional(string, null)
     services    = optional(list(any), [])
     overrides   = optional(any, {})
   })

@@ -16,6 +16,7 @@ locals {
     environment = var.environment
     region      = var.region
     repo        = var.repo
+    purpose     = "log"
     services = [
       {
         type  = "log_analytics"

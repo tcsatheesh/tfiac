@@ -45,8 +45,8 @@ run "baseline_25_catalogue_zones" {
   }
 
   assert {
-    condition     = output.resource_group_name == "rg-hub-prd-sdc-001"
-    error_message = "resource_group_name must be the engine-emitted canonical rg-hub-prd-sdc-001 (FR-009)."
+    condition     = output.resource_group_name == "rg-hub-prd-dns-sdc-001"
+    error_message = "resource_group_name must be the engine-emitted canonical rg-hub-prd-dns-sdc-001 (FR-009)."
   }
 
   assert {

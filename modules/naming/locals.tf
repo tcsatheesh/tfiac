@@ -15,8 +15,12 @@
 
 locals {
   # Convenience.
-  region_code     = lookup(local.region_codes, var.input.region, "INVALID_REGION")
-  rg_canonical    = "rg-${var.input.tenant}-${var.input.environment}-${local.region_code}-001"
+  region_code = lookup(local.region_codes, var.input.region, "INVALID_REGION")
+  rg_canonical = (
+    var.input.purpose == null
+    ? "rg-${var.input.tenant}-${var.input.environment}-${local.region_code}-001"
+    : "rg-${var.input.tenant}-${var.input.environment}-${var.input.purpose}-${local.region_code}-001"
+  )
   child_type_keys = keys(local.child_types)
 
   # ─── Stage 1 — parsed ──────────────────────────────────────────────────────

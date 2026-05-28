@@ -16,8 +16,13 @@
 locals {
   # Engine-emitted RG name. The root stack derives `var.region_code` from
   # module.naming.region_codes lookup (or a static fallback map); the module
-  # itself never re-derives the short code.
-  rg_canonical_name = "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
+  # itself never re-derives the short code. Must mirror modules/naming
+  # locals.rg_canonical (with optional purpose segment).
+  rg_canonical_name = (
+    try(var.input.purpose, null) == null
+    ? "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
+    : "rg-${var.input.tenant}-${var.input.environment}-${var.input.purpose}-${var.region_code}-001"
+  )
 
   # Six-key baseline tag map (Constitution VIII). Identical bytes to the
   # engine's baseline_tags for the same input.
