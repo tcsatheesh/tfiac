@@ -12,3 +12,19 @@ variable "env_type" {
     error_message = "env_type must be either prd or npd"
   }
 }
+
+variable "dns" {
+  type = any
+}
+variable "log" {
+  type = any
+}
+variable "firewall" {
+  type = any
+}
+variable "vnet" {
+  type = any
+}
+variable "remote_vnet" {
+  type = any
+}

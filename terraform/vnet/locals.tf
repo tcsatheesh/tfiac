@@ -1,7 +1,7 @@
 locals {
-  dns         = yamldecode(file("../../variables/grp/prd/dns.yaml"))
-  log         = yamldecode(file("../../variables/grp/${var.env_type}/log.yaml"))
-  firewall    = yamldecode(file("../../variables/grp/${var.env_type}/firewall.yaml"))
-  vnet        = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
-  remote_vnet = yamldecode(file("../../variables/grp/${var.env_type}/vnet.yaml"))
+  dns         = var.dns
+  log         = var.log
+  firewall    = var.firewall
+  vnet        = var.vnet
+  remote_vnet = var.remote_vnet
 }

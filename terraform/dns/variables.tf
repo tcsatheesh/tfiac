@@ -11,3 +11,7 @@ variable "env_type" {
     error_message = "env_type must be either prd or npd"
   }
 }
+
+variable "dns" {
+  type = any
+}

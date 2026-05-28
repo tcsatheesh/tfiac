@@ -1,7 +1,7 @@
 locals {
-  dns      = yamldecode(file("../../variables/grp/prd/dns.yaml"))
-  log      = yamldecode(file("../../variables/grp/${var.env_type}/log.yaml"))
-  vnet     = yamldecode(file("../../variables/${var.market}/${var.env_type}/vnet.yaml"))
-  services = yamldecode(file("../../variables/${var.market}/${var.environment}/services.yaml"))
-  rbac     = yamldecode(file("../../variables/rbac/${var.environment}/rbac.yaml"))
+  dns      = var.dns
+  log      = var.log
+  vnet     = var.vnet
+  services = var.services
+  rbac     = var.rbac
 }
