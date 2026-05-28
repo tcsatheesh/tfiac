@@ -14,7 +14,7 @@ This is the worked example for `terraform/dns/`. Use it as the reference input f
 ```hcl
 subscription_id = "00000000-0000-0000-0000-000000000000"  # prd hub
 region          = "uksouth"
-repo            = "tcsatheesh/tfiac"
+repo            = "_github_org/_github_repo"
 
 custom_zones = [
   "internal.contoso.local",

@@ -10,7 +10,7 @@ run "hub_hub_npd" {
       tenant      = "hub"
       environment = "npd"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services    = [{ type = "vnet" }]
     }
   }
@@ -28,7 +28,7 @@ run "spoke_sp99_prd" {
       tenant      = "sp99"
       environment = "prd"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services    = [{ type = "vnet" }]
     }
   }
@@ -46,7 +46,7 @@ run "spoke_sp01_pre" {
       tenant      = "sp01"
       environment = "pre"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services    = [{ type = "vnet" }]
     }
   }
@@ -65,7 +65,7 @@ run "minimal_empty_services" {
       tenant      = "sp01"
       environment = "npd"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services    = []
     }
   }

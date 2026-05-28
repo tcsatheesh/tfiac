@@ -13,7 +13,7 @@ mock_provider "azurerm" {
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
   region          = "swedencentral"
-  repo            = "tcsatheesh/tfiac"
+  repo            = "_github_org/_github_repo"
   role            = "hub"
   topology        = "hub"
   tenant          = "hub"

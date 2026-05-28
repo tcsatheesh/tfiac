@@ -19,7 +19,7 @@ run "disable_acr_yields_24_zones" {
   variables {
     subscription_id         = "00000000-0000-0000-0000-000000000000"
     region                  = "swedencentral"
-    repo                    = "tcsatheesh/tfiac"
+    repo                    = "_github_org/_github_repo"
     custom_zones            = []
     disable_catalogue_zones = ["acr"]
     topology        = "hub"

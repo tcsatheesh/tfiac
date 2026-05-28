@@ -8,7 +8,7 @@ run "every_record_has_six_baseline_keys" {
       tenant      = "sp01"
       environment = "npd"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services = [
         { type = "keyvault" },
         { type = "storage", count = 1 },
@@ -27,7 +27,7 @@ run "every_record_has_six_baseline_keys" {
         contains(keys(r.tags), "managed_by"),
         contains(keys(r.tags), "repo"),
         r.tags.managed_by == "terraform",
-        r.tags.repo == "tcsatheesh/tfiac",
+        r.tags.repo == "_github_org/_github_repo",
       ])
     ])
     error_message = "Every emitted record must carry six baseline tag keys with managed_by=terraform and the input.repo value (FR-014)."

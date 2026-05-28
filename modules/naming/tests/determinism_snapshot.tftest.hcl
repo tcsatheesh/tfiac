@@ -10,7 +10,7 @@ run "snapshot_matches" {
       tenant      = "sp01"
       environment = "npd"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services = [
         {
           type = "vnet"

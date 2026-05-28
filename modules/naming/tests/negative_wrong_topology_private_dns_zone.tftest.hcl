@@ -12,7 +12,7 @@ run "private_dns_zone_in_spoke_npd_fails" {
       tenant      = "sp01"
       environment = "npd"
       region      = "swedencentral"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services = [
         {
           type  = "private_dns_zone"

@@ -8,7 +8,7 @@ run "override_adds_cost_center" {
       tenant      = "sp01"
       environment = "npd"
       region      = "uksouth"
-      repo        = "tcsatheesh/tfiac"
+      repo        = "_github_org/_github_repo"
       services    = [{ type = "storage", count = 1 }]
       overrides = {
         "stsp01npduks001" = { tags = { cost_center = "ABC123" } }

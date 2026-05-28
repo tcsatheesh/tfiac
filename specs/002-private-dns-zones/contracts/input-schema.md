@@ -24,7 +24,7 @@ The stack accepts exactly **five** input variables. All other behaviour is deriv
 ### `repo` (required)
 
 - **Type**: `string`
-- **Description**: Source repository identifier (e.g. `tcsatheesh/tfiac`). Flows into `module.naming` baseline tags.
+- **Description**: Source repository identifier (e.g. `_github_org/_github_repo`). Flows into `module.naming` baseline tags.
 - **Validation**: `length(var.repo) > 0`.
 
 ### `custom_zones` (optional)
