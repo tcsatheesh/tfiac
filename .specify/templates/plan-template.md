@@ -40,7 +40,41 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Source: `.specify/memory/constitution.md` (v2.1.0). Every gate below MUST
+be answered explicitly (PASS / FAIL / N/A with justification). Any FAIL
+blocks the plan and must be recorded in the Complexity Tracking table.
+
+- [ ] **I. Hub-and-Spoke Architecture**: The change preserves exactly one
+      hub per environment group (one for `npd` covering `dev` and `pre`,
+      one for `prd`), preserves the single global DNS stack in the `prd`
+      subscription, and keeps every stack unambiguously hub or spoke. No
+      third category is introduced.
+- [ ] **II. Minimal, Intent-Only Inputs**: No required input is added
+      beyond topology, tenant, environment, region, and the services list.
+      Any new knob is an optional override in the single overrides map and
+      falls back to a central default when absent.
+- [ ] **III. Naming Follows Microsoft CAF**: Every new or changed resource
+      name conforms to CAF and to the naming-convention feature spec. The
+      concrete pattern is NOT redefined inline in this plan.
+- [ ] **IV. Determinism and Idempotency**: No timestamps, random values,
+      or non-deterministic identifiers in names. `for_each` keys are
+      derived deterministically from inputs. `terraform plan` on unchanged
+      input will report zero changes.
+- [ ] **V. Single Source of Truth for Catalogues**: New catalogue entries
+      (service types, CAF abbreviations, region codes, default SKUs,
+      baseline tags) are added to the central catalogue. Modules consume
+      from it; no hardcoding.
+- [ ] **VI. Module Structure is Normative**: New modules live under
+      `modules/<service>/` with the standard file layout. Root stacks live
+      under `terraform/<stack>/`. Inputs live under
+      `variables/<tenant>/<environment>/`.
+- [ ] **VII. Provider and State Hygiene**: `required_version` and
+      providers are pinned per root stack. Remote state is configured; no
+      local state. Auth is OIDC / managed identity / `az login`. No
+      secrets in code, tfvars, providers, or outputs.
+- [ ] **VIII. Tagging Baseline**: Every taggable resource receives the
+      baseline tag set derived from inputs; overrides merge on top;
+      baseline keys remain present.
 
 ## Project Structure
 
