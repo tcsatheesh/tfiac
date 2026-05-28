@@ -46,13 +46,37 @@ variable "repo" {
 }
 
 variable "custom_zones" {
-  description = "Operator-supplied private DNS zone FQDNs. Module's variable.validation enforces FR-016/FR-019; module's precondition enforces FR-017 (shadowing — added in Phase 4 / T027)."
+  description = "Operator-supplied private DNS zone FQDNs. Module's variable.validation enforces FR-016/FR-019; module's precondition enforces FR-017 (shadowing)."
   type        = list(string)
   default     = []
+
+  validation {
+    # FR-016: each entry must be a valid lowercase DNS FQDN, ≥ 2 labels, ≤ 253 chars.
+    condition = alltrue([
+      for e in var.custom_zones : (
+        length(e) <= 253
+        && length(split(".", e)) >= 2
+        && can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", e))
+      )
+    ])
+    error_message = "custom_zones entries must be lowercase DNS FQDNs with ≥ 2 labels, each label ≤ 63 chars, total ≤ 253 chars (FR-016)."
+  }
+
+  validation {
+    # FR-019: no duplicates within custom_zones.
+    condition     = length(var.custom_zones) == length(distinct(var.custom_zones))
+    error_message = "custom_zones contains duplicate entries (FR-019)."
+  }
 }
 
 variable "disable_catalogue_zones" {
-  description = "Catalogue keys to exclude from creation. Catalogue-membership is enforced by the module precondition (T010/T015). De-dup validation comes in Phase 5 (T033)."
+  description = "Catalogue keys to exclude from creation. Catalogue-membership is enforced by the module precondition (T010/T015)."
   type        = list(string)
   default     = []
+
+  validation {
+    # FR-019: no duplicates within disable_catalogue_zones.
+    condition     = length(var.disable_catalogue_zones) == length(distinct(var.disable_catalogue_zones))
+    error_message = "disable_catalogue_zones contains duplicate entries (FR-019)."
+  }
 }

@@ -51,25 +51,6 @@ resource "azurerm_resource_group" "this" {
   name     = local.rg_canonical_name
   location = var.region
   tags     = var.naming[local.rg_canonical_name].tags
-
-  # ─── T010 primary path: catalogue-aware unknown-disable-key guard ──────
-  # `variable.validation` cannot reach `local.catalogue` reliably (variable
-  # validation expressions are restricted to var.* and self), so the
-  # catalogue-aware check is implemented as a precondition on this resource.
-  # The negative test (T031) targets `module.dnszones.azurerm_resource_group.this`.
-  lifecycle {
-    precondition {
-      condition = length(setsubtract(
-        toset(var.disable_catalogue_zones),
-        toset(keys(local.catalogue)),
-      )) == 0
-      error_message = format(
-        "disable_catalogue_zones contains unknown key(s) %v. Valid catalogue keys: %v (FR-018).",
-        sort(tolist(setsubtract(toset(var.disable_catalogue_zones), toset(keys(local.catalogue))))),
-        sort(keys(local.catalogue)),
-      )
-    }
-  }
 }
 
 resource "azurerm_private_dns_zone" "this" {

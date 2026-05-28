@@ -22,7 +22,8 @@ Thin module that owns the Private DNS Zone catalogue (25 entries) and emits
 | `zone_names` | `map(string)` | catalogue-key-or-FQDN → FQDN. |
 | `resource_group_name` | `string` | engine-emitted per-stack RG name. |
 | `resource_group_id` | `string` | RG resource ID. |
-| `catalogue_keys` | `list(string)` | sorted catalogue keys (strings only). FQDN *values* stay internal. |
+| `catalogue_keys` | `list(string)` | sorted catalogue keys (strings only). The root stack consumes this to size the engine's `services[].count` and to power the disable-keys guard. |
+| `catalogue_fqdns` | `list(string)` | sorted catalogue FQDNs. Exposed strictly to enable root-stack `terraform_data` guards (Terraform 1.9 `expect_failures` cannot reference module-scope resources). |
 
 ## Catalogue (FR-011 day-one set)
 
@@ -31,24 +32,31 @@ Editing this map is a one-PR catalogue change (Constitution V).
 
 ## Encapsulation rules
 
-- The catalogue **map values** (FQDNs) are NOT exposed as outputs. Every
-  catalogue-aware validation lives inside the module to keep callers slim.
+- The catalogue **map** itself stays inside the module; only sorted
+  `catalogue_keys` and `catalogue_fqdns` lists are exposed.
 - The module is **provider-less**: the AzureRM provider is inherited from the
   root stack (Constitution VI).
 - No `azurerm_private_dns_zone_virtual_network_link` resources are created
   here (FR-003 — vnet linking is the consumer's responsibility).
 
-## T010 mechanism (recorded for the contract)
+## Validation strategy (post-remediation)
 
-The unknown-disable-key guard is implemented as a **`precondition {}` block
-on `azurerm_resource_group.this`**, NOT as a `variable.validation` block.
-Rationale: variable validation expressions cannot reach `local.catalogue`
-reliably (only `var.*` and `self` are in scope). The negative test
-(`terraform/dns/tests/negative_unknown_disable_key.tftest.hcl`) targets
-`expect_failures = [module.dnszones.azurerm_resource_group.this]`.
+Variable-level validations (halt at parse time) live in the module:
+- `custom_zones` — FQDN regex (FR-016), de-dup (FR-019)
+- `disable_catalogue_zones` — de-dup (FR-019)
 
-Shadowing guard (T027, Phase 4) will be a second `precondition` block on
-the same resource.
+Catalogue-aware validations (halt at plan time) live in the **root stack**
+([terraform/dns/validate.tf](../../terraform/dns/validate.tf)) as
+`terraform_data` resources with `lifecycle.precondition` blocks:
+- `guard_disable_keys_known` — unknown catalogue keys (FR-018)
+- `guard_custom_zones_no_shadow` — shadowing of catalogue FQDNs (FR-017)
+
+Why not module `precondition`s? Terraform 1.9 forbids `expect_failures`
+from referencing module-scope resources, and `check {}` blocks emit
+warnings only. `terraform_data` in root is the only construct that gives
+us BOTH a hard halt AND a testable address. Catalogue data still flows
+from the module via `catalogue_keys`/`catalogue_fqdns`; root holds the
+guard wiring, not the catalogue.
 
 ## Naming semantics (FR-007, post-remediation)
 

@@ -8,7 +8,16 @@
 # Stronger zero-diff verification against APPLIED state is a real-backend
 # concern documented in quickstart.md.
 
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  mock_data "azurerm_client_config" {
+    defaults = {
+      subscription_id = "00000000-0000-0000-0000-000000000000"
+      tenant_id       = "00000000-0000-0000-0000-000000000000"
+      object_id       = "00000000-0000-0000-0000-000000000000"
+      client_id       = "00000000-0000-0000-0000-000000000000"
+    }
+  }
+}
 
 run "first_plan_baseline" {
   command = plan

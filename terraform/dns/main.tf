@@ -13,6 +13,9 @@ module "naming" {
   input = local.input
 }
 
+# T038 — client_config for the subscription_pinned check in validate.tf.
+data "azurerm_client_config" "current" {}
+
 module "dnszones" {
   source = "../../modules/dnszones"
 

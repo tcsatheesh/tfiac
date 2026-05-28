@@ -14,7 +14,16 @@
 # zone_ids); the deviation is documented in modules/dnszones/README.md and
 # in the Phase 3 completion report.
 
-mock_provider "azurerm" {}
+mock_provider "azurerm" {
+  mock_data "azurerm_client_config" {
+    defaults = {
+      subscription_id = "00000000-0000-0000-0000-000000000000"
+      tenant_id       = "00000000-0000-0000-0000-000000000000"
+      object_id       = "00000000-0000-0000-0000-000000000000"
+      client_id       = "00000000-0000-0000-0000-000000000000"
+    }
+  }
+}
 
 run "zone_names_match_snapshot" {
   command = plan
