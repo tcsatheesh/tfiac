@@ -315,11 +315,11 @@ locals {
       child_keys             = []
     }
     private_dns_zone = {
-      caf_abbr               = "pdns"
+      caf_abbr               = "pdnsz"
       shape                  = "hyphenated"
       topology_scope         = "prd-hub-only"
       category               = "top-level"
-      max_length             = 80
+      max_length             = 63
       charset                = "alphanumeric-hyphen"
       case_rule              = "lowercase"
       must_start_with_letter = true
@@ -364,16 +364,18 @@ locals {
     }
   }
 
-  # Region short-code catalogue (FR-010, day-one).
+  # Region short-code catalogue (FR-010, day-one). Codes follow the
+  # Microsoft CAF Azure Naming Tool short-code conventions.
   region_codes = {
-    uksouth     = "uks"
-    ukwest      = "ukw"
-    westeurope  = "weu"
-    northeurope = "neu"
-    eastus      = "eus"
-    eastus2     = "eus2"
-    westus2     = "wus2"
-    westus3     = "wus3"
+    uksouth       = "uks"
+    ukwest        = "ukw"
+    westeurope    = "weu"
+    northeurope   = "neu"
+    eastus        = "eus"
+    eastus2       = "eus2"
+    westus2       = "wus2"
+    westus3       = "wus3"
+    swedencentral = "sdc"
   }
 
   # Default-settings catalogue per top-level service_type (FR-012).

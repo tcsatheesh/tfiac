@@ -117,7 +117,7 @@ run "prd_hub_only_types_in_hub_prd" {
   assert {
     condition = alltrue([
       contains(keys(output.names), "dns-hub-prd-uks-001"),
-      contains(keys(output.names), "pdns-hub-prd-uks-001"),
+      contains(keys(output.names), "pdnsz-hub-prd-uks-001"),
     ])
     error_message = "prd-hub-only DNS types missing in (hub, prd)."
   }
