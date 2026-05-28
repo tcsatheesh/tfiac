@@ -41,8 +41,8 @@ map enforces the determinism gate.
 is consumed by root stacks under `terraform/<stack>/` and is exercised in
 CI by `terraform fmt`, `terraform validate`, and `terraform test`.
 
-**Project Type**: Terraform module library. The existing repo layout
-(`modules/<service>/`, `terraform/<stack>/`, `variables/<tenant>/<env>/`)
+**Project Type**: Terraform module library. The repo layout
+(`modules/<service>/`, `terraform/<stack>/`, `variables/<env>/<scope>/`)
 is preserved per Constitution Principle VI.
 
 **Performance Goals**: Single batch evaluation completes in under 50 ms

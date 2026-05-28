@@ -34,6 +34,9 @@ run "zone_names_match_snapshot" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = []
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   assert {

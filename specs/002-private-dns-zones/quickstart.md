@@ -1,6 +1,6 @@
 # Quickstart — Private DNS Zones (prd-hub-only)
 
-This is the worked example for `terraform/dns/`. Use it as the reference input for tests and as a copy-paste starter for the real `variables/hub/prd/dns.tfvars`.
+This is the worked example for `terraform/dns/`. Use it as the reference input for tests and as a copy-paste starter for the real `variables/prd/hub/dns.tfvars`.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ This is the worked example for `terraform/dns/`. Use it as the reference input f
 - Authenticated against the prd-hub subscription (`az login` or service principal env vars).
 - Remote backend configured via env-injected partial config (Constitution VII).
 
-## Reference input — `variables/hub/prd/dns.tfvars`
+## Reference input — `variables/prd/hub/dns.tfvars`
 
 ```hcl
 subscription_id = "00000000-0000-0000-0000-000000000000"  # prd hub
@@ -30,7 +30,7 @@ disable_catalogue_zones = [
 ```bash
 cd terraform/dns
 terraform init -backend-config=...   # backend wiring is env-specific
-terraform plan -var-file=../../variables/hub/prd/dns.tfvars
+terraform plan -var-file=../../variables/prd/hub/dns.tfvars
 ```
 
 Expected plan summary on a clean subscription:
@@ -109,7 +109,7 @@ After a legitimate change to `local.catalogue` or the engine `private_dns_zone` 
 cd terraform/dns
 terraform init
 echo 'jsonencode({ zone_ids = output.zone_ids, zone_names = output.zone_names })' \
-  | terraform console -var-file=../../variables/hub/prd/dns.tfvars \
+  | terraform console -var-file=../../variables/prd/hub/dns.tfvars \
   | python3 -c 'import sys,json; print(json.loads(sys.stdin.read()))' \
   > tests/snapshots/reference.json
 ```

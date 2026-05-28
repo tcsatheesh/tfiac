@@ -1,0 +1,18 @@
+# Inputs for terraform/dns/ targeting (env=prd, scope=hub).
+# Copy to dns.tfvars (gitignored) and pass via -var-file when running.
+
+subscription_id = "883c9081-23ed-4674-95c5-45c74834e093"
+region          = "swedencentral"
+repo            = "tcsatheesh/tfiac"
+
+topology    = "hub"
+tenant      = "hub"
+environment = "prd"
+
+# Operator-supplied private DNS zones (FQDNs). Empty list is fine.
+custom_zones = [
+  "internal.contoso.local",
+]
+
+# Catalogue keys to skip (must exist in modules/dnszones/locals.tf catalogue).
+disable_catalogue_zones = []

@@ -1,159 +1,137 @@
-# Delivery Summary — Features 002, 003, 004
+# Delivery Summary — Features 002 / 003 / 004 + flat-stack restructure
 
-**Branch**: `master` (5 commits ahead of `origin/master`)
+The repo is organised as a small set of **generic root stacks** under
+`terraform/`, each switchable across env / tenant / role via
+`variables/<env>/<scope>/<service>.tfvars`. Pre-feature-001 modules and
+stacks are parked under `terraform/_legacy/` and `modules/` (untouched).
 
-All work is on master, ready for `terraform plan` / `apply`. No terraform
-runs have been performed against Azure — as instructed.
+## Repository layout
+
+```
+terraform/
+├── bootstrap/         LOCAL backend; creates the tfstate storage account
+├── dns/               azurerm backend; Private DNS catalogue (feature 002)
+├── log/               azurerm backend; Log Analytics workspace (feature 003)
+├── vnet/              azurerm backend; role-driven hub|spoke vnet (feature 004)
+└── _legacy/           pre-feature-001 stacks (parked, not deleted)
+
+variables/
+├── backend.hcl.example         shared azurerm backend snippet (per-stack `key=`)
+├── bootstrap.tfvars.example    inputs for terraform/bootstrap/
+├── npd/
+│   ├── hub/
+│   │   ├── log.tfvars.example
+│   │   └── vnet.tfvars.example
+│   └── sp01/
+│       └── vnet.tfvars.example
+└── prd/
+    └── hub/
+        ├── dns.tfvars.example
+        └── log.tfvars.example
+```
 
 ## Test inventory (all green)
 
 | Stack | Pass | Fail |
 |---|---|---|
 | `modules/naming` | 41 | 0 |
+| `terraform/bootstrap` | 1 | 0 |
 | `terraform/dns` | 13 | 0 |
-| `terraform/log-npd` | 3 | 0 |
-| `terraform/log-prd` | 3 | 0 |
-| `terraform/vnet-hub-npd` | 3 | 0 |
-| `terraform/vnet-sp01-npd` | 3 | 0 |
-| **Total** | **66** | **0** |
+| `terraform/log` | 4 | 0 |
+| `terraform/vnet` | 6 | 0 |
+| **Total** | **65** | **0** |
 
-Re-run anywhere with:
+Re-run anywhere:
+
 ```sh
-for d in modules/naming terraform/dns terraform/log-npd terraform/log-prd terraform/vnet-hub-npd terraform/vnet-sp01-npd; do
-  echo "### $d"; (cd "$d" && terraform test)
+for d in modules/naming terraform/bootstrap terraform/dns terraform/log terraform/vnet; do
+  echo "### $d"
+  (cd "$d" && terraform init -backend=false -upgrade >/dev/null && terraform test)
 done
 ```
 
-## Commit log (this session)
+## Remote-state convention
 
-| Hash | Title |
-|---|---|
-| `cedd020` | naming(engine): add pdnsz catalogue entry + swedencentral region code |
-| `e018814` | dns(feature 002): private DNS zones engine-driven stack (Phases 1-3) |
-| `32b297c` | dns(feature 002): Phases 4-7 — custom zones, disable, US4 tests, polish |
-| `a6a8fae` | feat(003): centralized Log Analytics workspaces for npd + prd hubs |
-| `ca232f4` | feat(004): hub-and-spoke network foundation (vnet + NSGs + bastion + firewall + peering) |
+- Single Azure Storage container `tfstate` provisioned by
+  `terraform/bootstrap/`.
+- State key per stack: `<env>/<scope>/<service>.tfstate`
+  e.g. `prd/hub/dns.tfstate`, `npd/hub/vnet.tfstate`, `npd/sp01/vnet.tfstate`.
+- Stacks use the partial azurerm backend (`backend "azurerm" {}`).
+  Configure at init time:
+  ```sh
+  terraform init -reconfigure \
+    -backend-config=../../variables/backend.hcl \
+    -backend-config="key=<env>/<scope>/<service>.tfstate"
+  ```
+- Spoke vnet reads hub vnet outputs via `terraform_remote_state` —
+  configured through `var.hub_state_backend` in the spoke's tfvars.
+
+## Run order
+
+1. **`terraform/bootstrap/`** — once per subscription. Capture
+   `backend_config_snippet` output into `variables/backend.hcl`.
+2. **`terraform/log/`** (npd/hub, prd/hub) — per `(env, scope)`.
+3. **`terraform/dns/`** (prd/hub day-one) — depends on nothing.
+4. **`terraform/vnet/`** with `role=hub` (per env) — must apply before any
+   spoke.
+5. **`terraform/vnet/`** with `role=spoke` (per spoke tenant + env).
+6. After a new spoke exists, append it to the matching hub tfvars'
+   `spoke_peerings` map and re-apply the hub.
 
 ## Feature 002 — Private DNS
 
-- **Module**: `modules/dnszones/`
-- **Stack**: `terraform/dns/` (prd-hub-only)
-- **What you can plan**: 50+ Azure Private DNS zones (engine catalogue
-  defined under `modules/dnszones/locals.tf`), all named via the naming
-  engine (`pdnsz-…`) and tagged with the 6-key baseline.
-- **Subscription pin** + **region allowlist** in
-  [terraform/dns/validate.tf](terraform/dns/validate.tf).
-- **Run**:
-  ```sh
-  cd terraform/dns
-  cp ../../variables/hub/prd/dns.tfvars.example terraform.tfvars
-  # edit subscription_id to your prd-hub sub
-  terraform init && terraform plan
-  ```
+- Module: `modules/dnszones/`
+- Stack: `terraform/dns/` (generic; first deployment is prd/hub).
+- 25 day-one catalogue zones + N operator FQDNs, all named via the
+  naming engine (`pdnsz-…`).
+- Failure modes documented in [`terraform/dns/README.md`](../terraform/dns/README.md).
 
 ## Feature 003 — Centralized Log Analytics
 
-- **Module**: `modules/loganalytics/`
-- **Stacks**: `terraform/log-npd/`, `terraform/log-prd/`
-- **What you can plan**: two workspaces (`log-hub-npd-sdc-001`,
-  `log-hub-prd-sdc-001`) at 30-day retention, SKU `PerGB2018`, each in
-  its own RG.
-- **Consumer pattern** documented in each stack README — producer
-  stacks pull `workspace_id` via `terraform_remote_state`.
-- **Run**:
-  ```sh
-  cd terraform/log-npd
-  cp ../../variables/hub/npd/log.tfvars.example terraform.tfvars
-  terraform init && terraform plan
-
-  cd ../log-prd
-  cp ../../variables/hub/prd/log.tfvars.example terraform.tfvars
-  terraform init && terraform plan
-  ```
+- Module: `modules/loganalytics/`
+- Stack: `terraform/log/` (generic; npd/hub + prd/hub day-one consumers).
+- Workspace: `log-<tenant>-<env>-sdc-001`, retention 30 d, SKU `PerGB2018`.
+- Consumer pattern documented in [`terraform/log/README.md`](../terraform/log/README.md).
 
 ## Feature 004 — Hub & Spoke Network
 
-- **Module**: `modules/network/` + sub-modules `modules/network/bastion/`
-  and `modules/network/firewall/`
-- **Stacks**: `terraform/vnet-hub-npd/`, `terraform/vnet-sp01-npd/`
-- **Subnet role catalogue** (intent-driven, lives inside the module):
-  `development`, `pre-production`, `api-management`, `buildsvr`,
-  `bastion`, `firewall`, `firewall-mgmt`, `function-app`, `logic-app`,
-  `preprod-func`, `preprod-logic`.
-- **Hub stack**: vnet `10.240.4.0/23` + 7 subnets + per-subnet NSGs
-  (with mandatory Bastion rule set) + Azure Bastion + Azure Firewall
-  (Standard) + route table forwarding `0.0.0.0/0` to firewall private IP.
-- **Spoke stack**: vnet `10.240.2.0/24` + 6 subnets + peering to hub +
-  default route through hub firewall (both wired via
-  `terraform_remote_state` against `../vnet-hub-npd/terraform.tfstate`).
-- **Run** (apply hub first so the spoke can read its state):
-  ```sh
-  cd terraform/vnet-hub-npd
-  cp ../../variables/hub/npd/vnet.tfvars.example terraform.tfvars
-  terraform init && terraform plan
-
-  # (Apply hub, then:)
-  cd ../vnet-sp01-npd
-  cp ../../variables/sp01/npd/vnet.tfvars.example terraform.tfvars
-  terraform init && terraform plan
-  ```
+- Module: `modules/network/` + sub-modules `bastion/`, `firewall/`.
+- Stack: `terraform/vnet/`. **One** stack folder, switched by `var.role`:
+  - `role = hub` provisions vnet + NSGs + Bastion + Firewall + route table
+    + hub-side leg of every `spoke_peerings` entry.
+  - `role = spoke` provisions vnet + NSGs + spoke→hub peering + default
+    route via the hub firewall (firewall IP + hub vnet ID + registered
+    spoke list pulled from the hub's remote state).
+- Subnet role catalogue: `development`, `pre-production`, `api-management`,
+  `buildsvr`, `bastion`, `firewall`, `firewall-mgmt`, `function-app`,
+  `logic-app`, `preprod-func`, `preprod-logic`.
 
 ## Region & subscription
 
-- Single region: **swedencentral** (engine code `sdc`).
+- Single region day-one: **swedencentral** (`region_code = sdc`).
 - Single subscription day-one:
   `883c9081-23ed-4674-95c5-45c74834e093` (pinned in every
-  `.tfvars.example`). Stacks are independently variable so per-env / per-
-  topology subscriptions can be introduced later without code change.
-
-## Deletions performed
-
-- `modules/dns/` (replaced by `modules/dnszones/`).
-- `modules/log/` (replaced by `modules/loganalytics/`).
-- `terraform/log/` (replaced by `log-npd` + `log-prd`).
-- `modules/vnet/` (with `bastion/`, `firewall/`, `nsgrules/`) — replaced
-  by `modules/network/`.
-
-## Explicitly deferred (recorded in each feature's `spec.md`)
-
-- **Feature 004 follow-ups (would be feature 005)**:
-  - Custom NSG rules for APIM subnet (slot into
-    `var.extra_nsg_rules["api-management"]`).
-  - Firewall rule collections (re-introduce the rule-collection module).
-  - Diagnostic-settings wiring from DNS + vnet stacks to
-    `log-prd`/`log-npd` workspaces.
-  - Private DNS zone vnet-links between `terraform/dns` and the hub
-    vnets.
-- VPN / ExpressRoute gateways, forced-tunnel firewall, hub→spoke peering
-  (the reverse peer record).
+  `.tfvars.example`). Stacks are independently variable, so per-env /
+  per-topology subscriptions can be introduced later without code change.
 
 ## Constitution & convention compliance
 
 - All modules are **provider-less** (Constitution VI).
 - All resource names flow through `modules/naming` (Principles II, V).
-  Two documented exceptions: (a) NSG canonical names are positionally
-  numbered because the engine top-level catalogue doesn't yet support
-  purpose-keyed naming for `nsg` — the deterministic role→name lookup
-  lives in `modules/network/locals.tf`; (b) Bastion/Firewall subnets
-  use Azure-mandated literals (`AzureBastionSubnet`,
-  `AzureFirewallSubnet`, `AzureFirewallManagementSubnet`).
+  Documented exceptions: (a) NSG canonical names are positionally
+  numbered; (b) Bastion/Firewall subnets use Azure-mandated literals.
 - Six-key baseline tags (`tenant`, `topology`, `environment`, `region`,
-  `managed_by`, `repo`) applied uniformly via
-  `modules/network/locals.tf` and the engine.
+  `managed_by`, `repo`) applied via engine + `modules/network/locals.tf`.
 - Every root stack has a `check.subscription_pinned` and a `var.region`
   allowlist validator.
 - `.tfvars` are gitignored; `.tfvars.example` templates under
-  `variables/<tenant>/<env>/` are the seed copies.
+  `variables/<env>/<scope>/` are the seed copies.
 
-## Next actions (user-owned)
+## Explicitly deferred
 
-1. `cp variables/<scope>/<env>/<service>.tfvars.example terraform.tfvars`
-   inside each root stack, replace placeholder subscription IDs.
-2. `terraform init && terraform plan` in deployment order:
-   1. `terraform/log-npd`
-   2. `terraform/log-prd`
-   3. `terraform/dns`
-   4. `terraform/vnet-hub-npd`  (must apply before spoke)
-   5. `terraform/vnet-sp01-npd`
-3. When happy, `terraform apply`. Then push branch:
-   `git push origin master`.
+- Diagnostic-settings wiring from DNS + vnet stacks to the
+  `log` workspaces.
+- Private DNS zone vnet-links between `terraform/dns` and the hub vnets.
+- Custom NSG rule sets for APIM subnet.
+- Firewall rule collections (re-introduce the rule-collection module).
+- VPN / ExpressRoute gateways, forced-tunnel firewall.

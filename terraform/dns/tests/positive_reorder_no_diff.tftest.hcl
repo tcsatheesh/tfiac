@@ -22,6 +22,9 @@ run "first_plan_ab_order" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = ["a.example.com", "b.example.com"]
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
   assert {
     condition     = length(output.zone_names) == 27
@@ -37,6 +40,9 @@ run "second_plan_ba_order_same_keyspace" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = ["b.example.com", "a.example.com"]
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
   assert {
     condition     = output.zone_names["a.example.com"] == "a.example.com" && output.zone_names["b.example.com"] == "b.example.com"

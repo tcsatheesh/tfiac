@@ -22,6 +22,9 @@ run "disable_acr_yields_24_zones" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = []
     disable_catalogue_zones = ["acr"]
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   assert {

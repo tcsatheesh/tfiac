@@ -23,6 +23,9 @@ run "subscription_mismatch_fails" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = []
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   expect_failures = [

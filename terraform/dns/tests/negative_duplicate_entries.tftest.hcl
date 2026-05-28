@@ -23,6 +23,9 @@ run "duplicate_custom_zones_rejected" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = ["a.b.com", "a.b.com"]
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   expect_failures = [

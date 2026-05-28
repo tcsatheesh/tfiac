@@ -40,23 +40,28 @@ layout, and counts are 100% derived from the engine.
 (Q8=A — intent-driven roles live inside the module catalogue; the caller
 passes role+cidr only.)
 
-## Root stacks
+## Root stack
 
-- `terraform/vnet-hub-npd/`
+A single generic root stack `terraform/vnet/` switches between hub and
+spoke behaviour via `var.role`. Per-deployment inputs live in
+`variables/<env>/<scope>/vnet.tfvars`. Day-one deployments:
+
+- `(npd, hub, role=hub)` — `variables/npd/hub/vnet.tfvars`
   - address_space `["10.240.4.0/23"]`
   - Subnets: development (10.240.4.0/26), pre-production (10.240.4.64/26),
     api-management (10.240.4.144/28), buildsvr (10.240.4.160/28),
     bastion (10.240.4.192/28), firewall (10.240.5.0/26),
     firewall-mgmt (10.240.5.64/26)
-  - `enable_bastion = true`, `enable_firewall = true`
-- `terraform/vnet-sp01-npd/`
+  - Bastion + Firewall enabled (auto when `role = hub`)
+- `(npd, sp01, role=spoke)` — `variables/npd/sp01/vnet.tfvars`
   - address_space `["10.240.2.0/24"]`
   - Subnets: development (10.240.2.0/26), pre-production (10.240.2.64/26),
     logic-app (10.240.2.128/28), function-app (10.240.2.144/28),
-    pre-production-logic-app (10.240.2.160/28),
-    pre-production-function-app (10.240.2.176/28)
-  - Peers to `vnet-hub-npd` via `terraform_remote_state`
-  - Routes default route through hub firewall private IP (also via remote state)
+    preprod-logic (10.240.2.160/28), preprod-func (10.240.2.176/28)
+  - Peers to the hub via `terraform_remote_state` (configured by
+    `var.hub_state_backend`)
+  - Routes default route through the hub firewall private IP (read from
+    the same remote state)
 
 ## Requirements
 
@@ -69,12 +74,14 @@ passes role+cidr only.)
 - **FR-204**: Region allowlist `["swedencentral"]` per stack.
 - **FR-205**: `check.subscription_pinned` on every root stack.
 - **FR-206**: Spoke→hub peering uses `terraform_remote_state` against
-  `terraform/vnet-hub-npd/terraform.tfstate` (local backend).
+  the hub vnet stack's state in Azure Storage. The spoke supplies the
+  hub backend coordinates via `var.hub_state_backend`.
 - **FR-207**: Caller may extend per-subnet-role NSG rules through
   `var.extra_nsg_rules = { role => [ rule_object ] }`.
-- **FR-208**: Legacy `modules/vnet/` is DELETED (including its `bastion/`,
-  `firewall/`, `nsgrules/` subdirectories). No moved.tf — these legacy
-  modules were not consumed by an active root stack.
+- **FR-208**: Legacy `modules/vnet/` is parked under `modules/vnet/` (no
+  longer consumed; previous root stacks moved to `terraform/_legacy/`).
+  No `moved.tf` — these legacy modules were not consumed by an active
+  root stack.
 
 ## Out of scope (deferred — explicitly recorded)
 
@@ -92,7 +99,8 @@ passes role+cidr only.)
 
 ## Test plan
 
-For each root stack (`vnet-hub-npd`, `vnet-sp01-npd`):
+For each deployment of the generic stack `terraform/vnet/` (`npd/hub`,
+`npd/sp01`):
 1. `positive_baseline.tftest.hcl` — `terraform plan` succeeds; asserts
    `output.vnet_name == "vnet-<tenant>-<env>-sdc-001"`.
 2. `negative_subscription_mismatch.tftest.hcl` — `expect_failures = [check.subscription_pinned]`.

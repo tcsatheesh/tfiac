@@ -23,6 +23,9 @@ run "shadow_blob_fqdn_fails" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = ["privatelink.blob.core.windows.net"]
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   expect_failures = [

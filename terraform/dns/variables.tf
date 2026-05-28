@@ -45,6 +45,37 @@ variable "repo" {
   }
 }
 
+# ─── env/scope discriminators ────────────────────────────────────────
+variable "topology" {
+  description = "Topology this DNS stack serves: typically \"hub\"."
+  type        = string
+
+  validation {
+    condition     = contains(["hub", "spoke"], var.topology)
+    error_message = "topology must be \"hub\" or \"spoke\"."
+  }
+}
+
+variable "tenant" {
+  description = "Tenant code (\"hub\" for centralised hub DNS, or spoke code like \"sp01\")."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9]+$", var.tenant))
+    error_message = "tenant must be lowercase alphanumerics."
+  }
+}
+
+variable "environment" {
+  description = "Environment lane: npd / pre / prd."
+  type        = string
+
+  validation {
+    condition     = contains(["npd", "pre", "prd"], var.environment)
+    error_message = "environment must be one of npd, pre, prd."
+  }
+}
+
 variable "custom_zones" {
   description = "Operator-supplied private DNS zone FQDNs. Module's variable.validation enforces FR-016/FR-019; module's precondition enforces FR-017 (shadowing)."
   type        = list(string)

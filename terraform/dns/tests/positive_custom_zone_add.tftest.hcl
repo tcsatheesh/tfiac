@@ -23,6 +23,9 @@ run "custom_zone_extends_catalogue" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = ["internal.contoso.local"]
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   assert {

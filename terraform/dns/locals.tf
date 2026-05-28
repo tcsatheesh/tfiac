@@ -37,9 +37,9 @@ locals {
   # routes) per modules/naming/locals.tf. Engine-emitted names appear in
   # naming.names for audit only; the Azure resource name is the FQDN.
   input = {
-    topology    = "hub"
-    tenant      = "hub"
-    environment = "prd"
+    topology    = var.topology
+    tenant      = var.tenant
+    environment = var.environment
     region      = var.region
     repo        = var.repo
     services = [

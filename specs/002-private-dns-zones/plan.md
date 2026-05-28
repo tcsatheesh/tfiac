@@ -47,7 +47,7 @@ Source: [.specify/memory/constitution.md](../../.specify/memory/constitution.md)
 - [x] **III. Naming Follows Microsoft CAF**: PASS-WITH-DOCUMENTED-EXCEPTION. The RG and engine-recorded canonical zone names use the CAF-aligned pattern produced by feature 001. The Azure `azurerm_private_dns_zone.name` argument MUST be the literal Microsoft-published FQDN (e.g. `privatelink.blob.core.windows.net`) — that is the resource's natural identifier; CAF naming applies to the Terraform/Azure handle parity, but the zone's name IS its FQDN. See Complexity Tracking row 1.
 - [x] **IV. Determinism and Idempotency**: PASS. `for_each` keys are catalogue keys / custom FQDNs (FR-025) — strings, not list indices. No timestamps, no random. Snapshot fixture in FR-028 + SC-002/SC-007 enforce zero-diff re-plan.
 - [x] **V. Single Source of Truth for Catalogues**: PASS-WITH-NOTE. The day-one catalogue (key → FQDN) is a single `local` map in `modules/dnszones/` per FR-012/FR-013. Editing the catalogue is a one-PR change to that map. The engine's `local.services` is extended with the `private_dns_zone` service entry once; no further duplication.
-- [x] **VI. Module Structure is Normative**: PASS. New module `modules/dnszones/` follows the standard layout (`main.tf`, `variables.tf`, `outputs.tf`, `locals.tf`; no `providers.tf` because it is provider-implicit). Root stack lives at `terraform/dns/` (preserved address). Variables live under `variables/hub/prd/` (one tenant=hub, one env=prd file).
+- [x] **VI. Module Structure is Normative**: PASS. New module `modules/dnszones/` follows the standard layout (`main.tf`, `variables.tf`, `outputs.tf`, `locals.tf`; no `providers.tf` because it is provider-implicit). Root stack lives at `terraform/dns/` (preserved address). Variables live under `variables/prd/hub/` (one tenant=hub, one env=prd file).
 - [x] **VII. Provider and State Hygiene**: PASS. `terraform/dns/` pins `required_version = "~> 1.9"` and `azurerm ~> 4.0` once. Remote backend MUST be configured (env-injected, not committed). No secrets in code/tfvars/outputs. Subscription cross-check (FR-029) reads `data.azurerm_client_config.current` — no secrets.
 - [x] **VIII. Tagging Baseline**: PASS. Tags on `azurerm_resource_group` and `azurerm_private_dns_zone` (catalogue zones) come from `module.naming.names[<canonical_name>].tags` — the 6 baseline keys plus any override merge (engine FR-013/FR-014). Custom zones do NOT have an engine slot (OQ-001 → B) so their tags come from a small `modules/dnszones/`-internal computed baseline that mirrors the 6 keys derived from the same `var.input`. This preserves the baseline contract.
 
@@ -112,9 +112,9 @@ terraform/
             └── reference.json
 
 variables/
-└── hub/
-    └── prd/
-        └── dns.tfvars       # reference input for the stack
+└── prd/
+    └── hub/
+        └── dns.tfvars       # reference input for the stack (env/scope layout)
 ```
 
 **Structure Decision**: Three-artefact layout — engine catalogue extension + new thin `modules/dnszones/` + replaced `terraform/dns/` root stack. The thin module exists so the engine stays domain-agnostic (FR-013) and so the root stack's job is provider + state + cross-stack composition only. The legacy `modules/dns/` is deleted in the same PR; its addresses are reconciled via `moved {}` blocks in `terraform/dns/moved.tf`.

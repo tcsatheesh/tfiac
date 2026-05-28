@@ -27,6 +27,9 @@ run "first_plan_baseline" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = []
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
   assert {
     condition     = length(output.zone_names) == 25
@@ -42,6 +45,9 @@ run "second_plan_identical_inputs" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = []
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
   assert {
     condition = jsonencode(output.zone_names) == jsonencode({

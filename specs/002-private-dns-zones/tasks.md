@@ -22,7 +22,7 @@ Terraform monorepo. Three artefacts touched:
 - `modules/naming/` (extension)
 - `modules/dnszones/` (new)
 - `terraform/dns/` (replaced)
-- `variables/hub/prd/` (one reference tfvars)
+- `variables/prd/hub/` (one reference tfvars)
 
 ---
 
@@ -34,7 +34,7 @@ Terraform monorepo. Three artefacts touched:
 - [X] T002 Create directory [terraform/dns/tests/](terraform/dns/tests/) and [terraform/dns/tests/snapshots/](terraform/dns/tests/snapshots/) (will hold `.tftest.hcl` fixtures + reference.json)
 - [X] T003 [P] Capture the legacy state by running `terraform state list` (or equivalent) against the existing [terraform/dns/](terraform/dns/) backend and saving the inventory to `specs/002-private-dns-zones/legacy-state-inventory.txt` for the US4 `moved {}` block authoring. Do NOT delete the legacy files yet.
 - [X] T004 [P] In [terraform/dns/providers.tf](terraform/dns/providers.tf) (new file alongside the legacy one — keep both during the diff), draft the `terraform { required_version = "~> 1.9" required_providers { azurerm = { source = "hashicorp/azurerm", version = "~> 4.0" } } }` block + `provider "azurerm" { features {} subscription_id = var.subscription_id }`. File will replace the legacy `providers.tf` in T039.
-- [X] T005 [P] Create [variables/hub/prd/dns.tfvars](variables/hub/prd/dns.tfvars) with the reference input from [quickstart.md](quickstart.md) (`subscription_id`, `region = "uksouth"`, `repo`, `custom_zones = ["internal.contoso.local"]`, `disable_catalogue_zones = []`).
+- [X] T005 [P] Create [variables/prd/hub/dns.tfvars](variables/prd/hub/dns.tfvars) with the reference input from [quickstart.md](quickstart.md) (`subscription_id`, `region = "uksouth"`, `repo`, `custom_zones = ["internal.contoso.local"]`, `disable_catalogue_zones = []`).
 
 **Checkpoint**: Skeletons exist; legacy stack untouched.
 
@@ -67,7 +67,7 @@ Terraform monorepo. Three artefacts touched:
 
 **Goal**: Spoke stacks can read `zone_ids` for every catalogue zone. Day-one catalogue creates as a single `for_each` resource. Re-plan is zero-diff.
 
-**Independent Test**: From a clean `terraform/dns/`, `terraform plan -var-file=variables/hub/prd/dns.tfvars` shows `+ 1 RG + 25 catalogue zones` and outputs include all 25 catalogue keys in `zone_ids`. Re-plan reports zero changes.
+**Independent Test**: From a clean `terraform/dns/`, `terraform plan -var-file=variables/prd/hub/dns.tfvars` shows `+ 1 RG + 25 catalogue zones` and outputs include all 25 catalogue keys in `zone_ids`. Re-plan reports zero changes.
 
 ### Tests for User Story 1 (write first, must FAIL before T016/T017 wiring is complete)
 

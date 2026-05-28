@@ -23,6 +23,9 @@ run "unknown_disable_key_rejected" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = []
     disable_catalogue_zones = ["frobnicate"]
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   expect_failures = [

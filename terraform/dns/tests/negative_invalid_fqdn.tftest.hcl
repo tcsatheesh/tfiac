@@ -23,6 +23,9 @@ run "invalid_fqdn_rejected" {
     repo                    = "tcsatheesh/tfiac"
     custom_zones            = ["not_a_valid_dns_name"]
     disable_catalogue_zones = []
+    topology        = "hub"
+    tenant          = "hub"
+    environment     = "prd"
   }
 
   expect_failures = [
