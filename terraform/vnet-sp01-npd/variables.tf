@@ -36,3 +36,9 @@ variable "hub_firewall_private_ip" {
   type    = string
   default = ""
 }
+
+variable "hub_peered_spoke_vnet_names" {
+  description = "Override for hub's peered_spoke_vnet_names output (test seam). Empty = read from hub remote state."
+  type        = list(string)
+  default     = []
+}

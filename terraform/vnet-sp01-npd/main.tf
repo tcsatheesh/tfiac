@@ -12,10 +12,11 @@ data "terraform_remote_state" "hub" {
 }
 
 locals {
-  hub_vnet_id             = var.hub_vnet_id != "" ? var.hub_vnet_id : try(data.terraform_remote_state.hub[0].outputs.vnet_id, "")
-  hub_firewall_private_ip = var.hub_firewall_private_ip != "" ? var.hub_firewall_private_ip : try(data.terraform_remote_state.hub[0].outputs.firewall_private_ip, "")
-  enable_default_route    = local.hub_firewall_private_ip != ""
-  enable_peering          = local.hub_vnet_id != ""
+  hub_vnet_id                 = var.hub_vnet_id != "" ? var.hub_vnet_id : try(data.terraform_remote_state.hub[0].outputs.vnet_id, "")
+  hub_firewall_private_ip     = var.hub_firewall_private_ip != "" ? var.hub_firewall_private_ip : try(data.terraform_remote_state.hub[0].outputs.firewall_private_ip, "")
+  hub_peered_spoke_vnet_names = length(var.hub_peered_spoke_vnet_names) > 0 ? var.hub_peered_spoke_vnet_names : try(data.terraform_remote_state.hub[0].outputs.peered_spoke_vnet_names, [])
+  enable_default_route        = local.hub_firewall_private_ip != ""
+  enable_peering              = local.hub_vnet_id != ""
 }
 
 module "network" {

@@ -22,3 +22,12 @@ empty policy), per-subnet NSGs, and the central route table that sends
 ```sh
 cd terraform/vnet-hub-npd && terraform test
 ```
+
+## Spoke peering registry
+
+This stack owns the **hub-side** leg of every hub<->spoke peering via
+`var.spoke_peerings`. Each spoke creates its own spoke->hub leg.
+Whenever a new spoke is provisioned, add an entry to
+[variables/hub/npd/vnet.tfvars.example](../../variables/hub/npd/vnet.tfvars.example)
+(or your real `terraform.tfvars`) and re-apply this hub. The spoke
+stack's `check.hub_peering_registered` will keep nagging until you do.

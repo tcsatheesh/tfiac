@@ -21,3 +21,22 @@ variable "repo" {
     error_message = "repo is required."
   }
 }
+
+variable "spoke_peerings" {
+  description = <<-EOT
+  Spokes this hub will peer to (hub-side leg only). The reciprocal
+  spoke-side leg lives in each spoke's own stack.
+
+  Add an entry HERE whenever a new spoke stack is created — without it,
+  the spoke's spoke->hub peer will stay in "Initiated" state because
+  the hub side is missing. The spoke's `check.hub_peering_registered`
+  block emits a Terraform warning when this map is missing the spoke.
+
+  Key = friendly id (e.g. "sp01-npd"). Used only as the peer name suffix.
+  EOT
+  type = map(object({
+    remote_vnet_id   = string
+    remote_vnet_name = string
+  }))
+  default = {}
+}

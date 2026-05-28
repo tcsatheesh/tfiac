@@ -51,3 +51,18 @@ module "firewall" {
   firewall_subnet_id      = module.network.subnet_ids["firewall"]
   firewall_mgmt_subnet_id = module.network.subnet_ids["firewall-mgmt"]
 }
+
+# Hub-side leg of hub<->spoke peering. One entry per spoke; the spoke's
+# own stack creates the spoke-side leg. See var.spoke_peerings doc.
+resource "azurerm_virtual_network_peering" "hub_to_spoke" {
+  for_each = var.spoke_peerings
+
+  name                         = "peer-hub-to-${each.key}"
+  resource_group_name          = module.network.resource_group_name
+  virtual_network_name         = module.network.vnet_name
+  remote_virtual_network_id    = each.value.remote_vnet_id
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+  use_remote_gateways          = false
+}
