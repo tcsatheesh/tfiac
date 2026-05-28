@@ -1,0 +1,14 @@
+# Reference input for the engine-driven terraform/dns/ stack (feature 002).
+#
+# Copy to dns.tfvars (gitignored) and fill in subscription_id before
+# running `terraform plan -var-file=...`.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+region          = "swedencentral"
+repo            = "tcsatheesh/tfiac"
+
+custom_zones = [
+  "internal.contoso.local",
+]
+
+disable_catalogue_zones = []
