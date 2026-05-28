@@ -6,7 +6,7 @@
 ###############################################################################
 
 locals {
-  rg_canonical_name = "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
+  rg_canonical_name = try(var.input.purpose, null) == null ? "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001" : "rg-${var.input.tenant}-${var.input.environment}-${var.input.purpose}-${var.region_code}-001"
   ws_canonical_name = "log-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
 
   baseline_tags = {
