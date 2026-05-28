@@ -66,6 +66,23 @@ done
 - Spoke vnet reads hub vnet outputs via `terraform_remote_state` —
   configured through `var.hub_state_backend` in the spoke's tfvars.
 
+## Secrets handling
+
+`subscription_id` and `repo` are **never** written to any `*.tfvars` (the
+examples deliberately omit them). They live in the repo-root `.env`
+(gitignored; template at `.env.example`) and are injected at plan time:
+
+```sh
+set -a; . .env; set +a
+
+terraform plan \
+  -var-file=../../variables/<env>/<scope>/<service>.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_<ENV>_<SCOPE>" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
+```
+
+See each stack's README for the canonical command.
+
 ## Run order
 
 1. **`terraform/bootstrap/`** — once per subscription. Capture
@@ -109,10 +126,12 @@ done
 ## Region & subscription
 
 - Single region day-one: **swedencentral** (`region_code = sdc`).
-- Single subscription day-one:
-  `883c9081-23ed-4674-95c5-45c74834e093` (pinned in every
-  `.tfvars.example`). Stacks are independently variable, so per-env /
-  per-topology subscriptions can be introduced later without code change.
+- Subscription IDs live in the repo-root `.env` (gitignored;
+  template at `.env.example`) and are injected at plan time via
+  `-var subscription_id=...`. Stacks are independently variable, so
+  per-env / per-topology subscriptions can be introduced without code
+  change \u2014 add a new key to `.env.example` and reference it from the
+  stack's `terraform plan` command.
 
 ## Constitution & convention compliance
 

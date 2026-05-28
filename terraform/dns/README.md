@@ -37,12 +37,20 @@ Reference template:
 
 ## Run
 
+Secrets (`subscription_id`, `repo`) come from the repo-root
+[`.env`](../../.env.example) — never from `*.tfvars`. Source it first:
+
 ```sh
+set -a; . ../../.env; set +a
+
 cd terraform/dns
 terraform init -reconfigure \
   -backend-config=../../variables/backend.hcl \
   -backend-config="key=prd/hub/dns.tfstate"
-terraform plan -var-file=../../variables/prd/hub/dns.tfvars
+terraform plan \
+  -var-file=../../variables/prd/hub/dns.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_PRD_DNS" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
 ```
 
 For local validation without an azurerm backend, use

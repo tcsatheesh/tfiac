@@ -1,12 +1,16 @@
 # Inputs for terraform/vnet/ targeting (env=npd, scope=hub, role=hub).
 # Copy to vnet.tfvars (gitignored) and pass via -var-file when running.
 #
+# `subscription_id` and `repo` are NOT set here — inject from .env at
+# plan time:
+#   terraform plan -var-file=.../vnet.tfvars \
+#     -var "subscription_id=$SUBSCRIPTION_ID_NPD_HUB" \
+#     -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
+#
 # Apply order: hub stack first; each spoke second. After a new spoke
 # exists, add its entry to `spoke_peerings` here and re-apply the hub.
 
-subscription_id = "883c9081-23ed-4674-95c5-45c74834e093"
-region          = "swedencentral"
-repo            = "tcsatheesh/tfiac"
+region = "swedencentral"
 
 role        = "hub"
 topology    = "hub"
@@ -33,9 +37,13 @@ subnets = {
 # Hub-side leg of hub<->spoke peering. Each spoke stack must already exist
 # (apply spoke first so its vnet ID is known). Add one entry here when a
 # new spoke is provisioned, then re-apply the hub.
+#
+# `remote_vnet_id` embeds the spoke's subscription GUID — read it from .env:
+#   /subscriptions/${SUBSCRIPTION_ID_NPD_SP01}/resourceGroups/rg-sp01-npd-sdc-001/...
+# either generate the tfvars from a template, or splice it in via -var on the CLI.
 spoke_peerings = {
   "sp01-npd" = {
-    remote_vnet_id   = "/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/rg-sp01-npd-sdc-001/providers/Microsoft.Network/virtualNetworks/vnet-sp01-npd-sdc-001"
+    remote_vnet_id   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sp01-npd-sdc-001/providers/Microsoft.Network/virtualNetworks/vnet-sp01-npd-sdc-001"
     remote_vnet_name = "vnet-sp01-npd-sdc-001"
   }
 }

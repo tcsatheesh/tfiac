@@ -61,21 +61,37 @@ Reference templates:
 
 ## Run
 
+Secrets (`subscription_id`, `repo`) come from the repo-root
+[`.env`](../../.env.example) — never from `*.tfvars`. Source it first:
+
 ```sh
+set -a; . ../../.env; set +a
+
 cd terraform/vnet
 
 # --- hub ---
 terraform init -reconfigure \
   -backend-config=../../variables/backend.hcl \
   -backend-config="key=npd/hub/vnet.tfstate"
-terraform plan -var-file=../../variables/npd/hub/vnet.tfvars
+terraform plan \
+  -var-file=../../variables/npd/hub/vnet.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_NPD_HUB" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
 
 # --- spoke (after hub apply) ---
 terraform init -reconfigure \
   -backend-config=../../variables/backend.hcl \
   -backend-config="key=npd/sp01/vnet.tfstate"
-terraform plan -var-file=../../variables/npd/sp01/vnet.tfvars
+terraform plan \
+  -var-file=../../variables/npd/sp01/vnet.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_NPD_SP01" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
 ```
+
+The hub `vnet.tfvars` `spoke_peerings[*].remote_vnet_id` placeholder
+still embeds a zero-GUID — splice the real subscription in at plan time
+with an extra `-var 'spoke_peerings={ ... }'`, or template the file from
+`.env` before invoking terraform.
 
 ## Tests
 

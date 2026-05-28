@@ -30,17 +30,35 @@ Reference templates:
 
 ## Run
 
+Secrets (`subscription_id`, `repo`) come from the repo-root
+[`.env`](../../.env.example) — never from `*.tfvars`. Source it first:
+
 ```sh
+set -a; . ../../.env; set +a
+
 cd terraform/log
+
+# --- npd/hub ---
 terraform init -reconfigure \
   -backend-config=../../variables/backend.hcl \
   -backend-config="key=npd/hub/log.tfstate"
-terraform plan -var-file=../../variables/npd/hub/log.tfvars
+terraform plan \
+  -var-file=../../variables/npd/hub/log.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_NPD_HUB" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
+
+# --- prd/hub ---
+terraform init -reconfigure \
+  -backend-config=../../variables/backend.hcl \
+  -backend-config="key=prd/hub/log.tfstate"
+terraform plan \
+  -var-file=../../variables/prd/hub/log.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_PRD_HUB" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
 ```
 
-Repeat the `init -reconfigure` + `plan -var-file=...` pair for each
-`(env, scope)` pair you need — different state keys keep them isolated
-in the shared azurerm backend container.
+Different state keys keep each `(env, scope)` deployment isolated in the
+shared azurerm backend container.
 
 ## Consuming from a producer stack
 

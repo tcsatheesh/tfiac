@@ -37,11 +37,22 @@ Reference template:
 
 ## Run
 
+Secrets (`subscription_id`, `repo`) come from the repo-root
+[`.env`](../../.env.example) — never from `*.tfvars`. Source it first:
+
 ```sh
+set -a; . ../../.env; set +a
+
 cd terraform/bootstrap
 terraform init                                   # local backend; no -backend-config needed
-terraform plan  -var-file=../../variables/bootstrap.tfvars
-terraform apply -var-file=../../variables/bootstrap.tfvars
+terraform plan \
+  -var-file=../../variables/bootstrap.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_TOOL" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
+terraform apply \
+  -var-file=../../variables/bootstrap.tfvars \
+  -var "subscription_id=$SUBSCRIPTION_ID_TOOL" \
+  -var "repo=$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
 terraform output -raw backend_config_snippet > ../../variables/backend.hcl
 ```
 
