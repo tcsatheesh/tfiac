@@ -35,7 +35,6 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
-.terraform.lock.hcl
 .terraform
 
 # python .gitignore
@@ -181,3 +180,13 @@ temp
 
 
 !.github/actions/azure/login/v2/lib
+
+# Terraform plan output (binary, may contain rendered secrets)
+tfplan
+*.tfplan
+
+# Local backend-config files (sensitive: SA / RG names per env).
+# Track the *.example template instead.
+variables/backend.hcl
+variables/*.hcl
+!variables/*.hcl.example
