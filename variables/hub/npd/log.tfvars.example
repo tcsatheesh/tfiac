@@ -1,0 +1,5 @@
+subscription_id   = "883c9081-23ed-4674-95c5-45c74834e093"
+region            = "swedencentral"
+repo              = "tcsatheesh/tfiac"
+retention_in_days = 30
+sku               = "PerGB2018"

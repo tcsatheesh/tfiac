@@ -1,3 +1,0 @@
-locals {
-  log = var.log
-}
