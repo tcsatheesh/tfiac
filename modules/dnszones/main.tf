@@ -1,31 +1,22 @@
+###############################################################################
 # modules/dnszones/main.tf
-# Authored by feature 002 (Private DNS Zones, prd-hub-only).
 #
-# Owns:
-#   - the per-stack resource group (engine-named)
-#   - the for_each Private DNS Zone set (catalogue ∪ custom − disabled)
-#   - catalogue-aware preconditions (unknown disable keys, shadowed FQDNs)
-#
-# Tags policy: a six-key baseline (tenant, topology, environment, region,
-# managed_by, repo) is derived locally from `var.input` and applied uniformly
-# to both catalogue zones and custom FQDNs. This matches the engine baseline
-# byte-for-byte (see modules/naming/locals.tf:baseline_tags) and survives the
-# edge case where every catalogue key is disabled and no custom zone is given
-# (no engine pdnsz record exists to inherit from).
+# AVM-backed (Constitution IX) Private DNS Zones + per-stack RG.
+# Wraps Azure/avm-res-network-privatednszone/azurerm (one module call per
+# zone via for_each); the wrapper enforces this repo's RG-naming, tagging,
+# and catalogue-vs-custom merge semantics.
+###############################################################################
 
 locals {
-  # Engine-emitted RG name. The root stack derives `var.region_code` from
-  # module.naming.region_codes lookup (or a static fallback map); the module
-  # itself never re-derives the short code. Must mirror modules/naming
-  # locals.rg_canonical (with optional purpose segment).
+  # Engine-emitted RG name. Mirrors modules/naming locals.rg_canonical with
+  # the optional purpose segment.
   rg_canonical_name = (
     try(var.input.purpose, null) == null
     ? "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
     : "rg-${var.input.tenant}-${var.input.environment}-${var.input.purpose}-${var.region_code}-001"
   )
 
-  # Six-key baseline tag map (Constitution VIII). Identical bytes to the
-  # engine's baseline_tags for the same input.
+  # Six-key baseline tag map (Constitution VIII).
   baseline_tags = {
     tenant      = var.input.tenant
     topology    = var.input.topology
@@ -35,33 +26,36 @@ locals {
     repo        = var.input.repo
   }
 
-  # Effective catalogue → enabled catalogue map (key → FQDN).
+  # Effective catalogue map (key → FQDN), after disables.
   catalogue_enabled = {
     for k, fqdn in local.catalogue : k => fqdn
     if !contains(var.disable_catalogue_zones, k)
   }
 
-  # Custom zones map (FQDN → FQDN). FR-024 / FR-025: key is the FQDN itself.
+  # Custom zones map (FQDN → FQDN).
   custom_map = { for fqdn in var.custom_zones : fqdn => fqdn }
 
-  # Final for_each set (FR-024 / FR-025).
+  # Final for_each set: catalogue ∪ custom.
   zone_set = merge(local.catalogue_enabled, local.custom_map)
 }
 
 resource "azurerm_resource_group" "this" {
-  # The engine record's MAP KEY is the canonical name; the record itself
-  # does NOT carry a "name" attribute (see modules/naming/locals.tf:emitted).
-  # We therefore use local.rg_canonical_name directly as the resource name
-  # AND as the map lookup for tags.
   name     = local.rg_canonical_name
   location = var.region
   tags     = var.naming[local.rg_canonical_name].tags
 }
 
-resource "azurerm_private_dns_zone" "this" {
+# AVM resource module — Private DNS Zone. One call per zone.
+# https://registry.terraform.io/modules/Azure/avm-res-network-privatednszone/azurerm
+module "zone" {
+  source  = "Azure/avm-res-network-privatednszone/azurerm"
+  version = "0.5.0"
+
   for_each = local.zone_set
 
-  name                = each.value
-  resource_group_name = azurerm_resource_group.this.name
-  tags                = local.baseline_tags
+  domain_name = each.value
+  parent_id   = azurerm_resource_group.this.id
+
+  tags             = local.baseline_tags
+  enable_telemetry = false
 }

@@ -1,16 +1,14 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.0.0 → 2.1.0
-Bump rationale: MINOR. Principle I (Hub-and-Spoke Architecture) is
-materially expanded: the hub is now scoped per environment group
-(one hub for npd covering dev and pre, one hub for prd), and a new clause
-adds a single global DNS stack hosted in the prd subscription. No other
-principles change. Numbering is preserved; existing references to
-Principles I–VIII remain valid.
+Version change: 2.1.0 → 2.2.0
+Bump rationale: MINOR. A new principle (IX) is added — Azure Verified
+Modules (AVM) become the mandatory implementation substrate for every
+Azure resource we deploy, where an AVM module exists for that resource.
+No other principles change.
 
-Principles in v2.1.0 (unchanged set):
-  I.    Hub-and-Spoke Architecture  (expanded)
+Principles in v2.2.0:
+  I.    Hub-and-Spoke Architecture
   II.   Minimal, Intent-Only Inputs
   III.  Naming Follows Microsoft CAF
   IV.   Determinism and Idempotency
@@ -18,29 +16,37 @@ Principles in v2.1.0 (unchanged set):
   VI.   Module Structure is Normative
   VII.  Provider and State Hygiene
   VIII. Tagging Baseline
+  IX.   Azure Verified Modules First            (NEW)
 
 Prior history:
   v1.0.0 → v2.0.0: principle-only rewrite; concrete formats relocated to
   feature specs.
+  v2.0.0 → v2.1.0: expanded Principle I (hub-per-env-group + global DNS).
 
-Changes in v2.1.0:
-  - Principle I — added explicit hub-per-environment-group rule:
-    one hub for npd (covers dev and pre), one hub for prd.
-  - Principle I — added a new clause: exactly one global DNS stack,
-    hosted in the prd subscription, shared across all environments.
+Changes in v2.2.0:
+  - Added Principle IX (Azure Verified Modules First). All Azure resource
+    implementations MUST be backed by the corresponding AVM resource
+    module (Azure/avm-res-*/<provider>) when one is published. Hand-rolled
+    `azurerm_*` / `azapi_*` resources are permitted only for resources
+    that have no published AVM module, and MUST be replaced once one is
+    published.
 
 Templates requiring updates:
-  ✅ .specify/templates/plan-template.md — Constitution Check gate for
-     Principle I refined to reflect hub-per-env-group and the global DNS
-     stack. Other gates unchanged.
+  ⚠ .specify/templates/plan-template.md — Constitution Check should add
+     an AVM-coverage gate. Follow-up.
   ⚠ .specify/templates/spec-template.md — generic; no changes required.
   ⚠ .specify/templates/tasks-template.md — generic; no changes required.
   ⚠ .specify/templates/checklist-template.md — generic; no changes required.
 
 Follow-up TODOs:
-  - Author the "naming convention" feature spec (carried over from v2.0.0).
-  - Ensure the existing `terraform/dns/` root stack is documented as the
-    single global DNS stack and is provisioned in the prd subscription.
+  - Author the "naming convention" feature spec (carried over).
+  - Migrate every existing hand-rolled `modules/<service>/` to wrap the
+    corresponding AVM resource module where one exists. Day-one targets:
+      * modules/loganalytics  → Azure/avm-res-operationalinsights-workspace/azurerm
+      * modules/dnszones      → Azure/avm-res-network-privatednszone/azurerm
+      * modules/vnet          → Azure/avm-res-network-virtualnetwork/azurerm
+  - Add an `avm-coverage` CI gate that fails when an `azurerm_*` resource
+    is introduced in a module path that has a published AVM equivalent.
 -->
 
 # Terraform-IaC-Azure (tfiac) Constitution
@@ -180,6 +186,35 @@ baseline keys MUST NOT be removable, only overridable.
 **Rationale**: Consistent tags are the foundation of cost attribution,
 compliance reporting, and lifecycle automation.
 
+### IX. Azure Verified Modules First
+
+All Azure resources MUST be implemented through their corresponding
+Azure Verified Module (AVM) when one is published:
+
+- AVM index: https://azure.github.io/Azure-Verified-Modules/
+- For Terraform on AzureRM, the canonical source is
+  `Azure/avm-res-<service>-<resource>/azurerm` on the Terraform Registry.
+- A hand-rolled `azurerm_*` or `azapi_*` resource block is permitted only
+  for resources that have NO published AVM module. Such gaps MUST be
+  recorded as follow-ups and MUST be replaced with the AVM module within
+  one minor release of its first publication.
+- The repository's `modules/<service>/` wrappers (Principle VI) remain
+  the consumption surface; their internal implementation MUST delegate to
+  the AVM module. Wrappers exist to enforce naming, tagging, and engine
+  inputs (Principles III, V, VIII) on top of the AVM contract — NOT to
+  re-implement what AVM already covers.
+- Provider requirements declared by AVM modules (`azapi`, `modtm`,
+  `random`, `time`) MUST be accepted; root stacks MUST pin compatible
+  versions in their `required_providers` block.
+
+**Rationale**: AVM modules embody Microsoft's reviewed, tested, and
+continuously updated implementation of every supported Azure resource —
+covering naming constraints, RBAC, private endpoints, diagnostic settings,
+locks, and CMK. Re-implementing this surface in-repo guarantees drift
+from Microsoft's evolving best practice and multiplies the maintenance
+surface. Delegating to AVM keeps our wrappers thin and focused on the
+intent-to-implementation translation that is genuinely repository-specific.
+
 ## Governance
 
 This constitution supersedes all other practices in this repository. Any
@@ -205,7 +240,7 @@ Versioning policy (semver):
   refinements.
 
 Compliance review: every PR reviewer is responsible for verifying that the
-change satisfies Principles I–VIII. Reviewers MUST cite the specific
+change satisfies Principles I–IX. Reviewers MUST cite the specific
 principle number when requesting changes.
 
-**Version**: 2.1.0 | **Ratified**: 2026-05-28 | **Last Amended**: 2026-05-28
+**Version**: 2.2.0 | **Ratified**: 2026-05-28 | **Last Amended**: 2026-05-28
