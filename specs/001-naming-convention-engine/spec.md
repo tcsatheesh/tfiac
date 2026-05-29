@@ -76,8 +76,8 @@ shape across all parent types. Children inherit the parent's
 | `nsg_rule`            | `nsgrule`  | `nsg`          | `nsgrule-{child_purpose}-{P}`            | `child_purpose` 3–7 chars |
 | `route`               | `udr`      | `route_table`  | `udr-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
 | `apim_api`            | `api`      | `apim`         | `api-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
-| `vnet_bastion`        | `bas`      | `vnet`         | `bas-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
-| `vnet_firewall`       | `afw`      | `vnet`         | `afw-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `vnet_bastion`        | `bas`      | `vnet`         | `bas-{P}`                                | singleton, max 1 per parent |
+| `vnet_firewall`       | `afw`      | `vnet`         | `afw-{P}`                                | singleton, max 1 per parent |
 | `private_endpoint`    | `pep`      | any service    | `pep-{P}-{instance}`                     | positional, `001..` per parent |
 | `diagnostic_setting`  | `diag`     | any service    | `diag-{P}-{instance}`                    | positional, `001..` per parent |
 
@@ -113,9 +113,11 @@ fails loudly.
 - Instance numbering starts at `001`. The engine sorts entries by
   `(service_type, service_purpose, key)` where `key` is a caller-
   supplied stable identifier (required on every top-level entry;
-  `^[a-z0-9]{1,16}$`), then assigns `001`, `002`, ... in that order.
-  Child positional numbering is by `(child_type, parent, key)`. Max
-  `999`. File reordering does not affect names.
+  `^[a-z0-9]{1,16}$`; unique within its
+  `(service_type, service_purpose)` group), then assigns `001`,
+  `002`, ... in that order. Child positional numbering is by
+  `(child_type, parent, key)`. Max `999`. File reordering does not
+  affect names.
 - Child `child_purpose` tokens MUST be unique within their `(parent, child_type)`.
 - `tenant` and `usecase` are orthogonal and both required. `tenant`
   identifies the subscription/network (`hub` or `spNN`); `usecase`
@@ -150,6 +152,9 @@ fails loudly.
   engine values. Tags added to a resource out-of-band under any
   other key are preserved (modules use additive `merge(...)`
   semantics, not exclusive ownership).
+- The engine validates every emitted tag against Azure limits: keys
+  ≤ 512 chars, values ≤ 256 chars. Any baseline or `var.extra_tags`
+  entry exceeding these fails loudly at engine time.
 
 ## Success Criteria
 
