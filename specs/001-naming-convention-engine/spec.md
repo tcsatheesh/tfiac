@@ -316,7 +316,7 @@ inputs.
   truncate, hash, rewrite, or otherwise silently mutate a name to make
   it pass validation.
 
-  The four canonical-shape regexes are (note: `environment` is a
+  The five canonical-shape regexes are (note: `environment` is a
   fixed-width 3-char segment per FR-019b):
   - Top-level hyphenated:
     `^[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
@@ -330,6 +330,13 @@ inputs.
   - Positional child of a hyphenated parent (composable):
     `^[a-z]{2,6}-<parent-canonical>-[0-9]{3}$` where
     `<parent-canonical>` is the literal parent canonical name.
+  - Positional child of a hyphen-forbidden parent (composable):
+    `^[a-z]{2,6}<parent-canonical>[0-9]{3}$` where
+    `<parent-canonical>` is the literal parent canonical name
+    (lowercase alphanumerics, no separators). The engine MUST
+    additionally verify that the embedded `<parent-canonical>`
+    substring equals the parent's full canonical name — regex match
+    alone is not sufficient.
 
   When a generated candidate name exceeds the per-service length
   budget, the engine MUST hard-fail with an error message containing:
@@ -485,8 +492,13 @@ inputs.
     `{child-caf-abbr}-{purpose}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}`.
   - For positional children of hyphen-allowed parents:
     `{child-caf-abbr}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}-{child-instance}`.
-  - For positional children of hyphen-forbidden parents: same logical
-    fields, no separators, lowercase.
+  - For positional children of hyphen-forbidden parents:
+    `{child-caf-abbr}{parent-canonical}{child-instance-3-digit}`,
+    lowercase alphanumerics, no separators. `{parent-canonical}` is
+    the parent's full concatenated canonical name (per FR-005). The
+    child name's length budget is the child service's own
+    Azure-imposed name limit (e.g. `private_endpoint` = 80 chars,
+    `diagnostic_setting` = 260 chars) — NOT the parent's limit.
   - **Purpose-keyed children of hyphen-forbidden parents are NOT
     permitted.** Day-one catalogue has no such combination. Any
     future requirement to support one MUST be introduced by a
