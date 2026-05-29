@@ -190,3 +190,6 @@ tfplan
 variables/backend.hcl
 variables/*.hcl
 !variables/*.hcl.example
+
+# Per-stack reference inputs ARE committed (no secrets - just topology/region/etc).
+!variables/**/*.tfvars.json
