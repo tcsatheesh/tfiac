@@ -50,3 +50,14 @@ variable "pip_mgmt_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "firewall_sku_tier" {
+  description = "Azure Firewall + Firewall Policy SKU tier (FR-209). One of Basic, Standard, Premium."
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.firewall_sku_tier)
+    error_message = "firewall_sku_tier must be one of \"Basic\", \"Standard\", or \"Premium\" (FR-209)."
+  }
+}

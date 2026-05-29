@@ -55,6 +55,8 @@ module "network" {
 
   extra_nsg_rules = var.extra_nsg_rules
 
+  firewall_sku_tier = var.firewall_sku_tier
+
   hub_vnet_id             = var.role == "spoke" ? local.hub_outputs.vnet_id : null
   hub_firewall_private_ip = var.role == "spoke" ? local.hub_outputs.firewall_private_ip : null
   hub_subscription_id     = var.role == "spoke" ? try(var.hub_state_backend.subscription_id, null) : null

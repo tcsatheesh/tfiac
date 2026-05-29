@@ -151,3 +151,91 @@ Matrix: `[modules/network, terraform/vnet]`. Steps: fmt / init / validate / test
 ## Open questions
 
 None — all 13 clarifications resolved in spec.md.
+
+## Amendment plan — FR-209 firewall SKU
+
+Branch: `004-vnet-firewall-sku` (off master). Scope: parameterise the hub
+firewall + firewall policy SKU tier. Default behaviour preserved (Standard);
+hub/npd opts into `Basic`. No new module dependencies; AVM pins unchanged.
+
+### Files touched
+
+- `modules/network/firewall/variables.tf` — new `firewall_sku_tier` variable
+  (string, default `"Standard"`, validation `contains(["Basic","Standard","Premium"], var.firewall_sku_tier)`).
+- `modules/network/firewall/main.tf` — wire `var.firewall_sku_tier` into both
+  `azurerm_firewall_policy.this.sku` and `module.firewall.firewall_sku_tier`
+  (AVM `Azure/avm-res-network-azurefirewall/azurerm`).
+- `modules/network/variables.tf` — new wrapper-level `firewall_sku_tier`
+  (default `"Standard"`, same validation).
+- `modules/network/main.tf` — forward to `module.firewall.firewall_sku_tier`.
+- `terraform/vnet/variables.tf` — root-stack `firewall_sku_tier`
+  (default `"Standard"`, same validation).
+- `terraform/vnet/main.tf` — forward to `module.network.firewall_sku_tier`.
+- `variables/hub/npd/vnet.tfvars.json` — set `"firewall_sku_tier": "Basic"`
+  (spoke tfvars unchanged; spokes do not own the firewall).
+- `modules/network/tests/firewall_sku_basic.tftest.hcl` — plan-only assertion
+  that `firewall_sku_tier = "Basic"` propagates to both the policy and the
+  firewall resources.
+- `modules/network/tests/firewall_sku_invalid.tftest.hcl` — variable validation
+  via `expect_failures = [var.firewall_sku_tier]` for an unsupported value
+  (e.g. `"Free"`).
+
+### AVM module pins
+
+Unchanged. `Azure/avm-res-network-azurefirewall/azurerm` and
+`Azure/avm-res-network-firewallpolicy/azurerm` already expose
+`firewall_sku_tier` / `sku` — no version bump required.
+
+### Constitution check
+
+No new exception triggered. FR-209 is a parameterisation of existing
+firewall behaviour already covered by the original 004 plan; no new AVM
+dep, no new provider, no cross-stack contract change.
+
+### Risks (per spec C14.3)
+
+- Standard → Basic (and Basic → Standard) **forces replacement** of both
+  `azurerm_firewall_policy.this` and the AVM firewall module's
+  `azurerm_firewall` resource → brief hub data-plane outage during apply.
+- Spoke route-table next-hop (`firewall_private_ip` from hub remote state)
+  is preserved iff the firewall's private IP re-allocates to the existing
+  `10.240.5.4`. This holds because `AzureFirewallSubnet` is emptied by the
+  destroy step and the first available address (`.4`, after `.0–.3`
+  Azure-reserved) is re-assigned on create. Spokes do **not** need a
+  re-apply in the common case — flagged for verification at rollout.
+- Basic SKU has reduced feature surface (no DNAT proxy, no TLS inspection,
+  no IDPS); current hub policy uses none of these, so functional impact is
+  nil for hub/npd.
+
+### Test gate (pre-merge)
+
+In both `modules/network/` and `terraform/vnet/`:
+
+```
+terraform fmt -recursive
+terraform init -backend=false
+terraform validate
+terraform test
+```
+
+All GREEN required before merge. New tests `firewall_sku_basic.tftest.hcl`
+and `firewall_sku_invalid.tftest.hcl` must pass; existing 004 tests must
+remain GREEN (no regression).
+
+### Rollout gate (per spec C14.5)
+
+Post-merge on master:
+
+1. `cd terraform/vnet && terraform init && terraform plan -var-file=../../variables/hub/npd/vnet.tfvars.json -out=hub.npd.tfplan`
+2. Inspect plan: confirm whether firewall + policy are `~ update in-place`
+   or `-/+ replace`. If replace, schedule a maintenance window, accept the
+   brief outage, then `terraform apply hub.npd.tfplan`.
+3. Post-apply: re-read hub remote state, confirm `firewall_private_ip ==
+   10.240.5.4`; if changed, trigger a spoke re-apply to refresh route tables.
+4. Spoke stacks (`sp01/npd`) require no change for this amendment.
+
+### Out of scope
+
+- Spoke-level firewall SKU (spokes do not own a firewall).
+- Per-environment defaults beyond hub/npd (prd opt-in deferred).
+- Policy rule-collection changes — pure SKU parameterisation only.

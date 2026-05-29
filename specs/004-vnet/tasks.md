@@ -102,3 +102,39 @@ Spoke tests need `override_data` on `data.terraform_remote_state.hub` to supply 
 - [X] T056 `terraform fmt -recursive modules/network terraform/vnet` clean
 - [X] T057 Final `terraform test` GREEN in both dirs
 - [X] T058 Mark all tasks `[X]`, commit, push, PR to master, merge, prune
+
+## Phase 6 — Amendment: configurable hub firewall SKU (FR-209)
+
+**Branch**: `004-vnet-firewall-sku` (off master)
+**Scope**: Parameterise the hub firewall + firewall policy SKU tier; default
+preserved as `Standard`; `variables/hub/npd/vnet.tfvars.json` opts into `Basic`.
+See "## Amendment plan — FR-209 firewall SKU" in [plan.md](plan.md).
+
+### Implementation (sequential — shared files within each module)
+
+- [X] T059 Add `variable "firewall_sku_tier"` to `modules/network/firewall/variables.tf` — type `string`, default `"Standard"`, validation `contains(["Basic","Standard","Premium"], var.firewall_sku_tier)`
+- [X] T060 Wire `var.firewall_sku_tier` into both `azurerm_firewall_policy.this.sku` and `module.firewall.firewall_sku_tier` (AVM `Azure/avm-res-network-azurefirewall/azurerm`) in `modules/network/firewall/main.tf`
+- [X] T061 Add wrapper-level `variable "firewall_sku_tier"` (same validation + default) to `modules/network/variables.tf` and forward it to `module.firewall` in `modules/network/main.tf`
+- [X] T062 Add root-stack `variable "firewall_sku_tier"` (same validation + default) to `terraform/vnet/variables.tf` and forward to `module.network` in `terraform/vnet/main.tf`
+- [X] T063 Set `"firewall_sku_tier": "Basic"` in `variables/hub/npd/vnet.tfvars.json` (spoke tfvars unchanged — spokes do not own the firewall)
+
+### Tests (independent files)
+
+- [X] T064 [P] Create `modules/network/tests/firewall_sku_basic.tftest.hcl` — plan-only run with `role = "hub"` and `firewall_sku_tier = "Basic"`; assert plan succeeds against mocked providers
+- [X] T065 [P] Create `modules/network/tests/firewall_sku_invalid.tftest.hcl` — `expect_failures = [var.firewall_sku_tier]` for value `"Free"`
+- [X] T065a [P] Create `terraform/vnet/tests/firewall_sku_basic_hub.tftest.hcl` — plan-only hub run with `firewall_sku_tier = "Basic"` against mocked providers, asserts root forwarding works end-to-end
+
+### Gate
+
+- [X] T066 `terraform fmt -recursive modules/network terraform/vnet` clean
+- [X] T067 `terraform test` GREEN in `modules/network/` AND `terraform/vnet/`. Existing hub snapshot tests (`positive_baseline_hub.tftest.hcl`, `plan_snapshot_hub.tftest.hcl`, `plan_zero_diff_hub.tftest.hcl`) must remain green — they inline their own `variables` block and do not load `variables/hub/npd/vnet.tfvars.json`, so T063 does not affect them.
+- [X] T068 Mark T059–T067 `[X]`, commit, push, open PR `004-vnet-firewall-sku → master`, merge, prune branch
+- [ ] T069 (post-merge, on master) Roll out Basic SKU to hub/npd:
+  1. Open state SA firewall (publicNetworkAccess=Enabled, add CI/operator IP)
+  2. `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=<sub> -out=hub.npd.tfplan`
+  3. Inspect plan: confirm `azurerm_firewall_policy.this` and the AVM firewall resource show `-/+ destroy and then create replacement`; the data PIP, mgmt PIP, AzureFirewallSubnet, and route table must NOT be replaced
+  4. `terraform apply hub.npd.tfplan` (accept brief hub data-plane outage per C14.3)
+  5. Verify post-apply: `terraform output firewall_private_ip` is still `10.240.5.4` (or note new value)
+  6. If `firewall_private_ip` changed, run `terraform apply` on every spoke stack to refresh the RT next-hop
+  7. Restore state SA firewall (publicNetworkAccess=Disabled, defaultAction=Deny, remove temp IP)
+  8. Report SKU change, outage duration, and any spoke re-applies

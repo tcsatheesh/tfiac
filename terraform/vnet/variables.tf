@@ -115,6 +115,17 @@ variable "hub_state_backend" {
   }
 }
 
+variable "firewall_sku_tier" {
+  description = "Azure Firewall + Firewall Policy SKU tier for hub deployments (FR-209). One of Basic, Standard, Premium. Ignored when role=spoke."
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.firewall_sku_tier)
+    error_message = "firewall_sku_tier must be one of \"Basic\", \"Standard\", or \"Premium\" (FR-209)."
+  }
+}
+
 variable "hub_state_override" {
   description = "TEST-ONLY: synthesize hub remote-state outputs without contacting the backend. When non-null, the root stack skips data.terraform_remote_state.hub and uses these values directly. Production tfvars MUST leave this null."
   type = object({
