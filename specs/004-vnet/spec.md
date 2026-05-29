@@ -82,6 +82,15 @@ spoke behaviour via `var.role`. Per-deployment inputs live in
   `var.firewall_sku_tier ∈ { "Basic", "Standard", "Premium" }`,
   default `"Standard"`. The associated `azurerm_firewall_policy.sku`
   follows the same tier value. Spoke role ignores this variable.
+- **FR-210**: Hub workload subnets default to routing
+  `0.0.0.0/0 → module.firewall[0].private_ip` via the shared hub route
+  table, so subnets with `defaultOutboundAccess=false` (e.g. `buildsvr`)
+  can reach the internet through the in-vnet firewall. Toggle:
+  `var.enable_hub_default_route` (bool, default `true`). `AzureFirewallSubnet`
+  and `AzureFirewallManagementSubnet` do not attach the shared route table
+  (`needs_route_table = false`) so there is no routing loop. Spoke role
+  ignores this variable (spoke continues to source the next-hop IP via
+  `var.hub_firewall_private_ip` from remote state per C9).
 - **FR-208**: Legacy `modules/vnet/` is parked under `modules/vnet/` (no
   longer consumed; previous root stacks moved to `terraform/_legacy/`).
   No `moved.tf` — these legacy modules were not consumed by an active
@@ -140,3 +149,11 @@ Resolved autonomously per established precedents from features 002/003.
   - **C14.3 — migration semantics (Standard ⇄ Basic)**: changing `firewall_sku_tier` on a deployed hub is a **destroy-and-recreate** operation for both `azurerm_firewall.*` and `azurerm_firewall_policy.*` (Azure does not support in-place SKU tier changes between Basic and Standard). Operators MUST inspect `terraform plan` for `# forces replacement` on the firewall + policy resources before `terraform apply`, and accept the resulting short outage on the hub data path. The spoke `0.0.0.0/0` route target (`firewall_private_ip` via remote state) is preserved across the recreate because the firewall is redeployed into the same `AzureFirewallSubnet` with the same static private IP allocation pattern.
   - **C14.4 — policy SKU coupling**: see C7 — the module derives `azurerm_firewall_policy.sku` from the same `var.firewall_sku_tier`. No independent policy SKU input.
   - **C14.5 — post-merge rollout to hub/npd**: out of scope for this spec amendment. The code change ships the variable + default `Standard` (zero behaviour change). Switching `variables/hub/npd/vnet.tfvars.json` to `"firewall_sku_tier": "Basic"` and applying it against the live hub is tracked as a separate operational task and not gated by this spec's test plan.
+- **C15 — hub default route amendment (FR-210) resolved details**: autonomous resolutions for the FR-210 amendment.
+  - **C15.1 — scope of fix**: Feature 005 build server (`snet-bld-*`) was provisioned with `defaultOutboundAccess=false` and a UDR-bound route table containing zero routes; the apt step of cloud-init timed out connecting to `azure.archive.ubuntu.com`, blocking Azure CLI install and GitHub Actions runner download. Root cause sits in feature 004's hub network: the shared hub route table was never given a `0.0.0.0/0` next-hop. Fix lands in feature 004 because every hub workload subnet (`development`, `pre-production`, `buildsvr`, `function-app`, `logic-app`, etc.) shares the same route table and would benefit equally.
+  - **C15.2 — default**: `var.enable_hub_default_route = true`. Rationale: every existing hub workload role already has `needs_route_table = true` in `local.role_catalogue` AND `defaultOutboundAccess=false` semantics across Azure are tightening; emitting the route by default makes the hub usable out of the box. Operators who want full-isolation hubs can flip the variable to `false` per-deployment.
+  - **C15.3 — chicken-and-egg**: the hub route table now references `module.firewall[0].private_ip`. Terraform's DAG handles this naturally because `module.rt` and `module.firewall` are independent siblings of `module.vnet`; the AzureFirewallSubnet attaches to the vnet, the firewall consumes that subnet, the firewall publishes its private IP, the route table consumes that IP, and `module.vnet`'s subnet associations attach the route table to non-firewall subnets afterwards. No cycle.
+  - **C15.4 — loop avoidance**: `AzureFirewallSubnet` (`firewall` role) and `AzureFirewallManagementSubnet` (`firewall-mgmt` role) carry `needs_route_table = false` in `local.role_catalogue` (locals.tf), so the route table is *not* attached to those subnets — the firewall's own traffic is never sent back through itself. `AzureBastionSubnet` (`bastion` role) is also `needs_route_table = false` per Azure mandate.
+  - **C15.5 — spoke contract unchanged**: spoke role continues to source the next-hop via `var.hub_firewall_private_ip` (from remote state per C9). The new variable `enable_hub_default_route` is read only when `role = "hub"`. No spoke tfvars change.
+  - **C15.6 — Basic SKU compatibility**: the route 0.0.0.0/0 → fw-private-ip is a network-level UDR; it is independent of the firewall policy SKU. The current hub runs Basic (per FR-209 rollout in T069) with the existing `* → TCP/80,443` network rule collection, which is sufficient for unblocking the buildsvr cloud-init path (apt mirrors, Microsoft packages, github.com, etc.). FQDN-based application rule collections are still deferred per spec out-of-scope ("Firewall rule collections" line).
+  - **C15.7 — post-merge rollout**: included in scope for this amendment (unlike C14.5). Phase 7 T070–T079 cover the live apply to hub/npd, the cloud-init re-trigger via `az vm run-command invoke`, and verification that `az --version` returns on `vm-bld-shd-hub-npd-swc-001`.

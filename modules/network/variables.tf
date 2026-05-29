@@ -101,6 +101,12 @@ variable "hub_firewall_private_ip" {
   default     = null
 }
 
+variable "enable_hub_default_route" {
+  description = "When role=hub, add 0.0.0.0/0 -> in-vnet firewall private IP to the shared hub route table (FR-210). Defaults to true so hub workload subnets (e.g. buildsvr) can reach the internet via the firewall."
+  type        = bool
+  default     = true
+}
+
 variable "hub_subscription_id" {
   description = "Hub subscription id (spoke only). Required for the peering submodule's hub-side provider."
   type        = string
