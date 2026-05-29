@@ -190,14 +190,20 @@ inputs.
   `environment`, `region`, `repo`, and `services` (an ordered list
   whose entries carry `service_type` and an optional `count` defaulting
   to `1`). `repo` is a required string carrying the canonical
-  repository identifier (e.g. `org/name`) and is used verbatim as the
-  baseline `repo` tag value (FR-014). The engine MUST NOT read git
-  state or any other ambient source for `repo`. Each `services[]`
-  entry MAY additionally carry typed child lists for nested
-  sub-resources, as described in FR-026/FR-027. The engine MUST own
-  the expansion of the `services` list (and any nested children) into
-  individual resource records. Callers MUST NOT pre-compute `instance`
-  values; the engine assigns them per FR-008.
+  repository identifier in `owner/name` form. It MUST match the regex
+  `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` and MUST be `1..256` characters
+  long (matching the Azure tag-value cap per FR-015). Empty,
+  whitespace-only, or non-conforming values MUST cause a hard plan-time
+  error naming the offending value and stating the expected pattern.
+  The validated value is used verbatim as the baseline `repo` tag
+  value (FR-014); the engine MUST NOT trim, lowercase, or otherwise
+  mutate it. The engine MUST NOT read git state or any other ambient
+  source for `repo`. Each `services[]` entry MAY additionally carry
+  typed child lists for nested sub-resources, as described in
+  FR-026/FR-027. The engine MUST own the expansion of the `services`
+  list (and any nested children) into individual resource records.
+  Callers MUST NOT pre-compute `instance` values; the engine assigns
+  them per FR-008.
 - **FR-002**: The engine MUST produce one canonical resource name per
   request, conforming to Microsoft Cloud Adoption Framework guidance and
   to the per-service constraints documented in the constraints catalogue.
