@@ -148,8 +148,8 @@ inputs.
 
 1. **Given** any valid name request, **When** the engine responds,
    **Then** it emits a tag map containing at minimum `tenant`,
-   `topology`, `environment`, `region`, `managed_by`, `repo`, and
-   `purpose`.
+   `topology`, `environment`, `region`, `managed_by`, `repo`,
+   `stack_purpose`, and `service_purpose`.
 2. **Given** per-resource tag overrides keyed by the canonical name,
    **When** the engine is asked to merge them with the baseline,
    **Then** override values replace baseline values for the same keys
@@ -181,6 +181,12 @@ inputs.
 - A nested child whose `parent` field references a service that is not
   emitted in the same batch (e.g. a private endpoint targeting a
   non-existent storage account) causes a hard error.
+- Two `services[]` entries that share the same
+  `(service_type, service_purpose)` within one batch (e.g. two
+  `storage` entries both with `service_purpose: aml`) cause a hard
+  error; the engine does NOT auto-merge them. Use `count` within a
+  single entry to emit multiple instances of the same
+  `(service_type, service_purpose)`.
 
 ## Requirements *(mandatory)*
 
@@ -188,30 +194,49 @@ inputs.
 
 - **FR-001**: The engine MUST expose a single batch entry point that
   accepts one request object containing: `topology`, `tenant`,
-  `environment`, `region`, `repo`, `purpose`, and `services` (an
-  ordered list whose entries carry `service_type` and an optional
-  `count` defaulting to `1`). `repo` is a required string carrying
-  the canonical repository identifier in `owner/name` form. It MUST
-  match the regex `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` and MUST be
-  `1..256` characters long (matching the Azure tag-value cap per
-  FR-015). Empty, whitespace-only, or non-conforming values MUST
-  cause a hard plan-time error naming the offending value and stating
-  the expected pattern. The validated value is used verbatim as the
+  `environment`, `region`, `repo`, `stack_purpose`, and `services`
+  (an ordered list whose entries carry `service_type`, a required
+  `service_purpose` token, and an optional `count` defaulting to
+  `1`).
+  `repo` is a required string carrying the canonical repository
+  identifier in `owner/name` form. It MUST match the regex
+  `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` and MUST be `1..256` characters
+  long (matching the Azure tag-value cap per FR-015). Empty,
+  whitespace-only, or non-conforming values MUST cause a hard
+  plan-time error naming the offending value and stating the
+  expected pattern. The validated value is used verbatim as the
   baseline `repo` tag value (FR-014); the engine MUST NOT trim,
   lowercase, or otherwise mutate it. The engine MUST NOT read git
-  state or any other ambient source for `repo`. `purpose` is a
-  required 3-char stack identifier (e.g. `dns`, `log`, `net`, `svc`)
-  that MUST match `^[a-z0-9]{3}$` per the same shape rule as FR-029;
-  it is consumed by the resource-group name (FR-025) AND emitted as
-  a baseline tag on every generated resource (FR-014). It is NOT
-  embedded in the canonical name of any non-RG service.
-  Non-conforming values MUST cause a hard plan-time error naming
-  the offending value and stating the expected pattern. Each
-  `services[]` entry MAY additionally carry typed child lists for
-  nested sub-resources, as described in FR-026/FR-027. The engine
-  MUST own the expansion of the `services` list (and any nested
-  children) into individual resource records. Callers MUST NOT
-  pre-compute `instance` values; the engine assigns them per FR-008.
+  state or any other ambient source for `repo`.
+
+  `stack_purpose` is a required **batch-level** 3-char identifier
+  for the owning stack/folder (e.g. `dns`, `log`, `net`, `svc`)
+  that MUST match `^[a-z0-9]{3}$`. It is consumed by the
+  resource-group name (FR-025) and emitted as a baseline tag on
+  every generated resource (FR-014). It is NOT embedded in the
+  canonical name of any non-RG service.
+
+  `service_purpose` is a required **per-`services[]`-entry** 3-char
+  identifier for the specific resource's role (e.g. `aml` for an
+  Azure Machine Learning storage account, `fnc` for a Function App,
+  `lgp` for a Logic App). It MUST match `^[a-z0-9]{3}$` and is
+  embedded in the canonical name of every non-RG top-level service
+  (FR-004 / FR-005) and propagated to children (FR-030). It is also
+  emitted as a baseline tag on each generated resource (FR-014).
+  Two `services[]` entries that share the same
+  `(service_type, service_purpose)` within a single batch MUST cause
+  a hard plan-time error (counts within one entry are allowed via
+  `count`).
+  Non-conforming values for either `stack_purpose` or
+  `service_purpose` MUST cause a hard plan-time error naming the
+  offending `(field, value)` pair and stating the expected pattern.
+
+  Each `services[]` entry MAY additionally carry typed child lists
+  for nested sub-resources, as described in FR-026/FR-027. The
+  engine MUST own the expansion of the `services` list (and any
+  nested children) into individual resource records. Callers MUST
+  NOT pre-compute `instance` values; the engine assigns them per
+  FR-008.
 - **FR-002**: The engine MUST produce one canonical resource name per
   request, conforming to Microsoft Cloud Adoption Framework guidance and
   to the per-service constraints documented in the constraints catalogue.
@@ -219,13 +244,17 @@ inputs.
   and the concatenated (no-separator) shape based solely on the per-
   service constraints catalogue entry for `service_type`.
 - **FR-004**: For hyphen-allowed services, the canonical shape MUST be
-  `{caf-abbr}-{tenant}-{environment}-{region}-{instance-3-digit}`,
+  `{caf-abbr}-{service_purpose}-{tenant}-{environment}-{region}-{instance-3-digit}`,
   lowercase, with the instance segment rendered as a zero-padded 3-digit
-  decimal.
+  decimal. (`service_purpose` is the per-`services[]`-entry token
+  per FR-001. The resource-group shape is the sole exception and is
+  defined by FR-025, where the leading purpose segment is the
+  batch-level `stack_purpose` instead.)
 - **FR-005**: For hyphen-forbidden services, the canonical shape MUST be
-  the same logical fields in the same order, concatenated with no
-  separators, lowercase, and confined to the character set the service
-  permits.
+  the same logical fields in the same order
+  (`{caf-abbr}{service_purpose}{tenant}{environment}{region}{instance}`),
+  concatenated with no separators, lowercase, and confined to the
+  character set the service permits.
 - **FR-006**: The engine MUST be deterministic: identical inputs MUST
   produce byte-identical names on every invocation, with no use of
   timestamps, random values, UUIDs, or hashes.
@@ -233,9 +262,12 @@ inputs.
   MUST be the canonical resource name itself, never a list index.
 - **FR-008**: Instance numbering rules:
   - Top-level instance numbers MUST start at `1` and are scoped per
-    `(service_type, batch request)`. They are assigned by the engine
-    based on the position of the corresponding entry (and its `count`)
-    within the request's `services` list.
+    `(service_type, service_purpose, batch request)`. They are
+    assigned by the engine based on the position of the
+    corresponding entry (and its `count`) within the request's
+    `services` list. Because `(service_type, service_purpose)` is
+    unique per batch (FR-001), each such entry independently starts
+    instance numbering at `1`.
   - Positional child instance numbers MUST start at `1` and are scoped
     per `(child_type, parent canonical name)`. They are NOT per stack.
   - Purpose-keyed children (e.g. subnets, NSG rules) skip positional
@@ -288,9 +320,10 @@ inputs.
   canonical resource name; when a key is present the override value MUST
   win over the default; when a key is absent the default MUST be used.
 - **FR-014**: The engine MUST emit, alongside every name, a baseline
-  tag map containing EXACTLY seven keys: `tenant`, `topology`,
-  `environment`, `region`, `managed_by`, `repo`, and `purpose`. All
-  baseline keys MUST be lowercase snake_case. Values:
+  tag map containing EXACTLY eight keys: `tenant`, `topology`,
+  `environment`, `region`, `managed_by`, `repo`, `stack_purpose`,
+  and `service_purpose`. All baseline keys MUST be lowercase
+  snake_case. Values:
   - `tenant` ← `var.input.tenant`
   - `topology` ← `var.input.topology`
   - `environment` ← `var.input.environment`
@@ -298,11 +331,16 @@ inputs.
     short code)
   - `managed_by` ← the literal constant `"terraform"`
   - `repo` ← `var.input.repo`, verbatim (FR-001)
-  - `purpose` ← `var.input.purpose`, verbatim (FR-001)
+  - `stack_purpose` ← `var.input.stack_purpose`, verbatim (FR-001).
+    The same value appears on every resource in the batch.
+  - `service_purpose` ← the owning `services[]` entry's
+    `service_purpose`, verbatim (FR-001). The value differs per
+    resource record. For the resource-group record (FR-025),
+    `service_purpose` is set equal to `stack_purpose`.
 
   The engine MUST NOT read git state, environment variables, or any
   other ambient source for any baseline value. Per FR-015, an
-  overrides map may ADD keys and OVERRIDE values, but the seven
+  overrides map may ADD keys and OVERRIDE values, but the eight
   baseline keys MUST NOT be removable from the emitted tag map.
 - **FR-015**: The engine MUST accept an optional per-resource tag
   overrides map keyed by canonical resource name and MUST merge it on
@@ -333,14 +371,14 @@ inputs.
 
   The six canonical-shape regexes are (note: `environment` is a
   fixed-width 3-char segment per FR-019b):
-  - Top-level hyphenated (non-RG):
-    `^[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
-  - Top-level hyphenated **resource group** (FR-025, embeds `purpose`):
+  - Top-level hyphenated (non-RG, embeds per-entry `service_purpose`):
+    `^[a-z]{2,6}-[a-z0-9]{3}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
+  - Top-level hyphenated **resource group** (FR-025, embeds `stack_purpose`):
     `^rg-[a-z0-9]{3}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
-  - Top-level concatenated (hyphen-forbidden):
-    `^[a-z]{2,6}(hub|sp[0-9]{2})[a-z0-9]{3}[a-z0-9]{2,5}[0-9]{3}$`
-  - Purpose-keyed child of a hyphenated parent:
-    `^[a-z]{2,6}-[a-z0-9]{3}-[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
+  - Top-level concatenated (hyphen-forbidden, embeds per-entry `service_purpose`):
+    `^[a-z]{2,6}[a-z0-9]{3}(hub|sp[0-9]{2})[a-z0-9]{3}[a-z0-9]{2,5}[0-9]{3}$`
+  - Purpose-keyed child of a hyphenated parent (embeds parent `service_purpose` and child `purpose`):
+    `^[a-z]{2,6}-[a-z0-9]{3,7}-[a-z]{2,6}-[a-z0-9]{3}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
     (the engine MUST additionally verify that the parent-suffix
     segments equal the parent's own `(tenant, environment, region,
     instance)` segments — regex match alone is not sufficient)
@@ -406,17 +444,18 @@ inputs.
   feature and MUST be tracked separately with explicit `moved {}` blocks.
 - **FR-025**: The engine MUST emit exactly one resource-group record
   per batch request, with a canonical name of the form
-  `rg-{purpose}-{tenant}-{environment}-{region}-001` derived from the
-  request's `purpose` (FR-001), `(tenant, environment, region)`, and
-  instance `001`. The `purpose` segment is RG-specific: it MUST NOT
-  appear in the canonical name of any other top-level or child
-  service (which retain the FR-004 / FR-016 shapes without a
-  `purpose` segment). The engine MUST treat every other service in
-  the same batch as belonging to that resource group. Callers MUST
-  NOT supply a `resource_group` field per service. Finer-grained RG
-  strategies (one RG per service type, one RG per instance,
-  caller-supplied RG) are explicitly out of scope and may be added by
-  a future feature spec.
+  `rg-{stack_purpose}-{tenant}-{environment}-{region}-001` derived
+  from the request's `stack_purpose` (FR-001),
+  `(tenant, environment, region)`, and instance `001`. The
+  `stack_purpose` segment is RG-specific: it MUST NOT appear in the
+  canonical name of any other top-level or child service (which
+  embed the per-`services[]`-entry `service_purpose` instead, per
+  FR-004 / FR-005 / FR-030). The engine MUST treat every other
+  service in the same batch as belonging to that resource group.
+  Callers MUST NOT supply a `resource_group` field per service.
+  Finer-grained RG strategies (one RG per service type, one RG per
+  instance, caller-supplied RG) are explicitly out of scope and may
+  be added by a future feature spec.
 - **FR-026**: The constraints catalogue MUST classify every entry as
   either **top-level** (valid as a `services[]` entry) or
   **child-only** (valid ONLY as a nested entry under a documented
@@ -496,16 +535,19 @@ inputs.
   the child is **positional** (numbered `001`, `002`, … per parent) or
   **purpose-keyed** (named by an explicit `purpose` token supplied on
   the child entry). Day-one classification:
-  - `subnet` — purpose-keyed (e.g. `purpose: app`, `purpose: dat`).
-  - `nsg_rule` — purpose-keyed (e.g. `purpose: htp`, `purpose: ssh`).
-  - `route` — purpose-keyed (e.g. `purpose: dfl`, `purpose: fwl`).
+  - `subnet` — purpose-keyed (e.g. `purpose: app`, `purpose: data`).
+  - `nsg_rule` — purpose-keyed (e.g. `purpose: https`, `purpose: ssh`).
+  - `route` — purpose-keyed (e.g. `purpose: default`, `purpose: fw`).
   - `private_endpoint` — positional, scoped per `(parent service)`.
   - `diagnostic_setting` — positional, scoped per `(parent service)`.
-- **FR-029**: A `purpose` token MUST be unique within its
-  `(parent, child_type)`. Duplicates are a hard error. The `purpose`
-  token MUST match the regex `^[a-z0-9]{3}$` — exactly 3 characters,
-  lowercase alphanumerics only, no hyphens — regardless of whether
-  the parent is hyphen-allowed or hyphen-forbidden. Non-conforming
+- **FR-029**: A `purpose` token on a child entry (subnet, nsg_rule,
+  route) MUST be unique within its `(parent, child_type)`.
+  Duplicates are a hard error. The child `purpose` token MUST match
+  the regex `^[a-z0-9]{3,7}$` — 3 to 7 characters, lowercase
+  alphanumerics only, no hyphens — regardless of whether the parent
+  is hyphen-allowed or hyphen-forbidden. (Note: the batch-level
+  `stack_purpose` and per-`services[]`-entry `service_purpose` are
+  separately fixed at exactly 3 chars per FR-001.) Non-conforming
   values MUST cause a hard plan-time error naming the offending
   `(parent, child_type, purpose)` triple and stating the expected
   pattern. Callers SHOULD draw codes from the recommended
@@ -515,9 +557,9 @@ inputs.
   suffix so that the parent is recoverable from the child name. The
   exact shapes per child type are:
   - For purpose-keyed children of hyphen-allowed parents:
-    `{child-caf-abbr}-{purpose}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}`.
+    `{child-caf-abbr}-{child-purpose}-{parent-caf-abbr}-{parent-service_purpose}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}`.
   - For positional children of hyphen-allowed parents:
-    `{child-caf-abbr}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}-{child-instance}`.
+    `{child-caf-abbr}-{parent-caf-abbr}-{parent-service_purpose}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}-{child-instance}`.
   - For positional children of hyphen-forbidden parents:
     `{child-caf-abbr}{parent-canonical}{child-instance-3-digit}`,
     lowercase alphanumerics, no separators. `{parent-canonical}` is
@@ -582,9 +624,11 @@ inputs.
   engine code does not need to change to track CAF revisions.
 - **FR-037**: **Uniqueness analysis (worst case) for hyphen-forbidden
   services.** For every catalogued hyphen-forbidden service, the
-  canonical concatenated shape `{caf_abbr}{tenant}{env}{region}{instance}`
+  canonical concatenated shape
+  `{caf_abbr}{service_purpose}{tenant}{env}{region}{instance}`
   MUST fit within the Azure-imposed max length for the
   service for every combination of:
+  - `service_purpose` (per-`services[]`-entry, fixed width 3 per FR-001)
   - `tenant` ∈ `{hub}` ∪ `{sp01..sp99}` (max width 4)
   - `environment` ∈ `{npd, pre, dev, prd}` (fixed width 3 per FR-019b)
   - `region` short code (max width 4 per FR-010)
@@ -592,17 +636,23 @@ inputs.
 
   Day-one hyphen-forbidden services and worst-case lengths:
 
-  | service_type         | caf_abbr | Azure max | Worst-case computed length | Headroom |
-  |----------------------|----------|-----------|-----------------------------|----------|
-  | `storage`            | `st`     | 24        | `2 + 4 + 3 + 4 + 3 = 16`    | 8        |
-  | `container_registry` | `cr`     | 50        | `2 + 4 + 3 + 4 + 3 = 16`    | 34       |
-  | `keyvault` *(note)*  | `kv`     | 24        | `2 + 4 + 3 + 4 + 3 = 16`    | 8        |
+  | service_type         | caf_abbr | Azure max | Worst-case computed length      | Headroom |
+  |----------------------|----------|-----------|---------------------------------|----------|
+  | `storage`            | `st`     | 24        | `2 + 3 + 4 + 3 + 4 + 3 = 19`    | 5        |
+  | `container_registry` | `cr`     | 50        | `2 + 3 + 4 + 3 + 4 + 3 = 19`    | 31       |
+  | `keyvault` *(note)*  | `kv`     | 24        | `2 + 3 + 4 + 3 + 4 + 3 = 19`    | 5        |
 
   *(Note: `keyvault` is catalogued as hyphenated per FR-026; the row
   is included here as a defensive bound in case a future amendment
   switches its shape. The current hyphenated shape
-  `kv-{tenant}-{env}-{region}-{instance}` has worst case
-  `2 + 1 + 4 + 1 + 3 + 1 + 4 + 1 + 3 = 20`, still within 24.)*
+  `kv-{service_purpose}-{tenant}-{env}-{region}-{instance}` has worst case
+  `2 + 1 + 3 + 1 + 4 + 1 + 3 + 1 + 4 + 1 + 3 = 24`, which exactly
+  hits the 24-char Azure limit — zero headroom. Any future widening
+  of any segment (longer region code, wider tenant set, etc.) MUST
+  re-evaluate kv's classification; a catalogue PR that breaks this
+  bound MUST either trim a segment or reclassify kv as
+  hyphen-forbidden (in which case its concatenated worst case is
+  19, headroom 5).)*
 
   All headroom values are strictly positive, demonstrating that the
   canonical combination is sufficient for global uniqueness without
@@ -700,9 +750,9 @@ inputs.
   type contains a timestamp, a random value, a UUID, or a hash, verified
   by an automated check over the cross-product fixture.
 - **SC-008**: Every generated name carries a baseline tag set with all
-  seven required keys (`tenant`, `topology`, `environment`, `region`,
-  `managed_by`, `repo`, `purpose`), verified by an automated check
-  over the cross-product fixture.
+  eight required keys (`tenant`, `topology`, `environment`, `region`,
+  `managed_by`, `repo`, `stack_purpose`, `service_purpose`), verified
+  by an automated check over the cross-product fixture.
 
 ## Assumptions
 
@@ -757,52 +807,88 @@ inputs.
 
 ## Appendix A — Recommended `purpose` Codes (advisory)
 
-FR-029 enforces only the shape (`^[a-z0-9]{3}$`). The dictionary
-below is the recommended set of 3-char `purpose` codes so that names
-remain interpretable across stacks and teams. It is advisory, not
-normative: the engine does NOT reject codes outside this list.
-Extending the dictionary is a single-PR documentation edit and
-requires no engine code change.
+FR-001 fixes the batch-level `stack_purpose` and the
+per-`services[]`-entry `service_purpose` at exactly 3 chars
+(`^[a-z0-9]{3}$`). FR-029 allows the child `purpose` token (on
+subnet, nsg_rule, route entries) to be 3-7 chars
+(`^[a-z0-9]{3,7}$`). The dictionaries below are recommended
+readable codes so that names remain interpretable across stacks
+and teams. They are advisory, not normative: the engine does NOT
+reject codes outside these lists. Extending a dictionary is a
+single-PR documentation edit and requires no engine code change.
 
-**Subnets (`subnet`)**
-
-| Code  | Meaning                                  |
-|-------|------------------------------------------|
-| `app` | Application tier                         |
-| `dat` | Data tier                                |
-| `web` | Web / front-end tier                     |
-| `mgt` | Management / jumpbox                     |
-| `bas` | Azure Bastion (`AzureBastionSubnet`)     |
-| `fwl` | Azure Firewall (`AzureFirewallSubnet`)   |
-| `gwy` | Gateway (`GatewaySubnet`)                |
-| `pep` | Private endpoints                        |
-| `agw` | Application Gateway                      |
-| `aks` | AKS node pool                            |
-| `int` | Integration (e.g. App Service VNet inj.) |
-
-**NSG rules (`nsg_rule`)**
-
-| Code  | Meaning                          |
-|-------|----------------------------------|
-| `htp` | HTTP (80)                        |
-| `htt` | HTTPS (443)                      |
-| `ssh` | SSH (22)                         |
-| `rdp` | RDP (3389)                       |
-| `sql` | SQL (1433)                       |
-| `dns` | DNS (53)                         |
-| `dny` | Catch-all deny rule              |
-| `aly` | Catch-all allow rule (use sparingly) |
-
-**Routes (`route`)**
+**Stack purpose (`stack_purpose`, batch-level, used by RG name)**
 
 | Code  | Meaning                                       |
 |-------|-----------------------------------------------|
-| `dfl` | Default route (`0.0.0.0/0`)                   |
-| `fwl` | Next-hop = Azure Firewall                     |
-| `nva` | Next-hop = third-party NVA                    |
-| `int` | Next-hop = internet (bypass firewall)         |
-| `vng` | Next-hop = virtual network gateway            |
-| `lcl` | Next-hop = VNet local (override default)      |
+| `dns` | DNS-zone-only stack                           |
+| `log` | Logging / observability stack                 |
+| `net` | Networking (vnet, nsg, firewall, bastion)     |
+| `svc` | General service / workload stack              |
+| `rba` | RBAC-only stack                               |
+| `bld` | Build-server stack                            |
+| `hub` | Hub-wide shared services                      |
+
+**Service purpose (`services[].service_purpose`, per-resource, used by non-RG names)**
+
+| Code  | Meaning                                       |
+|-------|-----------------------------------------------|
+| `aml` | Azure Machine Learning workload               |
+| `fnc` | Azure Function App                            |
+| `lgp` | Logic App                                     |
+| `apm` | API Management                                |
+| `oai` | Azure OpenAI                                  |
+| `srh` | AI Search                                     |
+| `doc` | Document Intelligence                         |
+| `lng` | Language service                              |
+| `vmw` | Windows VM                                    |
+| `vml` | Linux VM                                      |
+| `idn` | User-assigned identity                        |
+| `kvs` | Shared key vault                              |
+| `kvw` | Workload-scoped key vault                     |
+| `app` | General application data                      |
+| `obs` | Observability / log storage                   |
+| `art` | Artifact / build storage                      |
+
+**Subnets (`subnet`, child `purpose`, 3-7 chars)**
+
+| Code     | Meaning                                  |
+|----------|------------------------------------------|
+| `app`    | Application tier                         |
+| `data`   | Data tier                                |
+| `web`    | Web / front-end tier                     |
+| `mgmt`   | Management / jumpbox                     |
+| `bastion`| Azure Bastion (`AzureBastionSubnet`)     |
+| `fw`     | Azure Firewall (`AzureFirewallSubnet`)   |
+| `gw`     | Gateway (`GatewaySubnet`)                |
+| `pep`    | Private endpoints                        |
+| `agw`    | Application Gateway                      |
+| `aks`    | AKS node pool                            |
+| `intg`   | Integration (e.g. App Service VNet inj.) |
+
+**NSG rules (`nsg_rule`, child `purpose`, 3-7 chars)**
+
+| Code     | Meaning                          |
+|----------|----------------------------------|
+| `http`   | HTTP (80)                        |
+| `https`  | HTTPS (443)                      |
+| `ssh`    | SSH (22)                         |
+| `rdp`    | RDP (3389)                       |
+| `sql`    | SQL (1433)                       |
+| `dns`    | DNS (53)                         |
+| `denyall`| Catch-all deny rule              |
+| `permit` | Catch-all allow rule (use sparingly) |
+
+**Routes (`route`, child `purpose`, 3-7 chars)**
+
+| Code      | Meaning                                       |
+|-----------|-----------------------------------------------|
+| `default` | Default route (`0.0.0.0/0`)                   |
+| `fw`      | Next-hop = Azure Firewall                     |
+| `nva`     | Next-hop = third-party NVA                    |
+| `inet`    | Next-hop = internet (bypass firewall)         |
+| `vng`     | Next-hop = virtual network gateway            |
+| `local`   | Next-hop = VNet local (override default)      |
 
 New codes SHOULD be added here by the PR that first uses them.
 Collisions across child types are allowed (the same code may mean
