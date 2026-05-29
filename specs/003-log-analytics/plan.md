@@ -116,12 +116,15 @@ Source: [.specify/memory/constitution.md](../../.specify/memory/constitution.md)
       their respective hub (`(hub, npd)` and `(hub, prd)`). No third
       category. The workspaces ARE the centralised observability sink
       Principle I implicitly requires for the hub-per-env-group model.
-- [X] **II. Minimal, Intent-Only Inputs** — PASS. 6 inputs total at the
-      root stack: 5 scope discriminators (`subscription_id`, `region`,
+- [X] **II. Minimal, Intent-Only Inputs** — PASS. 9 inputs total at the
+      root stack: 6 scope discriminators (`subscription_id`, `region`,
       `repo`, `topology`, `tenant`, `environment`) — the four pin-checked
-      ones are intent ("which scope are we in"), not per-resource knobs —
-      plus 2 optional, defaulted observability knobs (`retention_in_days`
-      default `30`, `daily_quota_gb` default `-1`) per spec FR-105.
+      ones (`topology`, `tenant`, `region`, `environment`) are intent
+      ("which scope are we in"), not per-resource knobs — plus 2
+      optional, defaulted observability knobs (`retention_in_days`
+      default `30`, `daily_quota_gb` default `-1`) per spec FR-105, plus
+      1 internal naming-engine map key (`workspace_key` default
+      `"central"`; not the Azure resource name).
       SKU/network/auth/CMK/lock/private-link knobs are all absent.
 - [X] **III. Naming Follows Microsoft CAF** — PASS. All names flow through
       `modules/naming/`. The engine already ships the `log_analytics` slot

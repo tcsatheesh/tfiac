@@ -79,12 +79,13 @@ az account set --subscription "$SUBSCRIPTION_ID_NPD_HUB"
 export TF_VAR_subscription_id="$SUBSCRIPTION_ID_NPD_HUB"
 
 # 2. Initialise with backend pointing at the shared SA, npd state key
+#    (TFSTATE_* come from .env — same names as .env.example)
 cd terraform/log
 rm -rf .terraform   # clean any prior init from a different env
 terraform init \
-  -backend-config="resource_group_name=<state-rg>" \
-  -backend-config="storage_account_name=<state-sa>" \
-  -backend-config="container_name=<state-container>" \
+  -backend-config="resource_group_name=$TFSTATE_RESOURCE_GROUP" \
+  -backend-config="storage_account_name=$TFSTATE_STORAGE_ACCOUNT" \
+  -backend-config="container_name=$TFSTATE_CONTAINER" \
   -backend-config="key=hub/npd/log.tfstate" \
   -backend-config="use_azuread_auth=true"
 
@@ -103,13 +104,13 @@ source .env
 az account set --subscription "$SUBSCRIPTION_ID_PRD_HUB"
 export TF_VAR_subscription_id="$SUBSCRIPTION_ID_PRD_HUB"
 
-# 2. Re-init with the prd state key
+# 2. Re-init with the prd state key (TFSTATE_* from .env)
 cd terraform/log
 rm -rf .terraform   # clean the npd init
 terraform init \
-  -backend-config="resource_group_name=<state-rg>" \
-  -backend-config="storage_account_name=<state-sa>" \
-  -backend-config="container_name=<state-container>" \
+  -backend-config="resource_group_name=$TFSTATE_RESOURCE_GROUP" \
+  -backend-config="storage_account_name=$TFSTATE_STORAGE_ACCOUNT" \
+  -backend-config="container_name=$TFSTATE_CONTAINER" \
   -backend-config="key=hub/prd/log.tfstate" \
   -backend-config="use_azuread_auth=true"
 
@@ -179,10 +180,13 @@ diff /tmp/wn.a /tmp/wn.b   # MUST be empty
 
 ## 7 · Migration from legacy `modules/log/`
 
-Legacy `modules/log/` is parked under `terraform/_legacy/` per FR-111. A
-`moved.tf` stub is added by the implementation task documenting the new
-canonical address; consumers must re-import their workspace via the new
-remote-state contract (no in-place adopt path).
+No prior `modules/log/` exists in this repo (verified at branch
+creation — `modules/` contains only `dnszones/` and `naming/` before
+feature 003 lands). Feature 003 introduces the module greenfield; no
+`moved.tf` migration shim is required (FR-111). Consumers that
+previously hand-rolled an `azurerm_log_analytics_workspace` outside the
+repo MUST wire to this stack via the remote-state contract documented
+in §5.
 
 ## 8 · Run tests
 

@@ -27,9 +27,10 @@ of these two workspaces via `terraform_remote_state` lookups.
   creation. The module is provider-less (Constitution VI).
 - **FR-102**: A single generic root stack `terraform/log/` consumes the
   module. Per-deployment `(topology, tenant, environment)` is supplied
-  via `variables/<env>/<scope>/log.tfvars`. Day-one deployments:
-  - `(hub, hub, npd)` — via `variables/npd/hub/log.tfvars`
-  - `(hub, hub, prd)` — via `variables/prd/hub/log.tfvars`
+  via `variables/<tenant>/<environment>/log.tfvars.json` (Constitution VI
+  scheme, precedent set by feature 002). Day-one deployments:
+  - `(hub, hub, npd)` — via `variables/hub/npd/log.tfvars.json`
+  - `(hub, hub, prd)` — via `variables/hub/prd/log.tfvars.json`
 - **FR-103**: Each root stack pins its own `subscription_id`. Different
   subscriptions per environment is supported but not required day-one
   (Q9 — single subscription today).
@@ -65,9 +66,10 @@ of these two workspaces via `terraform_remote_state` lookups.
   `resource_group_name` in each stack. Literal asserted in the snapshot
   test is the engine-emitted value at plan time; the spec deliberately
   does NOT pre-pin the literal (Clarification 2026-05-29 C2).
-- **FR-111**: Legacy `modules/log/` (AVM-wrapped 90-day workspace) is
-  parked under `terraform/_legacy/`. The new generic stack fully
-  replaces it; a `moved.tf` stub documents the migration path.
+- **FR-111**: No prior `modules/log/` exists in this repo at branch
+  creation (verified: `modules/` contains only `dnszones/` and
+  `naming/`). Feature 003 introduces the centralized Log Analytics
+  module greenfield; no `moved.tf` migration shim is required.
 - **FR-112**: The wrapper module sources only the AVM module
   `Azure/avm-res-operationalinsights-workspace/azurerm`, pinned with
   `version = "~> 0.x"` (latest 0.x at implementation time) — no bare
