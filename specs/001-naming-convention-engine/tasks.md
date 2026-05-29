@@ -264,7 +264,7 @@ Task: "Create modules/naming/tests/us1_rg_shape.tftest.hcl"
 
 - MVP (Phases 1–4): name + tag every top-level resource.
 - Increment 1 (Phase 5): prove determinism, unblocks CI gates.
-- Increment 2 (Phase 6): unlock subnets / NSG rules / private endpoints — required by spec 004-vnet and 005-services-stack.
+- Increment 2 (Phase 6): unlock subnets / NSG rules / private endpoints — required by spec 004-vnet and 006-services.
 - Increment 3 (Phase 7): unlock spec 002-private-dns-zones.
 - Increment 4 (Phase 8): close the spec↔catalogue drift loop.
 - Polish (Phase 9): docs, examples, repo-level signposting.

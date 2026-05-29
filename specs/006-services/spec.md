@@ -1,6 +1,6 @@
 # Feature Specification: Services (selectable Azure services in a `purpose=svc` RG)
 
-**Feature Branch**: `005-services`
+**Feature Branch**: `006-services`
 
 **Created**: 2026-05-29
 
