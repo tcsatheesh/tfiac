@@ -193,3 +193,6 @@ variables/*.hcl
 
 # Per-stack reference inputs ARE committed (no secrets - just topology/region/etc).
 !variables/**/*.tfvars.json
+
+# Local scratchpad for AVM module inspection / one-off probes (not committed)
+temp/scratchpad/

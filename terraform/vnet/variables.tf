@@ -1,0 +1,127 @@
+variable "subscription_id" {
+  description = "Target Azure subscription id (GUID)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.subscription_id))
+    error_message = "subscription_id must be a lowercase Azure subscription GUID."
+  }
+}
+
+variable "repo" {
+  description = "GitHub repo in <owner>/<name> form. Tagged onto every resource via the naming engine."
+  type        = string
+}
+
+variable "region" {
+  description = "Azure CAF short-code region. MUST be \"swc\" day-one."
+  type        = string
+
+  validation {
+    condition     = var.region == "swc"
+    error_message = "region must be \"swc\" (VNET-INV-1)."
+  }
+}
+
+variable "tenant" {
+  description = "Tenancy identifier (hub|spXY)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^(hub|sp[0-9]{2})$", var.tenant))
+    error_message = "tenant must match ^(hub|sp[0-9]{2})$."
+  }
+}
+
+variable "environment" {
+  description = "Environment short code (npd|prd)."
+  type        = string
+
+  validation {
+    condition     = contains(["npd", "prd"], var.environment)
+    error_message = "environment must be npd or prd (VNET-INV-2)."
+  }
+}
+
+variable "role" {
+  description = "Network role for this stack invocation (hub|spoke)."
+  type        = string
+
+  validation {
+    condition     = contains(["hub", "spoke"], var.role)
+    error_message = "role must be hub or spoke (VNET-INV-3)."
+  }
+}
+
+variable "usecase" {
+  description = "Stack usecase. Defaults to \"shd\" (shared)."
+  type        = string
+  default     = "shd"
+}
+
+variable "address_space" {
+  description = "vnet address space (>=1 valid CIDR)."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.address_space) >= 1
+    error_message = "address_space must contain at least one CIDR (VNET-INV-9)."
+  }
+
+  validation {
+    condition     = alltrue([for c in var.address_space : can(cidrnetmask(c))])
+    error_message = "Every address_space entry must be a valid CIDR (VNET-INV-9)."
+  }
+}
+
+variable "subnets" {
+  description = "Map of subnet role => CIDR. Roles must match modules/network/locals.tf role_catalogue."
+  type        = map(string)
+
+  validation {
+    condition     = alltrue([for c in values(var.subnets) : can(cidrnetmask(c))])
+    error_message = "Every subnets value must be a valid CIDR (VNET-INV-9)."
+  }
+}
+
+variable "extra_nsg_rules" {
+  description = "Reserved for future per-role NSG rule extensions. Map of role => list(rule object)."
+  type        = map(any)
+  default     = {}
+}
+
+variable "hub_state_backend" {
+  description = "Remote-state backend descriptor for the hub vnet stack. REQUIRED when role=spoke; FORBIDDEN when role=hub. The subscription_id field, if set, scopes the azurerm.hub provider."
+  type = object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+    key                  = string
+    subscription_id      = optional(string)
+  })
+  default = null
+
+  # VNET-INV-6: spoke role REQUIRES hub_state_backend. Cross-variable
+  # validation (Terraform >= 1.9). Fires before any data sources are read.
+  validation {
+    condition     = !(var.role == "spoke" && var.hub_state_backend == null)
+    error_message = "VNET-INV-6: role=spoke requires var.hub_state_backend to be supplied."
+  }
+
+  # VNET-INV-7: hub role FORBIDS hub_state_backend.
+  validation {
+    condition     = !(var.role == "hub" && var.hub_state_backend != null)
+    error_message = "VNET-INV-7: role=hub must NOT supply var.hub_state_backend."
+  }
+}
+
+variable "hub_state_override" {
+  description = "TEST-ONLY: synthesize hub remote-state outputs without contacting the backend. When non-null, the root stack skips data.terraform_remote_state.hub and uses these values directly. Production tfvars MUST leave this null."
+  type = object({
+    vnet_id             = string
+    vnet_name           = string
+    resource_group_name = string
+    firewall_private_ip = string
+  })
+  default = null
+}
