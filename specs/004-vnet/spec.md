@@ -105,3 +105,28 @@ For each deployment of the generic stack `terraform/vnet/` (`npd/hub`,
    `output.vnet_name == "vnet-<tenant>-<env>-sdc-001"`.
 2. `negative_subscription_mismatch.tftest.hcl` — `expect_failures = [check.subscription_pinned]`.
 3. `negative_disallowed_region.tftest.hcl` — `expect_failures = [var.region]`.
+
+## Clarifications
+
+Resolved autonomously per established precedents from features 002/003.
+
+- **C1 — region abbr**: use `swc` (not `sdc` in test plan). Aligns with feature 003 and the canonical Sweden Central short code already used by `terraform/log/`.
+- **C2 — AVM module pins** (Constitution IX):
+  - `Azure/avm-res-resources-resourcegroup/azurerm ~> 0.4`
+  - `Azure/avm-res-network-virtualnetwork/azurerm ~> 0.8` (creates the vnet, subnets, and intra-stack peerings)
+  - `Azure/avm-res-network-networksecuritygroup/azurerm ~> 0.4`
+  - `Azure/avm-res-network-routetable/azurerm ~> 0.3`
+  - `Azure/avm-res-network-bastionhost/azurerm ~> 0.4`
+  - `Azure/avm-res-network-azurefirewall/azurerm ~> 0.4`
+  - `Azure/avm-res-network-publicipaddress/azurerm ~> 0.2`
+- **C3 — state path** (Constitution VII): `<scope>/<env>/vnet.tfstate` injected at `terraform init` via `-backend-config="key=…"`. Day-one: `hub/npd/vnet.tfstate`, `sp01/npd/vnet.tfstate`.
+- **C4 — spec status**: the original "Implemented on master alongside spec" line was aspirational; corrected — feature is implemented on branch `004-vnet`.
+- **C5 — peering submodule**: spoke stack creates BOTH peering sides via a dedicated `modules/network/peering/` submodule that uses two provider aliases (`azurerm.this` = spoke, `azurerm.hub` = aliased to the hub subscription). It uses `azurerm_virtual_network_peering` × 2 — a **documented Constitution IX exception** because there is no published standalone AVM peering submodule and the AVM vnet module's `peerings` argument can only manage peerings on its own vnet (so it cannot create the hub-side peering from the spoke stack).
+- **C6 — day-one scope**: `npd` only. `prd-hub` and `prd-sp01` deferred to a follow-up feature.
+- **C7 — firewall policy**: empty Standard SKU policy (rule collections deferred per spec out-of-scope).
+- **C8 — bastion NSG**: AVM `avm-res-network-bastionhost` defaults; no hand-crafted rules at MVP.
+- **C9 — spoke default route**: `0.0.0.0/0 → <hub firewall private IP>` read from the hub stack via `terraform_remote_state`.
+- **C10 — hub backend coordinates**: spoke `var.hub_state_backend = { resource_group_name, storage_account_name, container_name, key }`; spoke uses the azurerm backend with `use_azuread_auth = true` (mirrors the dns + log precedent).
+- **C11 — role switching**: `var.role ∈ { "hub", "spoke" }`. `hub` → bastion + firewall enabled, peering disabled, no remote state read. `spoke` → bastion + firewall disabled, peering enabled, hub remote state required, RT default route via hub fw private IP.
+- **C12 — engine usage**: top-level entries `vnet`, `nsg` (per non-bastion/non-firewall subnet role), `route_table`, plus per-stack `resource_group`; child entries `subnet` (per subnet role, with `child_purpose` ≡ role abbr); `vnet_bastion` and `vnet_firewall` (singletons) on hub only; `public_ip` × 1 (bastion) + × 2 (firewall data + mgmt) on hub. Subnet roles `bastion`, `firewall`, `firewall-mgmt` get their Azure-mandated literal names (`AzureBastionSubnet`, `AzureFirewallSubnet`, `AzureFirewallManagementSubnet`) — the engine still emits the canonical record for tagging coherence (FR-202).
+- **C13 — output contract**: `vnet_id`, `vnet_name`, `vnet_address_space`, `subnets` (map of role → `{ id, name, address_prefix }`), `nsgs` (map of role → `{ id, name }`), `route_table_id`, `route_table_name`, `firewall_private_ip` (hub only; `null` on spoke), `firewall_id` (hub only), `bastion_id` (hub only), `resource_group_name`, `resource_group_id`, `naming` (engine `names` map).
