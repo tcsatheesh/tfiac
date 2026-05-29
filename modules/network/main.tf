@@ -95,8 +95,12 @@ module "rt" {
   enable_telemetry              = false
   bgp_route_propagation_enabled = false
 
-  # Spoke routes 0.0.0.0/0 -> hub firewall private IP.
-  # Hub has no default route (firewall is in-vnet).
+  # Both hub and spoke route 0.0.0.0/0 -> hub firewall private IP (FR-210).
+  # Spoke takes the address via var.hub_firewall_private_ip (remote state);
+  # hub takes it from its own in-vnet firewall submodule output. The hub
+  # AzureFirewallSubnet / AzureFirewallManagementSubnet do not attach this
+  # route table (needs_route_table = false in role_catalogue), so there is
+  # no routing loop.
   routes = (
     var.role == "spoke" && var.hub_firewall_private_ip != null
     ? {
@@ -105,6 +109,15 @@ module "rt" {
         address_prefix         = "0.0.0.0/0"
         next_hop_type          = "VirtualAppliance"
         next_hop_in_ip_address = var.hub_firewall_private_ip
+      }
+    }
+    : var.role == "hub" && var.enable_hub_default_route
+    ? {
+      to-firewall = {
+        name                   = "udr-defaultroute"
+        address_prefix         = "0.0.0.0/0"
+        next_hop_type          = "VirtualAppliance"
+        next_hop_in_ip_address = module.firewall[0].private_ip
       }
     }
     : {}

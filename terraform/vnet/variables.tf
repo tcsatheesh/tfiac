@@ -126,6 +126,12 @@ variable "firewall_sku_tier" {
   }
 }
 
+variable "enable_hub_default_route" {
+  description = "When role=hub, add 0.0.0.0/0 -> in-vnet firewall private IP to the shared hub route table (FR-210). Defaults to true so hub workload subnets (e.g. buildsvr) can reach the internet via the firewall. Ignored when role=spoke."
+  type        = bool
+  default     = true
+}
+
 variable "hub_state_override" {
   description = "TEST-ONLY: synthesize hub remote-state outputs without contacting the backend. When non-null, the root stack skips data.terraform_remote_state.hub and uses these values directly. Production tfvars MUST leave this null."
   type = object({

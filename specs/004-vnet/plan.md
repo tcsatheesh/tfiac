@@ -239,3 +239,115 @@ Post-merge on master:
 - Spoke-level firewall SKU (spokes do not own a firewall).
 - Per-environment defaults beyond hub/npd (prd opt-in deferred).
 - Policy rule-collection changes — pure SKU parameterisation only.
+
+## Amendment plan — FR-210 hub default route
+
+**Branch**: `004-vnet-egress` (off master) — PR #8 open
+**Spec anchors**: FR-210, C15.1–C15.11 in [spec.md](spec.md)
+**Tasks**: Phase 7 (T070–T079) in [tasks.md](tasks.md#phase-7--amendment-hub-default-route-fr-210)
+
+### Scope & rationale
+
+Feature 005 build VM (`vm-bld-shd-hub-npd-swc-001`) failed cloud-init at the
+apt step: its subnet `snet-bld-*` has `defaultOutboundAccess=false` and is
+bound to the shared hub route table, which contained **zero** routes — so
+packets to `azure.archive.ubuntu.com`, `aka.ms`,
+`packages.microsoft.com`, and `github.com` had no next-hop and timed out
+(C15.1). The Azure CLI install and the GitHub Actions runner download both
+hung. Root cause is owned by feature 004's hub network because the same
+route table is shared across all hub workload roles (`development`,
+`pre-production`, `buildsvr`, `function-app`, `logic-app`), so the fix
+must land in the wrapper module, not the buildsvr stack.
+
+Fix: when `var.role == "hub"`, emit a single inline UDR
+`udr-defaultroute` 0.0.0.0/0 → `module.firewall[0].private_ip` in the
+shared hub route table. Gated by new boolean `enable_hub_default_route`
+(default `true` per C15.2 — every hub deployment today already needs
+egress, and Azure's `defaultOutboundAccess` deprecation makes the
+unrouted hub increasingly unusable). Opt-out (`false`) preserves the
+prior empty-routes behaviour exactly (C15.9).
+
+### Files touched (shipped on `004-vnet-egress`)
+
+- [modules/network/main.tf](../../modules/network/main.tf) — added hub
+  branch to the `routes = …` ternary inside `module "rt"`; spoke branch
+  unchanged (still consumes `var.hub_firewall_private_ip` per C9 / C15.5).
+- [modules/network/variables.tf](../../modules/network/variables.tf) —
+  new `variable "enable_hub_default_route"` (bool, default `true`,
+  hub-only docstring). No `validation` block needed (type system rejects
+  non-bool — C15.8).
+- [modules/network/tests/hub_default_route.tftest.hcl](../../modules/network/tests/hub_default_route.tftest.hcl)
+  — two mocked plan runs: `enabled_by_default` (exercises `default = true`
+  path) and `disabled_opt_out` (`enable_hub_default_route = false`). Both
+  assert plan success and that the route-table name remains the engine
+  canonical `rt-net-shd-hub-npd-swc-001` (C15.10).
+- [terraform/vnet/variables.tf](../../terraform/vnet/variables.tf) +
+  [terraform/vnet/main.tf](../../terraform/vnet/main.tf) — root-level
+  forward of the new variable into `module.network`. No wrapper-level
+  validation needed (boolean type, per C15.8). No third boundary.
+- No tfvars file change. `variables/hub/npd/vnet.tfvars.json` is *not*
+  updated: the `default = true` already turns the route on, so leaving
+  the file silent preserves the principle "defaults preserve existing
+  behaviour" for any deployment that wants the opt-out.
+
+### Constitution gate review
+
+| Gate | Result | Notes |
+|---|---|---|
+| I. Subscription pin | PASS | No change to `check.subscription_pinned` — amendment touches routes only. |
+| II. Naming engine | PASS | No engine catalogue change. The single inline route uses the literal `udr-defaultroute` per C15.11 (route names are records inside a resource, not catalogued resources). |
+| III. Defence-in-depth validation | PASS | Type system handles `bool` — explicit `validation` blocks not required (C15.8); matches existing `firewall_zones` and `firewall_sku_tier`-on-spoke no-op pattern. |
+| IV. Tests for every code path | PASS | New file `hub_default_route.tftest.hcl` covers both positive (enabled) and negative-equivalent (opt-out) branches under mocked providers; existing 23 tests remain GREEN (11 module + 12 root, +1 new module test = 24). |
+| V. Runtime configurable | PASS | New `enable_hub_default_route` wired through both input boundaries; no hard-coded behaviour. |
+| VII. State path | PASS | Backend coordinates unchanged. |
+| IX. AVM pins | PASS | No AVM module added or version-bumped; the route is emitted via the existing `Azure/avm-res-network-routetable/azurerm ~> 0.3` `routes` argument already in use. |
+| X. `terraform fmt` + `terraform test` | PASS pre-merge | Both modules formatted clean; 24 tests GREEN locally (T074–T075 gate). |
+
+### Documentation deltas
+
+- **`research.md`** — no update. The decision to default to `true` is
+  fully captured in C15.2; no new research artefact warranted (no novel
+  technology evaluation, no alternative AVM module considered).
+- **`data-model.md`** — no update. No new entity or relationship; the
+  `routes` map on the existing route-table resource gains one entry that
+  varies by `var.role` and `var.enable_hub_default_route`. The wrapper's
+  output contract (C13) is unchanged.
+- **`quickstart.md`** — no update required. The default is on, so the
+  documented quickstart path (`terraform apply` against
+  `variables/hub/npd/vnet.tfvars.json`) now produces a hub with working
+  egress without any tfvars edit. Operators wanting the opt-out can
+  consult the variable docstring in `modules/network/variables.tf` and
+  the C15.9 idempotency note in `spec.md` — sufficient at amendment scale.
+
+### Rollout sequencing
+
+Operational steps live in [tasks.md Phase 7](tasks.md#phase-7--amendment-hub-default-route-fr-210):
+
+1. **Pre-merge** (T074–T075): `terraform fmt -recursive` + `terraform test`
+   GREEN in both `modules/network/` and `terraform/vnet/`. Already
+   satisfied locally on branch `004-vnet-egress` (24 tests passing).
+2. **Merge** (T076): squash-merge PR #8 to master, delete branch.
+3. **Live apply to hub/npd** (T077): open state SA firewall, `terraform
+   init -reconfigure` + `plan` against `variables/hub/npd/vnet.tfvars.json`,
+   confirm the plan shows a single in-place add of `udr-defaultroute`
+   0.0.0.0/0 → 10.240.5.4 on
+   `module.network.module.rt.azurerm_route_table.this` (no other resource
+   churn), `apply`, restore state SA firewall.
+4. **Validate via build VM re-bootstrap** (T078): `az vm run-command
+   invoke` against `vm-bld-shd-hub-npd-swc-001` to re-run
+   `/opt/buildsvr/bootstrap.sh`; acceptance is `az --version` returning a
+   banner and `/var/log/buildsvr-bootstrap.log` showing the GitHub runner
+   archive downloaded + extracted.
+5. **Report** (T079): SKU/route change, plan summary, `az --version`
+   output back to operator.
+
+### Out of scope (amendment)
+
+- FQDN-based firewall application rule collections (still deferred per
+  feature 004 out-of-scope list; Basic SKU's network-rule
+  `* → TCP/80,443` is sufficient to unblock cloud-init per C15.6).
+- Spoke route tables — unchanged (C15.5; spokes continue to source the
+  next-hop from `terraform_remote_state` per C9).
+- Per-subnet route-table overrides — the shared hub RT design is
+  preserved; per-role override is a separate feature.
+
