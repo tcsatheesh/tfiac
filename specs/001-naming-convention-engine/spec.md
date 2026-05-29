@@ -20,7 +20,7 @@ Adoption Framework (CAF) abbreviations.
 | `stack_purpose`   | 3        | `^[a-z0-9]{3}$`     | per stack         | `dns`, `log`, `net`, `svc`|
 | `service_purpose` | 3        | `^[a-z0-9]{3}$`     | per service entry | `aml`, `fnc`, `lgp`       |
 | `child_purpose`   | 3–7      | `^[a-z0-9]{3,7}$`   | per child entry   | `app`, `https`, `bastion` |
-| `repo`            | n/a      | `github_org/github_repo` | per stack    | `tcsatheesh/tfiac`        |
+| `repo`            | 256      | `github_org/github_repo` | per stack    | `tcsatheesh/tfiac`        |
 
 
 ## Naming Pattern Table
@@ -47,8 +47,6 @@ concatenated services use none.
 | `vm`                     | `vm`      | hyphenated    | `vm-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `app_service_plan`       | `asp`     | hyphenated    | `asp-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 40 |
 | `apim`                   | `apim`    | hyphenated    | `apim-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 50 |
-| `firewall`               | `afw`     | hyphenated    | `afw-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
-| `bastion`                | `bas`     | hyphenated    | `bas-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
 | `vpn_gateway`            | `vpng`    | hyphenated    | `vpng-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
 | `expressroute_gateway`   | `ergw`    | hyphenated    | `ergw-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
 | `function_app`           | `func`    | hyphenated    | `func-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 60 |
@@ -77,6 +75,9 @@ shape across all parent types. Children inherit the parent's
 | `subnet`              | `snet`     | `vnet`         | `snet-{child_purpose}-{P}`               | `child_purpose` 3–7 chars |
 | `nsg_rule`            | `nsgrule`  | `nsg`          | `nsgrule-{child_purpose}-{P}`            | `child_purpose` 3–7 chars |
 | `route`               | `udr`      | `route_table`  | `udr-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `apim_api`            | `api`      | `apim`         | `api-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `vnet_bastion`        | `bas`      | `vnet`         | `bas-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `vnet_firewall`       | `afw`      | `vnet`         | `afw-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
 | `private_endpoint`    | `pep`      | any service    | `pep-{P}-{instance}`                     | positional, `001..` per parent |
 | `diagnostic_setting`  | `diag`     | any service    | `diag-{P}-{instance}`                    | positional, `001..` per parent |
 
