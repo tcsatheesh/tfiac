@@ -187,23 +187,29 @@ inputs.
 
 - **FR-001**: The engine MUST expose a single batch entry point that
   accepts one request object containing: `topology`, `tenant`,
-  `environment`, `region`, `repo`, and `services` (an ordered list
-  whose entries carry `service_type` and an optional `count` defaulting
-  to `1`). `repo` is a required string carrying the canonical
-  repository identifier in `owner/name` form. It MUST match the regex
-  `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` and MUST be `1..256` characters
-  long (matching the Azure tag-value cap per FR-015). Empty,
-  whitespace-only, or non-conforming values MUST cause a hard plan-time
-  error naming the offending value and stating the expected pattern.
-  The validated value is used verbatim as the baseline `repo` tag
-  value (FR-014); the engine MUST NOT trim, lowercase, or otherwise
-  mutate it. The engine MUST NOT read git state or any other ambient
-  source for `repo`. Each `services[]` entry MAY additionally carry
-  typed child lists for nested sub-resources, as described in
-  FR-026/FR-027. The engine MUST own the expansion of the `services`
-  list (and any nested children) into individual resource records.
-  Callers MUST NOT pre-compute `instance` values; the engine assigns
-  them per FR-008.
+  `environment`, `region`, `repo`, `purpose`, and `services` (an
+  ordered list whose entries carry `service_type` and an optional
+  `count` defaulting to `1`). `repo` is a required string carrying
+  the canonical repository identifier in `owner/name` form. It MUST
+  match the regex `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` and MUST be
+  `1..256` characters long (matching the Azure tag-value cap per
+  FR-015). Empty, whitespace-only, or non-conforming values MUST
+  cause a hard plan-time error naming the offending value and stating
+  the expected pattern. The validated value is used verbatim as the
+  baseline `repo` tag value (FR-014); the engine MUST NOT trim,
+  lowercase, or otherwise mutate it. The engine MUST NOT read git
+  state or any other ambient source for `repo`. `purpose` is a
+  required 3-char stack identifier (e.g. `dns`, `log`, `net`, `svc`)
+  that MUST match `^[a-z0-9]{3}$` per the same shape rule as FR-029;
+  it is consumed only by the resource-group name per FR-025 and is
+  NOT propagated into other service names or into the baseline tag
+  set. Non-conforming values MUST cause a hard plan-time error naming
+  the offending value and stating the expected pattern. Each
+  `services[]` entry MAY additionally carry typed child lists for
+  nested sub-resources, as described in FR-026/FR-027. The engine
+  MUST own the expansion of the `services` list (and any nested
+  children) into individual resource records. Callers MUST NOT
+  pre-compute `instance` values; the engine assigns them per FR-008.
 - **FR-002**: The engine MUST produce one canonical resource name per
   request, conforming to Microsoft Cloud Adoption Framework guidance and
   to the per-service constraints documented in the constraints catalogue.
@@ -322,10 +328,12 @@ inputs.
   truncate, hash, rewrite, or otherwise silently mutate a name to make
   it pass validation.
 
-  The five canonical-shape regexes are (note: `environment` is a
+  The six canonical-shape regexes are (note: `environment` is a
   fixed-width 3-char segment per FR-019b):
-  - Top-level hyphenated:
+  - Top-level hyphenated (non-RG):
     `^[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
+  - Top-level hyphenated **resource group** (FR-025, embeds `purpose`):
+    `^rg-[a-z0-9]{3}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
   - Top-level concatenated (hyphen-forbidden):
     `^[a-z]{2,6}(hub|sp[0-9]{2})[a-z0-9]{3}[a-z0-9]{2,5}[0-9]{3}$`
   - Purpose-keyed child of a hyphenated parent:
@@ -394,13 +402,18 @@ inputs.
   modules to consume the engine. Module migration is a downstream
   feature and MUST be tracked separately with explicit `moved {}` blocks.
 - **FR-025**: The engine MUST emit exactly one resource-group record
-  per batch request, with a canonical name derived from the request's
-  `(tenant, environment, region)` and instance `001`. The engine MUST
-  treat every other service in the same batch as belonging to that
-  resource group. Callers MUST NOT supply a `resource_group` field per
-  service. Finer-grained RG strategies (one RG per service type, one
-  RG per instance, caller-supplied RG) are explicitly out of scope and
-  may be added by a future feature spec.
+  per batch request, with a canonical name of the form
+  `rg-{purpose}-{tenant}-{environment}-{region}-001` derived from the
+  request's `purpose` (FR-001), `(tenant, environment, region)`, and
+  instance `001`. The `purpose` segment is RG-specific: it MUST NOT
+  appear in the canonical name of any other top-level or child
+  service (which retain the FR-004 / FR-016 shapes without a
+  `purpose` segment). The engine MUST treat every other service in
+  the same batch as belonging to that resource group. Callers MUST
+  NOT supply a `resource_group` field per service. Finer-grained RG
+  strategies (one RG per service type, one RG per instance,
+  caller-supplied RG) are explicitly out of scope and may be added by
+  a future feature spec.
 - **FR-026**: The constraints catalogue MUST classify every entry as
   either **top-level** (valid as a `services[]` entry) or
   **child-only** (valid ONLY as a nested entry under a documented
@@ -665,7 +678,7 @@ inputs.
   canonical name in under 50 milliseconds per request on a standard
   developer workstation.
 - **SC-002**: 100% of names produced for the cross-product test fixture
-  (every catalogued service type × {hub, one spoke} × {`npd`, `prd`} ×
+  (every catalogued service type × {hub, one spoke} × {`npd`, `prd`, `dev`, `pre`} ×
   {shortest, longest region code} × {instance 1, instance 999}) pass
   CAF-shape regex validation and per-service constraint validation.
 - **SC-003**: Running the engine twice with identical inputs produces
