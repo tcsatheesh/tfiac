@@ -160,8 +160,8 @@ aka.ms, packages.microsoft.com, github.com). See C15 in [spec.md](spec.md).
 
 ### Gate
 
-- [ ] T074 `terraform fmt -recursive modules/network terraform/vnet` clean
-- [ ] T075 `terraform test` GREEN in `modules/network/` AND `terraform/vnet/`
+- [X] T074 `terraform fmt -recursive modules/network terraform/vnet` clean
+- [X] T075 `terraform test` GREEN in `modules/network/` AND `terraform/vnet/`
 - [ ] T076 Mark T070–T075 `[X]`, commit, push, open PR `004-vnet-egress → master`, merge, prune branch
 - [ ] T077 (post-merge, on master) Roll out to hub/npd:
   1. Open state SA firewall (publicNetworkAccess=Enabled, add operator IP `86.28.117.247`)
@@ -181,3 +181,5 @@ aka.ms, packages.microsoft.com, github.com). See C15 in [spec.md](spec.md).
   ```
   Acceptance: `az --version` returns a version banner (Azure CLI installed) and `/var/log/buildsvr-bootstrap.log` shows the GitHub runner archive downloaded + extracted.
 - [ ] T079 Report SKU/route change, plan summary, and `az --version` output back to user.
+
+> Phase 7 tasks complete and consistent with spec FR-210 + C15.1–C15.11 and plan amendment.
