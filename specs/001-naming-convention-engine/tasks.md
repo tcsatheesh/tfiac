@@ -1,283 +1,288 @@
----
-
-description: "Task list for feature 001 — Naming Convention Engine"
----
-
 # Tasks: Naming Convention Engine
 
 **Input**: Design documents from `/specs/001-naming-convention-engine/`
 
-**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/naming-engine.md, quickstart.md
 
-**Tests**: Tests ARE part of the deliverable for this feature. Spec FR-023 mandates a cross-product fixture; FR-038 mandates a snapshot regression gate. Every user story therefore includes `terraform test` tasks.
+**Tests**: INCLUDED. The plan mandates `terraform test` coverage; every invariant (INV-1 … INV-10) and success criterion (SC-001 … SC-004) MUST have at least one `*.tftest.hcl` assertion.
 
-**Organization**: Tasks are grouped by user story. Two P1 stories (US1 deterministic names, US2 loud failure) are the MVP. US3 (catalogue extensibility) and US4 (baseline tags) are P2 and can ship in any order after the MVP.
+**Organization**: The spec is table-driven and has no narrative user stories. The four `Success Criteria` (SC-001 format, SC-002 length, SC-003 determinism, SC-004 baseline tags) plus the engine's capability surface are mapped to six prioritised stories:
 
-## Format: `[ID] [P?] [Story?] Description`
+| Story | Title                                                        | Maps to                |
+|-------|--------------------------------------------------------------|------------------------|
+| US1   | Generate format-valid top-level names (MVP)                  | SC-001, SC-002         |
+| US2   | Emit baseline tags + merge `extra_tags`                      | SC-004                 |
+| US3   | Deterministic output across input re-orderings               | SC-003                 |
+| US4   | Child resources (subnet, nsg_rule, route, apim_api, bastion, firewall, private_endpoint, diagnostic_setting) | spec child rows |
+| US5   | FQDN passthrough for `dns_zone` / `private_dns_zone`         | spec FQDN rows         |
+| US6   | Spec↔catalogue consistency CI gate                           | research.md D6         |
 
-- **[P]**: Different file, no dependency on any incomplete task
-- **[Story]**: Maps to spec user stories (US1–US4). Setup, Foundational, and Polish phases have no story label.
-- Every task carries an exact workspace-relative file path.
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Different files, no dependency on incomplete tasks.
+- **[Story]**: Story label (US1…US6) for story-phase tasks only. Setup / Foundational / Polish carry no story label.
 
 ## Path Conventions
 
-Per [plan.md § Project Structure](plan.md):
-
-- Engine module: `modules/naming/`
-- Test harness root: `terraform/_naming_test/`
-- All paths are repository-root-relative.
+- Engine module: [modules/naming/](../../modules/naming/)
+- Tests: [modules/naming/tests/](../../modules/naming/tests/)
+- Example consumer: [terraform/_examples/naming/](../../terraform/_examples/naming/)
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Create the empty module skeleton and the harness root. No engine logic yet.
+**Purpose**: Create the module skeleton, version pin, and example-consumer skeleton.
 
-- [ ] T001 Create directory `modules/naming/` and the empty test subdirectory `modules/naming/tests/snapshots/` (use `.gitkeep` files if needed so empty dirs commit).
-- [ ] T002 [P] Create `modules/naming/versions.tf` with `terraform { required_version = "~> 1.9"; required_providers {} }` (provider-less per Constitution VII).
-- [ ] T003 [P] Create `modules/naming/main.tf` containing only an introductory header comment block and a stub `terraform {}` reference; logic added in later phases.
-- [ ] T004 [P] Create `modules/naming/README.md` linking to [specs/001-naming-convention-engine/quickstart.md](specs/001-naming-convention-engine/quickstart.md), [contracts/input-schema.md](specs/001-naming-convention-engine/contracts/input-schema.md), and [contracts/output-schema.md](specs/001-naming-convention-engine/contracts/output-schema.md).
-- [ ] T005 Create directory `terraform/_naming_test/` and add `terraform/_naming_test/README.md` describing it as a non-stack harness root.
-- [ ] T006 [P] Create `terraform/_naming_test/providers.tf` declaring `terraform { required_version = "~> 1.9" }` only (no providers).
+- [X] T001 Create directory layout `modules/naming/{catalogue,tests}/` and `terraform/_examples/naming/` per plan.md "Project Structure"
+- [X] T002 Create [modules/naming/main.tf](../../modules/naming/main.tf) with engine-version comment header (`# engine: 0.1.0`) and a `terraform { required_version = "~> 1.9" }` block; declare NO `required_providers` (engine has none). Also create [modules/naming/providers.tf](../../modules/naming/providers.tf) as an empty file with a single comment explaining the engine intentionally declares no providers (satisfies Constitution Principle VI's module-layout requirement)
+- [X] T003 [P] Create empty stub files [modules/naming/variables.tf](../../modules/naming/variables.tf), [modules/naming/locals.tf](../../modules/naming/locals.tf), [modules/naming/outputs.tf](../../modules/naming/outputs.tf) so subsequent tasks can edit in parallel
+- [X] T004 [P] Add a `.terraform-version` (`1.9.x`) and a minimal `README.md` in [modules/naming/](../../modules/naming/) pointing at the spec and contract
+- [X] T005 [P] Create [terraform/_examples/naming/providers.tf](../../terraform/_examples/naming/providers.tf) with `terraform { required_version = "~> 1.9" }` only (engine consumer doesn't need AzureRM for the example)
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Author the central catalogues and the public input contract. Every user story depends on these.
+**Purpose**: Catalogues, variable declarations, and validation scaffolding that EVERY story depends on. No story work may start until this phase is complete.
 
-**⚠️ CRITICAL**: No user-story phase may start until this phase is complete.
+**⚠️ CRITICAL**: Catalogues are the engine's single source of truth (Constitution principle V); they must exist before any naming, tagging, or test code is written.
 
-- [ ] T007 Implement `modules/naming/variables.tf` with the full `variable "input"` declaration from [contracts/input-schema.md](specs/001-naming-convention-engine/contracts/input-schema.md), including all 5 `validation {}` blocks (topology enum, tenant regex, topology↔tenant cross-check, environment length 1..4, services non-empty), and the required `repo` field (FR-001 / FR-014).
-- [ ] T008 Implement `modules/naming/catalogue.tf` § service catalogue: HCL map `local.services` populated from the day-one inventory table in `spec.md` FR-026 (every row, with `caf_abbr`, `shape`, `topology_scope`, `category`, `max_length`, `charset`, `case_rule`, `must_start_with_letter`, and parent/child-list metadata). Source the per-service `max_length` values from Microsoft's documented Azure resource-naming limits; include `keyvault=24`, `storage=24`, `container_registry=50`, generic hyphenated default `80`.
-- [ ] T009 [P] Extend `modules/naming/catalogue.tf` § child catalogue: HCL map `local.child_types` for the 5 child-only entries (`subnet`, `nsg_rule`, `route`, `private_endpoint`, `diagnostic_setting`) with `parent_allowlist`, `numbering` (`positional` | `purpose-keyed`), and `child_list_key` per FR-027 / FR-028.
-- [ ] T010 [P] Extend `modules/naming/catalogue.tf` § region catalogue: HCL map `local.region_codes` populated with the 8 day-one rows from FR-010 (`uksouth=uks` … `wus3=wus3`).
-- [ ] T011 [P] Extend `modules/naming/catalogue.tf` § defaults catalogue: HCL map `local.defaults` keyed by `service_type`, with the minimum-deployable settings per spec FR-012 (e.g. `storage = { account_tier = "Standard", account_replication_type = "LRS" }`, `keyvault = { sku = "standard" }`, `log_analytics = { sku = "PerGB2018", retention_in_days = 30 }`). At least one default-settings entry per top-level service_type.
-- [ ] T012 Implement `modules/naming/locals.tf` § stage 1 (parsed): flatten `var.input.services` into the parsed records described in [data-model.md](specs/001-naming-convention-engine/data-model.md) § Stage 1, computing `requested_index` per `(service_type)` based on list order × `count`. Skip entries whose `count == 0` (FR-039) but DO update no counter (i.e. subsequent entries of the same type still start at 001).
-- [ ] T013 Implement `modules/naming/validate.tf` § module-level `check "input_shape" {}` blocks for: unknown `service_type` (FR-017 — message lists supported types), child-only used at top level (FR-026), unknown `region` (FR-018 — message lists supported codes), and unsupported parent for any child entry (FR-027). Errors MUST be plan-time.
-- [ ] T014 Implement `modules/naming/locals.tf` § stage 2 (validated): cross-reference each parsed record against `local.services` and `local.child_types`; reject duplicate `purpose` tokens per `(parent, child_type)` (FR-029); reject any positional child whose ordinal would exceed 999 (FR-008); compute a normalised `region_code` for every record.
+- [X] T006 Populate the service catalogue in [modules/naming/catalogue/services.tf](../../modules/naming/catalogue/services.tf): `locals { services = { ... } }` with all 27 top-level rows + 8 child rows from spec.md "Naming Pattern Table", each carrying `abbr`, `shape` (`hyphenated`/`concatenated`/`rg_hyphenated`/`fqdn`/`child_purpose`/`singleton`/`positional`), `azure_max`, `level` (`top`/`child`), and `parent_type` for children
+- [X] T007 [P] Populate the region catalogue in [modules/naming/catalogue/regions.tf](../../modules/naming/catalogue/regions.tf): `locals { regions = { uks = "uksouth", weu = "westeurope", eus2 = "eastus2", ... } }` — minimum set drawn from existing `temp/*.yaml` stack files
+- [X] T008 Declare `variable "input"` in [modules/naming/variables.tf](../../modules/naming/variables.tf) with the object type from data-model.md and one `validation` block per field (regexes from spec.md "Inputs" table); `repo` regex `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` (case-preserving — sole exception to the lowercase-only rule), max 256
+- [X] T009 [P] Declare `variable "services"` in [modules/naming/variables.tf](../../modules/naming/variables.tf) as `list(object({...}))` per data-model.md, with per-element `validation` for `key` regex `^[a-z0-9]{1,16}$` and `service_purpose` regex `^[a-z0-9]{3}$`
+- [X] T010 [P] Declare `variable "children"` in [modules/naming/variables.tf](../../modules/naming/variables.tf) per data-model.md, with `validation` for `child_purpose` regex `^[a-z0-9]{3,7}$` and `key` regex `^[a-z0-9]{1,16}$`
+- [X] T011 [P] Declare `variable "extra_tags"` in [modules/naming/variables.tf](../../modules/naming/variables.tf) as `map(string)` with `default = {}` and a `validation` block enforcing key ≤ 512 chars / value ≤ 256 chars
+- [X] T012 In [modules/naming/locals.tf](../../modules/naming/locals.tf) add the region cross-check (INV-10) and baseline-tag-collision check (INV-8) as `precondition` blocks on a dummy `terraform_data` resource (the standard 1.9 idiom for cross-variable assertions)
+- [X] T013 [P] Create [modules/naming/tests/_fixtures.tftest.hcl](../../modules/naming/tests/_fixtures.tftest.hcl) holding shared `variables { ... }` blocks (a valid `input`, sample `services`, sample `children`) reused by other test files
+- [X] T014 Bootstrap [modules/naming/tests/foundational.tftest.hcl](../../modules/naming/tests/foundational.tftest.hcl) that runs `terraform init -backend=false` implicitly and asserts the catalogues are non-empty and contain expected keys (`resource_group`, `storage`, `keyvault`, `subnet`, `private_endpoint`); guards against accidental catalogue regressions
+- [X] T014a [P] Create [modules/naming/tests/foundational_unknown_region.tftest.hcl](../../modules/naming/tests/foundational_unknown_region.tftest.hcl) with `expect_failures` asserting `var.input.region = "xyz"` (not in `local.regions`) triggers INV-10
 
-**Checkpoint**: Foundation ready (catalogues, validation skeleton, stage-1/2 parser/validator, stage-6 default/override merge). US1, US2, US3, US4 may start in parallel.
+**Checkpoint**: `terraform test` in `modules/naming/` runs and the foundational test passes. Stories may now proceed in parallel.
 
 ---
 
-## Phase 3: User Story 1 — Deterministic Names From Intent (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 — Generate format-valid top-level names (Priority: P1) 🎯 MVP
 
-**Goal**: A caller passes `(topology, tenant, environment, region, repo, services[])` and receives a flat map of canonical names + `for_each` keys + the per-stack resource group, byte-identical on every run.
+**Goal**: Given a valid `input` + `services` list, emit a `names` output where every key is a canonical Azure name that (a) matches its `service_type`'s format from the spec table and (b) fits within `azure_max`.
 
-**Independent Test**: From `modules/naming/` run `terraform test -filter=tests/positive_topology.tftest.hcl tests/positive_regions.tftest.hcl tests/positive_children.tftest.hcl tests/positive_full_catalogue.tftest.hcl tests/determinism_snapshot.tftest.hcl`. All must pass; the snapshot fixture asserts byte-identical output against the committed reference.
+**Independent Test**: Pass one entry of every top-level `service_type` (resource_group, vnet, storage, keyvault, ...) and assert each resulting key matches the expected regex and length.
 
-### Tests for User Story 1 ⚠️
+### Tests for User Story 1 (write FIRST, must fail before implementation)
 
-> Spec FR-023 / FR-038 / Constitution Principle IV mandate these tests.
-> **Explicit four-step order for this phase:**
->
-> 1. **T015–T019** — write the test fixtures. Expected state: RED (tests reference unimplemented locals).
-> 2. **T021–T027** — implement the engine (locals stages, outputs, harness root).
-> 3. **T020** — **boundary: tests → implementation → snapshot.** Capture the now-stable `output.names` map and write `modules/naming/tests/snapshots/reference.json`.
-> 4. **Re-run T019** — expected state: GREEN. The snapshot fixture now asserts byte-identical output.
-
-- [ ] T015 [P] [US1] Create `modules/naming/tests/positive_topology.tftest.hcl` — cross-product of `topology ∈ {hub, spoke}` × `tenant ∈ {hub, sp01, sp99}` × `environment ∈ {npd, prd, pre}`; asserts every emitted top-level name matches the hyphenated regex from FR-016. Includes a **minimal-input sub-run** with `services = []` asserting `length(module.naming.names) == 1` and that the only emitted record has `service_type == "resource_group"` and matches the per-stack RG canonical pattern (FR-039).
-- [ ] T016 [P] [US1] Create `modules/naming/tests/positive_regions.tftest.hcl` — exercises every region in `local.region_codes`; asserts the short code appears in every emitted name exactly as catalogued (FR-010).
-- [ ] T017 [P] [US1] Create `modules/naming/tests/positive_children.tftest.hcl` — fixtures for `vnet` with 3 purpose-keyed subnets, `nsg` with 2 purpose-keyed rules, `storage` with 2 positional private endpoints (each referencing a distinct subnet from the vnet); asserts `parent` resolution per FR-030 / FR-032 and that purpose-keyed child names match the purpose-keyed child regex from FR-016.
-- [ ] T018 [P] [US1] Create `modules/naming/tests/positive_full_catalogue.tftest.hcl` — one valid request per `topology_scope` group covering every catalogued top-level `service_type` at least once across the file (FR-023). Hub-scoped types in `(hub, npd)` and `(hub, prd)`; spoke-scoped types in `(spoke=sp01, npd)`; `prd-hub-only` types only in `(hub, prd)`; `either` types in both. Additionally asserts that every emitted record's `service_type` exactly equals the requested value with no prefix collapse between similarly-prefixed types such as `vnet` vs `vpn_gateway` (FR-021).
-- [ ] T019 [P] [US1] Create `modules/naming/tests/determinism_snapshot.tftest.hcl` — runs the reference input from [quickstart.md § 1](specs/001-naming-convention-engine/quickstart.md) and asserts `module.naming.names == jsondecode(file("${path.module}/tests/snapshots/reference.json"))` (FR-006 / FR-038).
-- [ ] T020 [US1] **Boundary task (tests → implementation → snapshot).** AFTER T021–T027 are complete, generate the initial snapshot at `modules/naming/tests/snapshots/reference.json` by running the engine once against the reference input from quickstart.md and committing the exact emitted `names` map (formatted with stable key ordering via `jsonencode`). Re-running T019 against this committed file then turns the suite GREEN.
+- [X] T015 [P] [US1] Create [modules/naming/tests/us1_format.tftest.hcl](../../modules/naming/tests/us1_format.tftest.hcl) with one `run` block per `shape` (`hyphenated`, `concatenated`, `rg_hyphenated`), asserting the emitted key matches the regex implied by the shape and that `output.names[key].azure_max` equals the catalogue value
+- [X] T016 [P] [US1] Create [modules/naming/tests/us1_overflow.tftest.hcl](../../modules/naming/tests/us1_overflow.tftest.hcl) using `expect_failures = [output.names]` with deliberately over-wide inputs (e.g. `usecase = "uc99"` + `service_purpose = "kvx"` driving a `storage` entry to >24 chars) to prove INV-6 fires
+- [X] T017 [P] [US1] Create [modules/naming/tests/us1_unknown_type.tftest.hcl](../../modules/naming/tests/us1_unknown_type.tftest.hcl) with `expect_failures` asserting an unknown `service_type` ("widget") triggers INV-1
+- [X] T018 [P] [US1] Create [modules/naming/tests/us1_rg_shape.tftest.hcl](../../modules/naming/tests/us1_rg_shape.tftest.hcl) with `expect_failures` for (a) RG entry that supplies `service_purpose` and (b) non-RG entry missing `service_purpose` (INV-4)
+- [X] T018a [P] [US1] Create [modules/naming/tests/us1_duplicate_key.tftest.hcl](../../modules/naming/tests/us1_duplicate_key.tftest.hcl) with `expect_failures` asserting two entries sharing `(service_type, service_purpose, key)` triggers INV-2
+- [X] T018b [P] [US1] Create [modules/naming/tests/us1_instance_overflow.tftest.hcl](../../modules/naming/tests/us1_instance_overflow.tftest.hcl) with `expect_failures` asserting >999 entries in a single `(service_type, service_purpose)` group triggers INV-3
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Implement `modules/naming/locals.tf` § stage 3 (numbered): assign `instance` per `(service_type, batch)` for top-level records (FR-008), and per `(child_type, parent canonical name)` for positional children. Order is list-position order; no offsets, no gaps. Cap at 999 (FR-008) — emit a hard error via `check {}` if exceeded.
-- [ ] T022 [US1] Implement `modules/naming/locals.tf` § stage 4 (shaped): synthesise the per-record segment list — `caf_abbr`, `tenant`, `env`, `region_code`, `instance` — plus per-child variants per FR-030. For purpose-keyed children of hyphen-forbidden parents, the stage MUST set a sentinel that stage 5 converts into a hard error (FR-030).
-- [ ] T023 [US1] Implement `modules/naming/locals.tf` § stage 5 (named): render canonical names per the 4 shapes in FR-016 (top-level hyphenated, top-level concatenated, purpose-keyed child of hyphenated parent, positional child of hyphenated parent). Use lowercase only; no other transforms.
-- [ ] T024 [US1] Implement `modules/naming/locals.tf` § stage 5b (resource group): always emit exactly one `resource_group` record per batch keyed `rg-{tenant}-{env}-{region_code}-001` (FR-025); set every other record's `resource_group` field to this canonical name.
-- [ ] T046 Implement `modules/naming/locals.tf` § stage 6 (override-merged defaults): emit `record.defaults = local.defaults[record.service_type]` and `record.overrides = lookup(var.input.overrides, record.canonical_name, {})` (FR-013). *Moved from US3 to Foundational so the US1 stage-7 record shape is complete; renumbering preserved.*
-- [ ] T025 [US1] Implement `modules/naming/locals.tf` § stage 7 (emitted): build the flat output map keyed by canonical name with the 11-field record shape from [contracts/output-schema.md](specs/001-naming-convention-engine/contracts/output-schema.md) (`service_type`, `topology`, `tenant`, `environment`, `region`, `instance`, `purpose`, `parent`, `resource_group`, `tags` placeholder, `defaults`, `overrides`). Field `tags` is filled by US4; leave it as `{}` if US4 is not yet implemented.
-- [ ] T026 [US1] Implement `modules/naming/outputs.tf` with `output "names"` (the stage-7 map) and `output "by_type"` (= `{ for n, r in local.emitted : r.service_type => n... }`).
-- [ ] T027 [US1] Implement `terraform/_naming_test/main.tf` — instantiate `module "naming"` with the quickstart reference input, and `terraform/_naming_test/outputs.tf` forwarding `module.naming.names` and `module.naming.by_type`. Run `terraform -chdir=terraform/_naming_test init && terraform plan` and confirm zero diff (provider-less plan).
+- [X] T019 [US1] In [modules/naming/locals.tf](../../modules/naming/locals.tf) add `local.numbered_services` — sort `var.services` by `(service_type, service_purpose, key)`, group by `(service_type, service_purpose)`, assign `instance = format("%03d", n+1)`; add a `precondition` enforcing INV-1 (unknown service_type), INV-2 (duplicate key), INV-3 (>999), INV-4 (RG shape)
+- [X] T020 [US1] In [modules/naming/locals.tf](../../modules/naming/locals.tf) add `local.top_level_names` — a map keyed by canonical name produced by a `for` expression that selects the format string from `local.services[entry.service_type].shape` and interpolates `{abbr}-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` (hyphenated), the concatenated variant, or the RG variant
+- [X] T021 [US1] In [modules/naming/outputs.tf](../../modules/naming/outputs.tf) declare `output "names"` as the union of top-level and (later) child maps, with a `precondition` re-asserting `length(key) <= each.value.azure_max` (INV-6) and `regexall(...)` shape match (INV-7)
+- [X] T022 [US1] Wire the engine-version constant into [modules/naming/outputs.tf](../../modules/naming/outputs.tf) as `output "engine_version" = "0.1.0"` (semver string, no `v` prefix). This output is declared in [contracts/naming-engine.md](contracts/naming-engine.md) and consumers MAY pin against it.
 
-**Checkpoint**: US1 fully functional; all 5 US1 fixtures pass; snapshot committed.
+**Checkpoint**: `terraform test modules/naming` shows all US1 tests green; an example stack passing one entry per top-level service_type yields a valid map.
 
 ---
 
-## Phase 4: User Story 2 — Loud, Helpful Failure on Invalid Inputs (Priority: P1) 🎯 MVP
+## Phase 4: User Story 2 — Baseline tags + extra_tags merging (Priority: P1)
 
-**Goal**: Every documented error class fails at plan time with a message naming the offending input AND the expected shape. No silent truncation, no name mutation.
+**Goal**: Every entry in `output.names` carries the 8 baseline tag keys (`tenant`, `environment`, `region`, `managed_by`, `repo`, `usecase`, `stack_purpose`, `service_purpose`) with correct values; per-entry and stack-level `extra_tags` merge additively; baseline-key collisions fail loudly.
 
-**Independent Test**: From `modules/naming/` run `terraform test -filter=tests/negative_*.tftest.hcl`. Every negative fixture must `expect_failures` with the documented message substring.
+**Independent Test**: Pass `extra_tags = { cost_center = "x" }` plus a per-entry `extra_tags = { owner = "y" }`; assert the emitted tag map contains all 8 baseline keys + both extras with their correct values; then assert that `extra_tags = { environment = "z" }` fails the plan.
 
-### Tests for User Story 2 ⚠️
+### Tests for User Story 2
 
-- [ ] T028 [P] [US2] Create `modules/naming/tests/negative_service_type.tftest.hcl` — submit `services = [{ type = "frobnicate" }]`; `expect_failures` on a check block; assert error message contains the literal `frobnicate` and the substring `supported service types:` (FR-017).
-- [ ] T029 [P] [US2] Create `modules/naming/tests/negative_tenant.tftest.hcl` — three sub-runs for `tenant ∈ {"sp00", "sp1", "sp100"}`; assert each fails the `validation {}` block on `var.input` with the literal pattern `^(hub|sp(0[1-9]|[1-9][0-9]))$` in the message (FR-019).
-- [ ] T030 [P] [US2] Create `modules/naming/tests/negative_region.tftest.hcl` — submit `region = "marsone"`; assert the error message names `marsone` and lists the catalogued regions (FR-018).
-- [ ] T031 [P] [US2] Create `modules/naming/tests/negative_topology_scope.tftest.hcl` — three sub-runs: (a) `dns_zone` in `(hub, npd)`; (b) `firewall` in `(spoke=sp01, npd)`; (c) `function_app` in `(hub, prd)`. Each MUST fail and the message MUST name the offending `service_type`, its scope, and the requested `(topology, environment)` pair (FR-033). Also assert ZERO `names` are emitted on failure (all-or-nothing — FR-033).
-- [ ] T032 [P] [US2] Create `modules/naming/tests/negative_charset_length.tftest.hcl` — pick a hyphen-forbidden service with a tight budget (`storage`, 24-char Azure max) and force a length overflow by combining longest tenant + longest env + longest region short code + instance `999` + an artificial padded `caf_abbr` via override; assert the error message contains `storage`, the candidate string, the byte budget `24`, the over-budget byte count, AND the substrings `region` and `tenant` (the remediation guidance — FR-016).
-- [ ] T033 [P] [US2] Create `modules/naming/tests/negative_child_invariants.tftest.hcl` — sub-runs: (a) two subnets with `purpose = "app"` under the same vnet (FR-029); (b) a `private_endpoint` whose `subnet` field references a canonical name not in the batch (FR-032); (c) a top-level `services[]` entry of type `subnet` (FR-026); (d) an `overrides` map containing a key that does NOT match any emitted canonical name (FR-039); (e) `count: 1000` on a `storage` entry (FR-008 999 cap). Each sub-run asserts the documented hard error and message anchors.
+- [X] T023 [P] [US2] Create [modules/naming/tests/us2_baseline_tags.tftest.hcl](../../modules/naming/tests/us2_baseline_tags.tftest.hcl) asserting every entry in `output.names` has the 8 baseline keys with values matching the inputs (region tag is the full name from `local.regions`, not the short code)
+- [X] T024 [P] [US2] Create [modules/naming/tests/us2_extra_merge.tftest.hcl](../../modules/naming/tests/us2_extra_merge.tftest.hcl) asserting stack-level and per-entry `extra_tags` both appear; per-entry overrides stack-level for the same non-baseline key
+- [X] T025 [P] [US2] Create [modules/naming/tests/us2_baseline_collision.tftest.hcl](../../modules/naming/tests/us2_baseline_collision.tftest.hcl) with `expect_failures` proving that `extra_tags = { environment = "x" }` triggers INV-8
+- [X] T026 [P] [US2] Create [modules/naming/tests/us2_tag_length.tftest.hcl](../../modules/naming/tests/us2_tag_length.tftest.hcl) with `expect_failures` for a value >256 chars (INV-9)
+- [X] T027 [P] [US2] Create [modules/naming/tests/us2_rg_tag.tftest.hcl](../../modules/naming/tests/us2_rg_tag.tftest.hcl) asserting RG entries' `service_purpose` tag is filled with the entry's `stack_purpose` (not blank)
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Extend `modules/naming/validate.tf` with the topology-scope `check {}` block: for every emitted record, the `(topology, environment)` pair MUST satisfy `local.services[record.service_type].topology_scope` (FR-033). Error message format: `"service_type \"{type}\" has topology_scope=\"{scope}\" but request is (topology=\"{topology}\", environment=\"{environment}\")"`. Emit no records on failure.
-- [ ] T035 [US2] Extend `modules/naming/validate.tf` with the duplicate-purpose `check {}` block per `(parent_canonical, child_type)` (FR-029). Error message MUST list every duplicate purpose token.
-- [ ] T036 [US2] Extend `modules/naming/validate.tf` with the unresolved-parent `check {}` block for `private_endpoint.subnet` and any other parent-by-reference child fields (FR-032). Error message MUST list every unresolved reference.
-- [ ] T037 [US2] Extend `modules/naming/validate.tf` with the length-budget `check {}` block (FR-016). For every candidate name, assert `length(name) <= local.services[service_type].max_length`. Error message MUST match the schema in FR-016 (service_type + candidate + limit + over-budget bytes + remediation guidance naming `region` and `tenant`).
-- [ ] T038 [US2] Extend `modules/naming/validate.tf` with the shape-regex `check {}` block (FR-016): every top-level hyphenated, top-level concatenated, purpose-keyed child, and positional child name MUST match its corresponding regex. Error message MUST name the offending shape and candidate.
-- [ ] T039 [US2] Extend `modules/naming/validate.tf` with the unmatched-override `check {}` block (FR-039): every key in `var.input.overrides` MUST appear in `local.emitted`. Error message MUST list every unmatched key.
-- [ ] T040 [US2] Extend `modules/naming/validate.tf` with the instance-cap `check {}` block (FR-008): for every `(service_type)` top-level group and every `(child_type, parent)` positional group, the highest assigned `instance` MUST be `<= 999`. Error message MUST name the offending group and the requested count/instance.
-- [ ] T041 [US2] Extend `modules/naming/validate.tf` with the purpose-keyed/hyphen-forbidden prohibition (FR-030): error if any purpose-keyed child is requested under a hyphen-forbidden parent, naming the `(child_type, parent_service_type)` pair.
+- [X] T028 [US2] In [modules/naming/locals.tf](../../modules/naming/locals.tf) add `local.baseline_tags(entry)` builder — a `for` expression producing the 8-key tag map per entry, reading the full region name via `local.regions[var.input.region]`
+- [X] T029 [US2] In [modules/naming/locals.tf](../../modules/naming/locals.tf) add `local.merged_tags(entry) = merge(local.baseline_tags(entry), var.extra_tags, entry.extra_tags)` and add a `precondition` asserting `keys(var.extra_tags)` and `keys(entry.extra_tags)` are disjoint from the baseline key set (INV-8)
+- [X] T030 [US2] Wire `tags = local.merged_tags(entry)` into the top-level map produced in T020; add a `postcondition` on `output "names"` asserting `length(k) <= 512` and `length(v) <= 256` for every emitted tag pair (INV-9)
 
-**Checkpoint**: US2 fully functional; every documented error class proven; MVP complete (US1 + US2). Engine is shippable.
+**Checkpoint**: US1 + US2 tests green. The engine now emits a complete `{name, tags, azure_max, service_type}` object for every top-level entry.
 
 ---
 
-## Phase 5: User Story 3 — Single-Entry Catalogues for Extensibility (Priority: P2)
+## Phase 5: User Story 3 — Determinism (Priority: P2)
 
-**Goal**: Adding a new service type, a new region, or a new default is a single-PR catalogue edit; no engine code changes.
+**Goal**: Identical inputs in any order produce byte-identical `output.names` (SC-003).
 
-**Independent Test**: Add one new row to each of `local.services`, `local.region_codes`, `local.defaults` (in a throwaway branch) and confirm the engine emits a valid name and default for the new combination without any other change. The catalogue-completeness check MUST fail if any row is added in one map but forgotten in another.
+**Independent Test**: Run `terraform plan -out` twice with `services` re-ordered; `terraform output -json | diff` MUST be empty.
 
-### Tests for User Story 3 ⚠️
+### Tests for User Story 3
 
-- [ ] T042 [P] [US3] Create `modules/naming/tests/catalogue_completeness.tftest.hcl` — for every key in `local.services` (top-level entries), assert there is a matching key in `local.defaults`; conversely, every key in `local.defaults` MUST be a top-level entry in `local.services`. Mismatch fails the test with a message naming the offending key.
-- [ ] T043 [P] [US3] Create `modules/naming/tests/catalogue_region_completeness.tftest.hcl` — assert that no two regions in `local.region_codes` share the same short code (uniqueness of the inverted map).
-- [ ] T044 [P] [US3] Create `modules/naming/tests/catalogue_child_completeness.tftest.hcl` — for every entry in `local.child_types`, assert every `parent_allowlist` value resolves to a top-level entry in `local.services`.
+- [X] T031 [P] [US3] Create [modules/naming/tests/us3_determinism.tftest.hcl](../../modules/naming/tests/us3_determinism.tftest.hcl) with two `run` blocks supplying the same set of services in different list orders; assert `output.names` is `==` across both runs (key set, values, and `jsonencode(output.names)` byte-equal)
+- [X] T032 [P] [US3] Add a `run` block to [modules/naming/tests/us3_determinism.tftest.hcl](../../modules/naming/tests/us3_determinism.tftest.hcl) that re-orders `extra_tags` keys (HCL maps are unordered, but `jsonencode` must still be stable because keys sort alphabetically)
 
 ### Implementation for User Story 3
 
-- [ ] T045 [US3] Implement `modules/naming/validate.tf` § catalogue-completeness `check {}` block mirroring T042/T043/T044 as plan-time guards (so a malformed catalogue PR fails at `terraform validate`, not just at `terraform test`).
-- [ ] T047 [US3] Update `modules/naming/README.md` with a "How to add a new service type / region / default" section that documents the single-PR catalogue-edit procedure and links to T042/T043/T044 fixtures.
+- [X] T033 [US3] Audit `local.numbered_services` / `local.top_level_names` from Phase 3 to confirm every iteration goes through a sorted list, not `var.services` directly; replace any list-order-sensitive `for` with `[for e in sort(...) : ...]` patterns
+- [X] T034 [US3] Document the determinism contract in a comment block at the top of [modules/naming/locals.tf](../../modules/naming/locals.tf) listing the sort keys for `numbered_services` and `numbered_children`
 
-*(T046 was relocated to Phase 2 above to unblock US1's independent test; its task ID is preserved.)*
-
-**Checkpoint**: US3 complete; new catalogue rows can be added without engine edits.
+**Checkpoint**: All three SC tests pass; re-ordering `services` does not change any byte of `output.names`.
 
 ---
 
-## Phase 6: User Story 4 — Baseline Tags Emitted Alongside Every Name (Priority: P2)
+## Phase 6: User Story 4 — Children (Priority: P2)
 
-**Goal**: Every emitted record carries the six-key baseline tag map (`tenant`, `topology`, `environment`, `region`, `managed_by`, `repo`), with optional per-name overrides merged on top.
+**Goal**: Support all 8 child rows (`subnet`, `nsg_rule`, `route`, `apim_api`, `vnet_bastion`, `vnet_firewall`, `private_endpoint`, `diagnostic_setting`); names use the parent's hyphenated tuple `{P}`; positional children number per `(child_type, parent, key)`; singletons fail loudly on duplicates.
 
-**Independent Test**: From `modules/naming/` run `terraform test -filter=tests/tags_*.tftest.hcl`. Every emitted record MUST carry all six keys; override tests MUST show baseline keys un-removable.
+**Independent Test**: Pass a `vnet` parent + two `subnet` children + one `vnet_bastion` + two `private_endpoint` children attached to a `storage` parent; assert all eight names follow the child shapes from the spec and that a second `vnet_bastion` triggers INV-5.
 
-### Tests for User Story 4 ⚠️
+### Tests for User Story 4
 
-- [ ] T048 [P] [US4] Create `modules/naming/tests/tags_baseline.tftest.hcl` — for the quickstart reference input, assert every record in `module.naming.names` has exactly the six baseline keys with values equal to (`var.input.tenant`, `var.input.topology`, `var.input.environment`, `var.input.region`, `"terraform"`, `var.input.repo`) — FR-014.
-- [ ] T049 [P] [US4] Create `modules/naming/tests/tags_overrides.tftest.hcl` — supply `overrides = { "stsp01npduks001" = { tags = { cost_center = "ABC123" } } }`; assert the target record has 7 tag keys (6 baseline + `cost_center`), and that the override CANNOT remove any baseline key.
-- [ ] T050 [P] [US4] Create `modules/naming/tests/tags_override_key_validation.tftest.hcl` — sub-runs: (a) override key with leading `microsoft` prefix; (b) override key length 513; assert each fails with the FR-015 Azure tag-key validation error.
+- [X] T035 [P] [US4] Create [modules/naming/tests/us4_child_purpose.tftest.hcl](../../modules/naming/tests/us4_child_purpose.tftest.hcl) covering `subnet`, `nsg_rule`, `route`, `apim_api`: assert name shape `{abbr}-{child_purpose}-{P}` where `{P}` is the parent's hyphenated tuple regardless of parent shape
+- [X] T036 [P] [US4] Create [modules/naming/tests/us4_singleton.tftest.hcl](../../modules/naming/tests/us4_singleton.tftest.hcl) covering `vnet_bastion` and `vnet_firewall`: assert shape `{abbr}-{P}`; add an `expect_failures` run for a duplicate (INV-5)
+- [X] T037 [P] [US4] Create [modules/naming/tests/us4_positional.tftest.hcl](../../modules/naming/tests/us4_positional.tftest.hcl) covering `private_endpoint` and `diagnostic_setting`: assert shape `{abbr}-{P}-{instance}` with `001`, `002`, ... per parent; assert a third entry yields `003`
+- [X] T038 [P] [US4] Create [modules/naming/tests/us4_parent_concatenated.tftest.hcl](../../modules/naming/tests/us4_parent_concatenated.tftest.hcl) attaching a `private_endpoint` to a `storage` parent (concatenated name) and asserting the child's `{P}` slot is the parent's **hyphenated** tuple (per spec "Child resources")
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Implement `modules/naming/locals.tf` § stage 6b (tags): for every record, build `baseline = { tenant, topology, environment, region, managed_by = "terraform", repo }` (all snake_case per FR-014), then merge the override tag map (`lookup(var.input.overrides, canonical_name, {}).tags`, default `{}`) on top via `merge(baseline, overrides)`. Assign the result to `record.tags`.
-- [ ] T052 [US4] Extend `modules/naming/validate.tf` with the override-tag-key `check {}` block: for every key in every override's `tags` map, length `1..512` AND no Azure-reserved prefix (`microsoft`, `azure`, `windows`) — FR-015. Error message lists every offending key.
-- [ ] T053 [US4] Re-run T020 to regenerate `modules/naming/tests/snapshots/reference.json` so the snapshot now includes the populated `tags` field for every record; commit the updated snapshot with an explicit reviewer-sign-off note in the PR description per FR-038.
+- [X] T039 [US4] In [modules/naming/locals.tf](../../modules/naming/locals.tf) add `local.parent_tuple_by_key` — a map from each top-level entry's `key` to its hyphenated tuple `{abbr}-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` (or RG variant); this is what child names interpolate, not the canonical name
+- [X] T040 [US4] In [modules/naming/locals.tf](../../modules/naming/locals.tf) add `local.numbered_children` — sort `var.children` by `(service_type, parent_key, key)`; group by `(service_type, parent_key)`; assign positional `instance` for `positional` shapes; assert ≤1 for `singleton` shapes (INV-5); assert `parent_key` resolves to a known top-level entry and that `local.services[child].parent_type` matches the parent's `service_type` (`*` permits any)
+- [X] T041 [US4] In [modules/naming/locals.tf](../../modules/naming/locals.tf) build `local.child_names` map, dispatching on `shape` (`child_purpose` / `singleton` / `positional`) and pulling `{P}` from `local.parent_tuple_by_key`; merge into `local.all_names` consumed by `output "names"`
+- [X] T042 [US4] Extend `output "names"` map values with the optional `parent` field (the parent's canonical name) for child entries; re-verify INV-6/INV-7 postconditions cover child shapes
 
-**Checkpoint**: US4 complete; tagging contract honoured; snapshot reflects full record shape.
+**Checkpoint**: All 8 child shapes produce correct names; singleton duplicates and unknown parents fail loudly.
 
 ---
 
-## Phase 7: Polish & Cross-Cutting Concerns
+## Phase 7: User Story 5 — FQDN passthrough (Priority: P3)
 
-**Purpose**: Documentation, formatting, CI wiring, and the constitutional gates.
+**Goal**: `dns_zone` and `private_dns_zone` entries use the caller-supplied FQDN verbatim as the canonical name; baseline tags still apply; FQDN regex enforced.
 
-- [ ] T054 Run `terraform fmt -recursive modules/naming/ terraform/_naming_test/` and commit any formatting changes.
-- [ ] T055 [P] Run `terraform -chdir=modules/naming init && terraform -chdir=modules/naming validate` and `terraform -chdir=terraform/_naming_test init && terraform -chdir=terraform/_naming_test validate`; fix any reported errors.
-- [ ] T056 [P] Run the full test suite: `terraform -chdir=modules/naming test`. All positive, negative, snapshot, and catalogue-completeness fixtures MUST pass.
-- [ ] T057 [P] Update `modules/naming/README.md` with: links to the four spec/contract docs, the four canonical-shape regexes, the day-one service inventory table (mirrored from FR-026), the day-one region table (FR-010), the snapshot lifecycle rules (FR-038), and a "Common failure modes" table mirroring [quickstart.md § Common failure modes](specs/001-naming-convention-engine/quickstart.md#common-failure-modes).
-- [ ] T058 [P] Update `terraform/_naming_test/README.md` to state explicitly that this directory is NOT a landing-zone stack, MUST NOT be iterated by environment variables, and exists only for `terraform plan` smoke verification.
-- [ ] T059 Add an entry under `## Future Work` in [plan.md](specs/001-naming-convention-engine/plan.md) (if not already present) referencing the per-module consumer migration as a separate spec.
-- [ ] T060 Manually walk [quickstart.md](specs/001-naming-convention-engine/quickstart.md) steps 1–5 against a clean checkout to verify the worked example matches reality; fix the doc OR the engine to reconcile any divergence.
+**Independent Test**: Pass `{ service_type = "private_dns_zone", key = "blob", service_purpose = "dns", fqdn = "privatelink.blob.core.windows.net" }` and assert the output map key equals the FQDN and carries the 8 baseline tags.
+
+### Tests for User Story 5
+
+- [X] T043 [P] [US5] Create [modules/naming/tests/us5_fqdn.tftest.hcl](../../modules/naming/tests/us5_fqdn.tftest.hcl) asserting valid FQDN passes through verbatim as map key and tags are present
+- [X] T044 [P] [US5] Add an `expect_failures` `run` block in the same file for an invalid FQDN (uppercase, `>253` chars, or illegal chars)
+
+### Implementation for User Story 5
+
+- [X] T045 [US5] Extend `variable "services"` in [modules/naming/variables.tf](../../modules/naming/variables.tf) with an optional `fqdn = optional(string)` field; add per-element `validation` requiring `fqdn` IFF `service_type` is `dns_zone` or `private_dns_zone`, with regex `^[a-z0-9.-]{1,253}$`
+- [X] T046 [US5] In [modules/naming/locals.tf](../../modules/naming/locals.tf) branch the name-composition `for` expression so `shape = "fqdn"` entries use `entry.fqdn` as the canonical name (skipping instance numbering); ensure these entries still receive baseline tags
+
+**Checkpoint**: FQDN passthrough works; invalid FQDNs are rejected at plan time.
+
+---
+
+## Phase 8: User Story 6 — Spec ↔ catalogue consistency gate (Priority: P3)
+
+**Goal**: CI fails when a `service_type` exists in the spec table but not in `catalogue/services.tf` (or vice versa). Closes research D6.
+
+**Independent Test**: Manually remove a row from `catalogue/services.tf`; the CI script exits non-zero.
+
+### Tests for User Story 6
+
+- [X] T047 [P] [US6] Create [modules/naming/tests/us6_catalogue_completeness.tftest.hcl](../../modules/naming/tests/us6_catalogue_completeness.tftest.hcl) asserting `local.services` contains every `service_type` listed in a hard-coded expected list (mirrors the spec table); fails loudly when a row is dropped
+- [X] T048 [P] [US6] Add an assertion in the same file that every catalogue row has the mandatory fields (`abbr`, `shape`, `level`) and that `level == "top"` rows have `azure_max`
+
+### Implementation for User Story 6
+
+- [X] T049 [US6] Create [.specify/scripts/bash/check-naming-catalogue.sh](../../.specify/scripts/bash/check-naming-catalogue.sh) — a small shell+awk script that parses the spec.md tables (rows starting with `| \`` under `### Top-level resources` / `### Child resources`) and compares the `service_type` set against the keys present in `modules/naming/catalogue/services.tf`; exits non-zero on mismatch
+- [X] T050 [US6] Wire the script into a GitHub Actions workflow [.github/workflows/naming-catalogue.yml](../../.github/workflows/naming-catalogue.yml) that runs on PRs touching `specs/001-naming-convention-engine/spec.md` or `modules/naming/catalogue/**` and runs `terraform test` in `modules/naming/`
+
+**Checkpoint**: Adding a row to spec.md without updating the catalogue (or vice versa) fails CI.
+
+---
+
+## Phase 9: Polish & Cross-Cutting Concerns
+
+- [X] T051 [P] Create the example consumer in [terraform/_examples/naming/main.tf](../../terraform/_examples/naming/main.tf) using the realistic input set from [quickstart.md](quickstart.md) §1
+- [X] T052 [P] Create [terraform/_examples/naming/outputs.tf](../../terraform/_examples/naming/outputs.tf) re-exposing `module.names.names` so a `terraform output -json` snapshot can be diffed for SC-003
+- [X] T053 [P] Expand [modules/naming/README.md](../../modules/naming/README.md) with the quickstart from [quickstart.md](quickstart.md), the contract summary from [contracts/naming-engine.md](contracts/naming-engine.md), and a link back to spec.md
+- [X] T054 [P] Add a `# engine version` upgrade-checklist comment in [modules/naming/main.tf](../../modules/naming/main.tf) summarising the semver policy from [contracts/naming-engine.md](contracts/naming-engine.md) ("Backwards-compatibility policy")
+- [X] T055 Run [quickstart.md](quickstart.md) §3 manually: `terraform plan` twice with re-ordered services, `diff` the JSON, confirm empty (SC-003 manual gate)
+- [X] T056 Run `terraform test` from `modules/naming/` and capture the full output in the PR description; confirm every `*.tftest.hcl` file passes
+- [X] T057 [P] Add an entry to the repo-root `README.md` (if present) or create a top-level note pointing new contributors at `modules/naming/` as the canonical name/tag source per Constitution principle V
 
 ---
 
 ## Dependencies & Execution Order
 
-### Phase dependencies
+### Phase Dependencies
 
-- **Phase 1 (Setup)** — no dependencies.
-- **Phase 2 (Foundational)** — depends on Phase 1. Blocks every user story.
-- **Phase 3 (US1, P1)** — depends on Phase 2 only.
-- **Phase 4 (US2, P1)** — depends on Phase 2 only. Can run in parallel with US1, but T037/T038 length-budget and shape-regex checks read names produced by US1's stage 5; therefore T037/T038 ordering-edge: run them AFTER T023.
-- **Phase 5 (US3, P2)** — depends on Phase 2. Independent of US1/US2 fixtures.
-- **Phase 6 (US4, P2)** — depends on Phase 2 AND on US1's stage 7 (T025) to have the record shape with a `tags` slot. (US4 no longer depends on US3 because the defaults/overrides merge moved to Phase 2 / T046.)
-- **Phase 7 (Polish)** — depends on the user stories you have chosen to ship.
+- **Phase 1 (Setup)** → no dependencies
+- **Phase 2 (Foundational)** → depends on Phase 1; BLOCKS all stories
+- **Phase 3 (US1)** → depends on Phase 2; provides the name-composition substrate other stories build on
+- **Phase 4 (US2)** → depends on Phase 2 only in principle, but in practice runs after Phase 3 because both edit `output.names`
+- **Phase 5 (US3)** → depends on Phase 3 (needs `numbered_services` to audit) and Phase 4 (so tagging is also covered by determinism check)
+- **Phase 6 (US4)** → depends on Phase 3 (children reuse parent tuples) + Phase 4 (children must also carry baseline tags)
+- **Phase 7 (US5)** → depends on Phase 2 + Phase 4 (passthrough names still need merged tags); independent of US4
+- **Phase 8 (US6)** → depends on Phase 2 (catalogue must exist); independent of US1–US5
+- **Phase 9 (Polish)** → depends on US1–US6 completion
 
-### User-story dependencies
+### Within Each Story
 
-- US1 + US2 = MVP. Both P1. Ship together.
-- US3, US4 are P2 and independent of each other. US3 depends only on Foundational; US4 depends on Foundational + US1's stage 7 (T025).
+- Tests (`*.tftest.hcl`) MUST be written and observed to fail before the corresponding `locals.tf` / `outputs.tf` change.
+- Catalogue rows precede name composition; name composition precedes tagging; tagging precedes determinism checks.
 
-### Within each user story
+### Parallel Opportunities
 
-- All `[P]` test-creation tasks can run in parallel.
-- Within US1: T015–T019 (tests) `[P]` first (expected RED). Then T021–T027 (implementation). Then T020 (boundary task) captures the snapshot. Re-running T019 then turns the suite GREEN.
-- Within US2: T028–T033 (tests) `[P]` first; then T034–T041 (validate.tf extensions). T037/T038/T039/T040/T041 each touch the SAME file `modules/naming/validate.tf` — they are sequential, not parallel.
-- Within US3: T042–T044 `[P]`; T045 sequential (single file); T047 doc. (T046 was relocated to Phase 2.)
-- Within US4: T048–T050 `[P]`; T051 (locals.tf), T052 (validate.tf), T053 (snapshot regen) sequential.
-
-### Parallel opportunities
-
-- All Phase 1 tasks except T001 / T005 (which create the directories) can run in parallel.
-- Phase 2 catalogue tasks T009 / T010 / T011 are `[P]` (single file, but separate sections — author them sequentially OR split into three `catalogue.tf` siblings to truly parallelise).
-- US1 / US3 / US4 fixture-creation tasks (different files) are `[P]`.
-- Phase 7 polish tasks T055 / T056 / T057 / T058 are `[P]`.
+- T003, T004, T005 (Phase 1) — different files.
+- T007, T009, T010, T011, T013 (Phase 2) — independent files / variables.
+- T015–T018 (US1 tests) — separate `.tftest.hcl` files.
+- T023–T027 (US2 tests) — separate files.
+- T035–T038 (US4 tests) — separate files.
+- US6 (Phase 8) can run in parallel with any story phase once Phase 2 is done.
+- All Phase 9 [P] tasks — separate files.
 
 ---
 
-## Parallel Example: User Story 1 fixture creation
+## Parallel Example: User Story 1
 
-After Phase 2 (Foundational) completes, a single developer can open five files in parallel:
-
-```text
-# Run as parallel agent tasks:
-T015 modules/naming/tests/positive_topology.tftest.hcl
-T016 modules/naming/tests/positive_regions.tftest.hcl
-T017 modules/naming/tests/positive_children.tftest.hcl
-T018 modules/naming/tests/positive_full_catalogue.tftest.hcl
-T019 modules/naming/tests/determinism_snapshot.tftest.hcl
+```bash
+# Write all US1 tests in parallel (they will FAIL until T019-T022 land):
+Task: "Create modules/naming/tests/us1_format.tftest.hcl"
+Task: "Create modules/naming/tests/us1_overflow.tftest.hcl"
+Task: "Create modules/naming/tests/us1_unknown_type.tftest.hcl"
+Task: "Create modules/naming/tests/us1_rg_shape.tftest.hcl"
 ```
-
-All five share NO file path overlap and have no inter-task dependency
-(snapshot file is created later by T020).
 
 ---
 
 ## Implementation Strategy
 
-### MVP scope (recommended first PR)
+### MVP First
 
-Phases 1 + 2 + 3 + 4. Delivers a working engine with both P1 stories
-(`US1` deterministic names, `US2` loud failure), every documented
-hard-error class, the cross-product fixture (FR-023), and the snapshot
-gate (FR-038). The engine is provider-less, ships zero state, and is
-exercised by `terraform test`.
+1. Phase 1 (Setup) → Phase 2 (Foundational) → Phase 3 (US1) → Phase 4 (US2).
+2. After US2, the engine can name and tag any top-level resource the spec lists — sufficient for the existing `temp/_legacy/` modules to migrate.
+3. STOP and validate: run quickstart §1–§3 against a real stack (e.g. `temp/hub.npd.vnet.yaml` shape).
 
-### Increment 2
+### Incremental Delivery
 
-Phase 5 (US3 catalogue extensibility): adds catalogue-completeness
-guards so a future single-row catalogue PR cannot silently desync the
-maps.
+- MVP (Phases 1–4): name + tag every top-level resource.
+- Increment 1 (Phase 5): prove determinism, unblocks CI gates.
+- Increment 2 (Phase 6): unlock subnets / NSG rules / private endpoints — required by spec 004-vnet and 005-services-stack.
+- Increment 3 (Phase 7): unlock spec 002-private-dns-zones.
+- Increment 4 (Phase 8): close the spec↔catalogue drift loop.
+- Polish (Phase 9): docs, examples, repo-level signposting.
 
-### Increment 3
+### Parallel Team Strategy
 
-Phase 6 (US4 baseline tags): populates the `tags` field on every
-record and re-baselines the snapshot. Implementations that ship before
-this increment carry `tags = {}` on every record — explicitly contract-
-forbidden by FR-014 in production, so US4 MUST land before any
-consumer-module migration spec begins.
+With multiple developers after Phase 2:
 
-### Final
-
-Phase 7 polish + the Future-Work consumer-migration follow-on specs
-(out of scope here).
+- Dev A: US1 → US3 (name composition + determinism)
+- Dev B: US2 (tagging) — coordinates with Dev A on the shared `output "names"` shape
+- Dev C: US4 (children) — starts when US1's `parent_tuple_by_key` is merged
+- Dev D: US6 (CI gate) — fully independent of A/B/C
 
 ---
 
-## Format-validation report
+## Notes
 
-All 60 tasks conform to the required checklist format:
-
-- ✅ Every line begins with `- [ ]`.
-- ✅ Every line carries a sequential `T0NN` id (T001–T060).
-- ✅ Setup, Foundational, and Polish tasks carry NO `[Story]` label.
-- ✅ Every US-phase task carries the matching `[US1]`, `[US2]`, `[US3]`, or `[US4]` label.
-- ✅ Every task description names at least one workspace-relative file path.
-- ✅ `[P]` is used only where the task touches a file no other incomplete task touches.
+- `[P]` tasks edit different files; the engine's main concentration of risk is `modules/naming/locals.tf`, so sequence Phase 3/4/5/6 edits to that file.
+- Every test file lives under `modules/naming/tests/` and runs via `terraform test`; no Go, Python, or external test runner is introduced (research D2).
+- The CI script in T049 is the only non-HCL artefact in this feature; keep it minimal (bash + awk).
+- Commit after each task or logical group; every checkpoint is a sensible commit boundary.

@@ -1,0 +1,43 @@
+name: naming-catalogue
+
+on:
+  pull_request:
+    paths:
+      - "specs/001-naming-convention-engine/spec.md"
+      - "modules/naming/catalogue/**"
+      - ".specify/scripts/bash/check-naming-catalogue.sh"
+      - ".github/workflows/naming-catalogue.yml"
+  push:
+    branches: [main]
+    paths:
+      - "specs/001-naming-convention-engine/spec.md"
+      - "modules/naming/catalogue/**"
+
+jobs:
+  drift-check:
+    name: Spec ↔ catalogue drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run drift script
+        run: ./.specify/scripts/bash/check-naming-catalogue.sh
+
+  terraform-test:
+    name: terraform test (modules/naming)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: terraform init
+        working-directory: modules/naming
+        run: terraform init -backend=false
+
+      - name: terraform test
+        working-directory: modules/naming
+        run: terraform test

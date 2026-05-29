@@ -1,83 +1,105 @@
-# Naming Convention Engine
+# modules/naming — Naming Convention Engine
 
-Provider-less Terraform module. One input (`var.input`), two outputs
-(`names`, `by_type`). The engine produces canonical Azure resource
-names plus baseline tags, default settings, and merged per-resource
-overrides.
+Pure-Terraform module that turns a stack-level intent bundle into a
+deterministic map keyed by canonical Azure resource name. Every entry
+carries the eight baseline tags plus any caller-supplied extras.
 
-- Quickstart: [specs/001-naming-convention-engine/quickstart.md](../../specs/001-naming-convention-engine/quickstart.md)
-- Input contract: [specs/001-naming-convention-engine/contracts/input-schema.md](../../specs/001-naming-convention-engine/contracts/input-schema.md)
-- Output contract: [specs/001-naming-convention-engine/contracts/output-schema.md](../../specs/001-naming-convention-engine/contracts/output-schema.md)
-- Data model: [specs/001-naming-convention-engine/data-model.md](../../specs/001-naming-convention-engine/data-model.md)
+## Authoritative documents
 
-## Usage
+- **Spec** (rules + naming pattern table): [../../specs/001-naming-convention-engine/spec.md](../../specs/001-naming-convention-engine/spec.md)
+- **Contract** (variables, outputs, failure modes, semver): [../../specs/001-naming-convention-engine/contracts/naming-engine.md](../../specs/001-naming-convention-engine/contracts/naming-engine.md)
+- **Data model** (in-memory shapes + invariants): [../../specs/001-naming-convention-engine/data-model.md](../../specs/001-naming-convention-engine/data-model.md)
+- **Quickstart** (consumer walkthrough): [../../specs/001-naming-convention-engine/quickstart.md](../../specs/001-naming-convention-engine/quickstart.md)
+
+## Quick use
 
 ```hcl
-module "naming" {
+module "names" {
   source = "../../modules/naming"
 
   input = {
-    topology    = "spoke"
-    tenant      = "sp01"
-    environment = "npd"
-    region      = "uksouth"
-    repo        = "_github_org/_github_repo"
-
-    services = [
-      { type = "keyvault" },
-      { type = "vnet", subnets = [{ purpose = "app" }, { purpose = "data" }] },
-      { type = "storage", count = 1, private_endpoints = [
-        { subnet = "snet-app-sp01-npd-uks-001" },
-      ] },
-    ]
-
-    overrides = {
-      "stsp01npduks001" = { tags = { cost_center = "ABC123" } }
-    }
+    tenant        = "hub"
+    environment   = "prd"
+    region        = "uks"
+    usecase       = "shd"
+    stack_purpose = "svc"
+    repo          = "tcsatheesh/tfiac"
   }
+
+  services = [
+    { service_type = "resource_group", key = "main" },
+    { service_type = "storage", service_purpose = "lgs", key = "audit" },
+  ]
 }
 
-output "names"   { value = module.naming.names }
-output "by_type" { value = module.naming.by_type }
+output "names" {
+  value = module.names.names
+}
 ```
 
-## Catalogue edits — required when (T047)
+## Tests
 
-Three internal catalogues live in [catalogue.tf](catalogue.tf):
+```bash
+cd modules/naming
+terraform init -backend=false
+terraform test
+```
 
-| Catalogue            | Edit when                                                                   |
-|----------------------|-----------------------------------------------------------------------------|
-| `local.services`     | A new Azure resource type joins day-one scope. Add `caf_abbr`, `shape`, `topology_scope`, `category`, `max_length`, `charset`, `case_rule`, `must_start_with_letter`, `child_keys`. |
-| `local.child_types`  | A new child relationship is introduced (e.g. new positional or purpose-keyed child of an existing parent). Add `caf_abbr`, `child_list_key`, `numbering`, `parent_allowlist`. |
-| `local.region_codes` | A new Azure region is supported. Add a `<region>: <code>` pair; the code MUST be unique (enforced by `check.region_code_uniqueness`). |
-| `local.defaults`     | A new service joins `local.services` — add the matching defaults block. Parity is enforced by `check.catalogue_completeness_defaults`. |
+Test files live in [tests/](tests/) and are organised by user story
+(`us1_*` format, `us2_*` tags, `us3_*` determinism, `us4_*` children,
+`us5_*` FQDN, `us6_*` catalogue completeness). The CI gate in
+[`.github/workflows/naming-catalogue.yml`](../../.github/workflows/naming-catalogue.yml)
+runs the full suite plus the spec ↔ catalogue drift check at
+[`.specify/scripts/bash/check-naming-catalogue.sh`](../../.specify/scripts/bash/check-naming-catalogue.sh).
 
-After any catalogue edit:
+## Inputs (summary — see contract for full schema)
 
-1. Run `terraform fmt -recursive` on `modules/naming/`.
-2. Run `terraform validate` in `modules/naming/`.
-3. Run `terraform test` in `modules/naming/` and ensure **all fixtures pass**.
-4. Regenerate the determinism snapshot:
-   ```bash
-   cd terraform/_naming_test
-   echo 'jsonencode(module.naming.names)' | terraform console \
-     | sed 's/^"//; s/"$//' \
-     | python3 -c 'import sys; sys.stdout.write(sys.stdin.read().strip().encode().decode("unicode_escape"))' \
-     > ../../modules/naming/tests/snapshots/reference.json
-   ```
-5. Commit the catalogue edit and snapshot regeneration in the same PR with a
-   one-line explanation of the cause.
+| Variable     | Type            | Required | Purpose                                                                 |
+|--------------|-----------------|----------|-------------------------------------------------------------------------|
+| `input`      | object          | yes      | Stack-level tokens (`tenant`, `environment`, `region`, `usecase`, `stack_purpose`, `repo`). |
+| `services`   | list(object)    | no       | Top-level resources to name. Default `[]`.                              |
+| `children`   | list(object)    | no       | Child resources (subnets, PEPs, etc.). Default `[]`.                    |
+| `extra_tags` | map(string)     | no       | Stack-wide tag overlay; merged after baseline, before per-entry extras. |
 
-## Common failure modes
+## Outputs
 
-| Error excerpt                                | Cause                                       | Fix                                             |
-|----------------------------------------------|---------------------------------------------|-------------------------------------------------|
-| `unsupported service_type`                   | `var.input.services[*].type` not catalogued | Add to `local.services` or correct the input.   |
-| `unsupported region`                         | `var.input.region` not in `region_codes`    | Add the region or correct the input.            |
-| `topology_scope violation`                   | Service used in disallowed topology/env     | Move service to correct stack (FR-033).         |
-| `Duplicate purpose token(s)`                 | Two children share a purpose under one parent | Make each purpose unique (FR-029).            |
-| `private_endpoint(s) reference subnet …`     | PE.subnet name not in this batch            | Declare the subnet in the same input (FR-032).  |
-| `child_only service_type at top level`       | `subnet`/`nsg_rule`/`route` at top level    | Nest under their parent (FR-027).               |
-| `override key … not in emitted set`          | Override key has a typo                     | Match against an actual emitted canonical name. |
-| `Instance count exceeded 999 cap`            | `count > 999`                               | Lower count or split tenants (FR-008).          |
-| `exceeds max_length`                         | Worst-case name too long                    | Shorter region/tenant/env, no truncation/hash.  |
+| Output           | Shape                                                                                          |
+|------------------|------------------------------------------------------------------------------------------------|
+| `names`          | `map(object({ service_type, service_purpose, stack_purpose, parent, tags, azure_max }))`       |
+| `engine_version` | string semver (currently `"0.1.0"`).                                                            |
+
+## Example consumer
+
+A runnable example lives at
+[../../terraform/_examples/naming](../../terraform/_examples/naming).
+Inspect its rendered plan to see the full name map for a representative
+stack.
+
+## Engine version
+
+Pin against `module.names.engine_version` (currently `0.1.0`). Bumped
+per the semver policy in the contract:
+
+- **PATCH** — internal refactors, doc-only changes.
+- **MINOR** — new service_types or shapes; existing names unchanged.
+- **MAJOR** — any rename or shape change that alters previously-emitted canonical names.
+
+## Failure modes
+
+The engine fails fast at `terraform plan` time on every invariant in
+the [data model](../../specs/001-naming-convention-engine/data-model.md):
+
+- INV-1 unknown `service_type`
+- INV-2 duplicate `(service_type, service_purpose, key)`
+- INV-3 group instance count > 999
+- INV-4 RG/non-RG `service_purpose` rule
+- INV-5 duplicate singleton on the same parent
+- INV-6 missing parent for a child
+- INV-7 catalogue/shape mismatch
+- INV-8 tag-key collision with the baseline set
+- INV-9 tag value > 256 chars
+- INV-10 unknown region short-code
+
+Variable-level `validation` blocks catch malformed `input.repo`,
+malformed `fqdn`, and oversized tag values. Cross-field invariants are
+checked by `terraform_data.assertions` preconditions in `check.tf`.

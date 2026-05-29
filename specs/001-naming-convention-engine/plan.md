@@ -1,110 +1,111 @@
 # Implementation Plan: Naming Convention Engine
 
-**Branch**: `001-naming-convention-engine` | **Date**: 2026-05-28 | **Spec**: [spec.md](spec.md)
+**Branch**: `001-naming-convention-engine` | **Date**: 2026-05-29 | **Spec**: [spec.md](spec.md)
 
-**Input**: Feature specification from [specs/001-naming-convention-engine/spec.md](spec.md)
+**Input**: Feature specification from [spec.md](spec.md)
 
 ## Summary
 
-Build a pure-Terraform, provider-less module `modules/naming/` that is the
-single source of truth for every Azure resource name produced by this
-repository. The engine takes one batch request describing a stack's
-topology, tenant, environment, region, and services (with nested children),
-expands it through deterministic locals stages
-(parsed → validated → numbered → shaped → named → tagged → emitted), and
-returns a flat `{canonical_name => record}` map plus a `by_type` index.
-
-Technical approach: all logic lives in HCL locals; catalogues are static
-HCL maps; validation is plan-time via `variable.validation {}` and module
-`check {}` blocks; testing uses `terraform test` (1.6+) with positive and
-negative `.tftest.hcl` fixtures plus a committed snapshot of the reference
-output for the idempotency gate (Constitution Principle IV).
+The Naming Convention Engine is a pure-Terraform module
+(`modules/naming/`) that takes a stack-level input bundle plus a list
+of service entries and returns a deterministic map keyed by canonical
+Azure resource name. Every entry in the output map carries its
+`service_type`, the eight baseline tags, plus any `var.extra_tags`.
+Consumers (other modules and root stacks) iterate the map via
+`for_each`. The engine ships with two built-in catalogues — the
+service catalogue (CAF abbreviation, name shape, Azure max length per
+`service_type`) and the region lookup (CAF short code → full region
+name) — and uses native Terraform `variable` validation, `locals`,
+and `precondition` blocks to fail loudly on any violation.
 
 ## Technical Context
 
-**Language/Version**: Terraform `~> 1.9`. The engine module declares
-`terraform { required_version = "~> 1.9" }`; root stacks that consume the
-engine pin the same.
+**Language/Version**: Terraform `~> 1.9` (HCL2). No code outside HCL.
 
-**Primary Dependencies**: None at runtime. The engine declares
-`required_providers {}` empty so it does not force any provider version on
-its consumers.
+**Primary Dependencies**: None at runtime. AzureRM/AzAPI providers are
+**not** required by the engine itself — it produces strings and maps,
+nothing else. Consumers pull AzureRM `~> 4.0` per their own
+`required_providers`.
 
-**Storage**: None. The engine is logic-only — no state of its own beyond
-the consumer stack's existing remote state.
+**Storage**: N/A — the engine has no state of its own. It is a
+stateless transform consumed by other modules.
 
-**Testing**: `terraform test` (Terraform 1.6+) with `.tftest.hcl` files
-under `modules/naming/tests/`. Snapshot equality of the reference `names`
-map enforces the determinism gate.
+**Testing**: `terraform test` (native HCL test runner, available since
+Terraform 1.6). Tests live under `modules/naming/tests/` and run via
+`terraform test` in CI. No external test framework.
 
-**Target Platform**: Any environment running Terraform 1.9+. The module
-is consumed by root stacks under `terraform/<stack>/` and is exercised in
-CI by `terraform fmt`, `terraform validate`, and `terraform test`.
+**Target Platform**: Linux/macOS developer workstations, GitHub
+Actions CI runners. Same Terraform binary everywhere.
 
-**Project Type**: Terraform module library. The repo layout
-(`modules/<service>/`, `terraform/<stack>/`, `variables/<env>/<scope>/`)
-is preserved per Constitution Principle VI.
+**Project Type**: Terraform shared module (single module under
+`modules/naming/`) plus example consumer stack and tests. No
+application code, no service, no UI.
 
-**Performance Goals**: Single batch evaluation completes in under 50 ms
-for a representative stack on a developer workstation (spec SC-001).
-Terraform locals are O(N) over the flattened intent record list; N is
-small (tens to low hundreds).
+**Performance Goals**: `terraform plan` time for a 50-entry stack
+SHOULD complete the naming-engine portion in < 1 s. The engine is
+pure HCL with no `for_each` over external data — overhead is
+negligible.
 
 **Constraints**:
 
-- No external scripting, no code generators, no JSON/YAML parsers.
-- No `external` data sources, no `null_resource` + `local-exec`.
-- No providers required by the engine itself.
-- All validation MUST be plan-time and MUST emit messages naming the
-  offending input.
-- Names MUST be byte-identical across runs (Constitution Principle IV).
+- Fail loudly: every input violation, length overflow, missing
+  catalogue entry, or duplicate `key` must produce a clear error at
+  `terraform validate` or `terraform plan` time, never silently.
+- Deterministic: identical inputs → byte-identical output map,
+  verifiable via `terraform output -json | diff`.
+- No file I/O; engine is a pure transform.
+- No external providers required by the engine module.
 
-**Scale/Scope**: Day-one inventory ≈ 30 top-level service types and 5
-child types (spec FR-026 / FR-028). Up to 99 spokes per environment
-(FR-019). Up to 999 instances per `service_type` per stack.
+**Scale/Scope**:
+
+- 26 top-level `service_type` rows + 8 child rows (per spec).
+- Up to ~50 service entries per stack in practice; up to 999 instances
+  per `(service_type, service_purpose)` group by design.
+- Estate-wide: ~6 stacks today (hub × 2 envs, sp01 × 2 envs, dns,
+  buildsvr), growing.
 
 ## Constitution Check
 
-Source: `.specify/memory/constitution.md` (v2.1.0). Each gate answered
-explicitly.
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- [x] **I. Hub-and-Spoke Architecture** — PASS. The engine enforces
-      topology validity via `topology_scope`, and the new
-      `prd-hub-only` value (spec FR-033 / FR-034) machine-checks the
-      "one global DNS in prd" rule. The engine itself is stack-
-      agnostic; it does not create a hub or spoke, only names them.
-- [x] **II. Minimal, Intent-Only Inputs** — PASS. Consumers pass exactly
-      `topology`, `tenant`, `environment`, `region`, and `services`.
-      All other configuration comes from `local.defaults`. Per-resource
-      overrides live in the single `overrides` map keyed by canonical
-      name. No per-resource tfvars added.
-- [x] **III. Naming Follows Microsoft CAF** — PASS. Names are built
-      strictly from the catalogue (CAF abbreviations + region codes +
-      per-service constraints). This plan IS the realisation of the
-      "naming convention" feature spec the constitution references.
-- [x] **IV. Determinism and Idempotency** — PASS. Pure HCL locals; no
-      `random_*`, no `timestamp()`, no `uuid()`, no hashes. `for_each`
-      keys are canonical names. Snapshot equality test enforces it.
-- [x] **V. Single Source of Truth for Catalogues** — PASS. One HCL map
-      per concern in `catalogue.tf`; a `check {}` block asserts
-      catalogue completeness so no entry can be added in one map and
-      forgotten in another. Adding a service type is a single-file PR.
-- [x] **VI. Module Structure is Normative** — PASS. New module sits at
-      `modules/naming/` with the standard file layout. Tests live under
-      `modules/naming/tests/`. A tiny harness root at
-      `terraform/_naming_test/` exercises the module via
-      `terraform plan`.
-- [x] **VII. Provider and State Hygiene** — PASS. Engine declares
-      `required_version = "~> 1.9"` and `required_providers {}` empty;
-      consumers pin their own providers per root stack. No state of its
-      own. No secrets anywhere — engine handles only structural data.
-- [x] **VIII. Tagging Baseline** — PASS. Baseline tags `tenant`,
-      `topology`, `environment`, `region`, `managed_by = "terraform"`,
-      `repo` are emitted on every record; per-name overrides merge on
-      top via `merge(baseline, overrides)`, so baseline keys cannot be
-      removed.
+Source: `.specify/memory/constitution.md` (v2.2.0).
 
-No FAIL gates. Complexity Tracking table stays empty.
+- [x] **I. Hub-and-Spoke Architecture**: PASS. Engine is topology-
+      agnostic; it is consumed identically by hub and spoke stacks.
+      No third category introduced.
+- [x] **II. Minimal, Intent-Only Inputs**: PASS. Engine inputs match
+      the constitution's required surface — tenant, environment,
+      region, services list — plus `usecase`, `stack_purpose`,
+      `repo` (added by clarify), and a single `var.extra_tags`
+      override map. No per-resource tfvars.
+- [x] **III. Naming Follows Microsoft CAF**: PASS. The spec's pattern
+      table uses CAF abbreviations verbatim; `abbr` column is
+      authoritative. Engine refuses any `service_type` not in the
+      table (Rules).
+- [x] **IV. Determinism and Idempotency**: PASS. Engine sorts entries
+      by `(service_type, service_purpose, key)` before numbering;
+      file reordering does not affect output. No timestamps, randoms,
+      or list-index keys.
+- [x] **V. Single Source of Truth for Catalogues**: PASS. The service
+      catalogue and region lookup live in `modules/naming/catalogue/`
+      and are the only place these facts exist. Consuming modules
+      MUST read from the engine output, not redefine.
+- [x] **VI. Module Structure is Normative**: PASS. Engine lives at
+      `modules/naming/` with standard file layout
+      (`main.tf`, `variables.tf`, `outputs.tf`, plus
+      `locals.tf`, `catalogue/`, `tests/`). No `providers.tf` —
+      engine declares no providers.
+- [x] **VII. Provider and State Hygiene**: PASS by exclusion. Engine
+      has no providers and no state. Root stacks that consume it
+      remain responsible for their own pinning and remote state.
+- [x] **VIII. Tagging Baseline**: PASS. Engine emits the eight
+      baseline tags per spec; `var.extra_tags` merges additively;
+      baseline keys cannot be removed or overridden.
+- [x] **IX. Azure Verified Modules First**: N/A. Engine creates no
+      Azure resources — it is a string/map transform. AVM applies to
+      the consuming modules (`modules/<service>/`), not here.
+
+**Result**: All gates PASS. No complexity-tracking entries required.
 
 ## Project Structure
 
@@ -113,115 +114,64 @@ No FAIL gates. Complexity Tracking table stays empty.
 ```text
 specs/001-naming-convention-engine/
 ├── plan.md              # This file
-├── spec.md              # Already authored
-├── research.md          # Phase 0 output (this command)
-├── data-model.md        # Phase 1 output (this command)
-├── quickstart.md        # Phase 1 output (this command)
-├── contracts/
-│   ├── input-schema.md      # variable "input" object schema
-│   └── output-schema.md     # names + by_type output schemas
-├── checklists/
-│   └── requirements.md  # already authored
-└── tasks.md             # NOT created here — /speckit.tasks output
+├── spec.md              # Authoritative spec (table-driven)
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+└── contracts/
+    └── naming-engine.md # Phase 1 output (module input/output contract)
 ```
 
 ### Source Code (repository root)
 
 ```text
-modules/
-└── naming/                                  # NEW — the engine
-    ├── versions.tf                          # terraform { required_version, required_providers {} } (provider-less)
-    ├── main.tf                              # introductory header + entry locals stub
-    ├── variables.tf                         # variable "input" with validation {} blocks
-    ├── outputs.tf                           # outputs "names" and "by_type"
-    ├── locals.tf                            # staged locals
-    ├── catalogue.tf                         # central maps
-    ├── validate.tf                          # module-level check {} blocks
-    ├── README.md                            # contract + worked examples
-    └── tests/
-        ├── positive_topology.tftest.hcl              # hub + sp01 + sp99; npd + prd + pre; minimal-input sub-run
-        ├── positive_regions.tftest.hcl               # uksouth + westus2
-        ├── positive_children.tftest.hcl              # vnet+subnets, nsg+rules, storage+PEs
-        ├── positive_full_catalogue.tftest.hcl        # one of every top-level service_type
-        ├── negative_service_type.tftest.hcl          # unknown service_type
-        ├── negative_tenant.tftest.hcl                # sp00, sp1, sp100
-        ├── negative_region.tftest.hcl                # unknown region
-        ├── negative_topology_scope.tftest.hcl        # dns_zone in (hub,npd); firewall in spoke; function_app in hub
-        ├── negative_charset_length.tftest.hcl        # oversized name; illegal charset
-        ├── negative_child_invariants.tftest.hcl      # dup purpose; unresolved PE; child at top level; unmatched override; count>999
-        ├── catalogue_completeness.tftest.hcl         # services ↔ defaults parity
-        ├── catalogue_region_completeness.tftest.hcl  # short-code uniqueness
-        ├── catalogue_child_completeness.tftest.hcl   # child parents resolve in services
-        ├── tags_baseline.tftest.hcl                  # six-key baseline present on every record
-        ├── tags_overrides.tftest.hcl                 # override adds keys, cannot remove baseline
-        ├── tags_override_key_validation.tftest.hcl   # reserved prefix; length 513
-        ├── determinism_snapshot.tftest.hcl           # names equality vs snapshots/reference.json
-        └── snapshots/
-            └── reference.json                          # committed snapshot of names for reference input
+modules/naming/
+├── main.tf              # Top-level orchestration: validate → number → name → tag
+├── variables.tf         # `input`, `services`, `children`, `extra_tags`
+├── outputs.tf           # `names` map (canonical_name → {service_type, tags, ...})
+├── locals.tf            # Sorting, instance numbering, name composition
+├── catalogue/
+│   ├── services.tf      # Local map: service_type → {abbr, shape, azure_max, level}
+│   └── regions.tf       # Local map: short_code → full_region_name
+└── tests/
+    ├── valid.tftest.hcl       # Happy-path: every service_type produces a valid name
+    ├── determinism.tftest.hcl # Reorder inputs → identical output
+    ├── overflow.tftest.hcl    # Force a kv overflow → expect failure
+    ├── duplicate_key.tftest.hcl
+    └── catalogue.tftest.hcl   # Unknown service_type / region short code
 
-terraform/
-└── _naming_test/                            # NEW — harness root for manual `terraform plan` smoke
-    ├── main.tf                              # module "naming" { ... reference input ... }
-    ├── outputs.tf                           # forwards names + by_type
-    ├── providers.tf                         # required_version "~> 1.9"; no providers
-    └── README.md
+terraform/_examples/naming/
+├── main.tf              # Example: call modules/naming with a realistic set
+├── variables.tf
+└── outputs.tf           # Re-expose the engine output for diffing
 ```
 
-**Structure Decision**: Add exactly two new directories:
-[modules/naming/](modules/naming/) (the engine, per Constitution
-Principle VI) and [terraform/_naming_test/](terraform/_naming_test/) (a
-provider-less harness root for `terraform plan`-based smoke testing).
-The underscore prefix marks the harness as not a real landing-zone
-stack and excludes it from environment iteration.
+**Structure Decision**: A single Terraform module (`modules/naming/`)
+with two embedded catalogues and a `tests/` subdirectory running
+under `terraform test`. An example consumer at
+`terraform/_examples/naming/` doubles as a smoke test and as the
+quickstart artefact. No language other than HCL is introduced.
 
-## Phase 0 Output
+## Phase 0: Outline & Research
 
-See [research.md](research.md). All NEEDS CLARIFICATION items were
-resolved during `/speckit.clarify`; Phase 0 covers technology-decision
-rationale only.
+See [research.md](research.md).
 
-## Phase 1 Output
+Unknowns resolved:
 
-- [data-model.md](data-model.md) — logical data shapes (HCL object
-  types).
-- [contracts/input-schema.md](contracts/input-schema.md) — the public
-  `variable "input"` contract.
-- [contracts/output-schema.md](contracts/output-schema.md) — the public
-  `names` and `by_type` output contracts.
-- [quickstart.md](quickstart.md) — minimal hub + spoke worked example.
+- Test framework choice → `terraform test` (HCL native, 1.6+).
+- Catalogue storage → in-module `locals.tf` files; no JSON/CSV
+  side-files (keeps SC-003 trivial).
+- AVM coverage for the engine itself → N/A; engine is not an Azure
+  resource.
 
-## Future Work (out of scope for this feature)
+## Phase 1: Design & Contracts
 
-The plan covers ONLY the engine, its catalogue, validation, tests, and
-harness root. The following are tracked here but MUST be addressed by
-follow-on feature specs (Constitution Principle VI + the spec's FR-024):
+See [data-model.md](data-model.md), [contracts/naming-engine.md](contracts/naming-engine.md),
+and [quickstart.md](quickstart.md).
 
-- **Per-module consumer migration** — refactor `modules/vnet/`,
-  `modules/storage/`, `modules/keyvault/`, `modules/openai/`,
-  `modules/apim/`, `modules/aifoundry/`, `modules/aml/`,
-  `modules/appinsights/`, `modules/cntreg/`, `modules/docint/`,
-  `modules/fnapp/`, `modules/language/`, `modules/lgapp/`,
-  `modules/log/`, `modules/search/`, `modules/uai/`, `modules/vm/`,
-  `modules/dns/`, `modules/aiservices/`, `modules/rbac/` (RBAC only for
-  scope/tag derivation — role-assignment names stay UUIDv5). Each
-  migration is its own PR with explicit `moved {}` blocks.
-- **Root-stack rewiring** — `terraform/services/`, `terraform/vnet/`,
-  `terraform/dns/`, `terraform/log/`, `terraform/rbac/`,
-  `terraform/buildsvr/` adopt the engine and drop ad-hoc name
-  construction.
-- **Multi-region per stack** — the engine accepts a single `region`
-  today; a future spec extends the input to a list with deterministic
-  numbering across regions.
-- **Region-pair / DR semantics** — not modelled.
-- **Cost-centre and owner tags** — optional today (Constitution VIII);
-  promotion to required is a future amendment.
+Post-design constitution re-check: all gates still PASS; no design
+choice introduces a new constraint.
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|--------------------------------------|
-| — | — | — |
-
-No violations.
+None. All Constitution gates pass.

@@ -2,728 +2,167 @@
 
 **Feature Branch**: `001-naming-convention-engine`
 
-**Created**: 2026-05-28
+## Summary
 
-**Status**: Draft
+Every Azure resource name produced by this repository MUST follow the
+naming pattern table below. The conventions adhere to Microsoft Cloud
+Adoption Framework (CAF) abbreviations.
 
-**Input**: User description: "Build a naming convention engine that is the single source of truth for every Azure resource name produced by this repository."
+## Inputs
 
-## Clarifications
+| Token             | Width    | Pattern             | Source            | Examples                  |
+|-------------------|----------|---------------------|-------------------|---------------------------|
+| `tenant`          | 3–4      | `^(hub|sp[0-9]{2})$` | per stack       | `hub`, `sp01`, `sp42`     |
+| `environment`     | 3        | `^[a-z]{3}$`        | per stack         | `npd`, `dev`, `pre`, `prd`|
+| `region`          | 3–4      | CAF short code      | per stack         | `uks`, `weu`, `eus2`      |
+| `instance`        | 3        | `^[0-9]{3}$`        | engine-assigned   | `001`, `042`, `999`       |
+| `usecase`         | 3–4      | `^[a-z0-9]{3,4}$`   | per stack         | `shd`, `uc01`, `uc99`     |
+| `stack_purpose`   | 3        | `^[a-z0-9]{3}$`     | per stack         | `dns`, `log`, `net`, `svc`|
+| `service_purpose` | 3        | `^[a-z0-9]{3}$`     | per service entry | `aml`, `fnc`, `lgp`       |
+| `child_purpose`   | 3–7      | `^[a-z0-9]{3,7}$`   | per child entry   | `app`, `https`, `bastion` |
+| `repo`            | 256      | `github_org/github_repo` | per stack    | `tcsatheesh/tfiac`        |
 
-### Session 2026-05-28 (Round 2 — checklist gap closure)
 
-Applied as a single batch to close gaps surfaced by
-[checklists/naming-convention.md](checklists/naming-convention.md):
+## Naming Pattern Table
 
-- Day-one authoritative service-type inventory added to FR-026 with
-  `service_type`, `caf_abbr`, `shape`, `topology_scope`, `category`.
-  (closes CHK002, CHK003, CHK027)
-- CAF source pinned in new FR-036; spec merge date is the freeze date.
-  (closes CHK004)
-- Day-one supported regions and short codes added to FR-010.
-  (closes CHK005, CHK006)
-- Canonical-shape regexes written out verbatim in FR-016.
-  (closes CHK010)
-- Purpose-keyed children under hyphen-forbidden parents are explicitly
-  prohibited (FR-030). (closes CHK015)
-- Instance numbers capped at 999 (FR-008). (closes CHK020)
-- `repo` is a required top-level input; engine never reads git state
-  (FR-001, FR-014). (closes CHK022)
-- Baseline tag set fixed to exactly six keys; `managed_by` is always
-  `"terraform"` (FR-014). (closes CHK023)
-- All baseline tag keys are snake_case; override keys validated against
-  Azure tag-key rules (FR-014, FR-015). (closes CHK024)
-- Length-budget remediation error message contract added (FR-016).
-  (closes CHK030)
-- Worst-case uniqueness analysis appendix added for hyphen-forbidden
-  services (FR-037). (closes CHK032)
-- Zero / empty / unmatched-override semantics specified (FR-039).
-  (closes CHK033)
-- `services[]` order-sensitivity for numbering is the single source of
-  determinism (FR-008). (closes CHK021)
-- Snapshot lifecycle and CI divergence-failure rule added (FR-038).
-  (closes CHK035)
+`{abbr}` is the CAF abbreviation for the resource. `{p}` is shorthand
+for `{service_purpose}`. Hyphenated services use `-` separators;
+concatenated services use none.
 
-### Session 2026-05-28
+### Top-level resources
 
-- Q: Does the engine accept one name tuple at a time or the whole `services` list? → A: Batch — the engine accepts `{topology, tenant, environment, region, services[]}` and returns the full map of names, tags, defaults, and `for_each` keys. The engine owns the iteration and instance numbering.
-- Q: Who owns resource-group naming and the RG-to-resource mapping? → A: One RG per stack — the engine emits exactly one resource-group name per batch request and treats every service in the batch as belonging to that RG. Callers do not pass an RG; finer-grained RG splits are out of scope.
-- Q: How are sub-resources (subnets, NSG rules, route entries, private endpoints, diagnostic settings) modelled? → A: Nested under their parent. Sub-resources are NOT valid top-level `services[]` entries. Each parent entry carries a typed child list (e.g. a `vnet` entry has `subnets: [{ purpose }]`; an `nsg` entry has `rules: [{ purpose }]`; resources that can host private endpoints carry `private_endpoints: [{ subnet }]`). The engine emits a FLAT output map keyed by canonical name, with each record carrying its `service_type` and `parent`. Child instance numbering is per `(child_type, parent)`. Purpose-driven children use the `purpose` token in place of a positional number.
-- Q: Should the engine enforce hub-vs-spoke validity per service type? → A: Yes — the constraints catalogue carries a `topology_scope` column (`hub-only` | `spoke-only` | `either`). The engine hard-fails at name-generation time on mismatch. Child types inherit their parent's topology scope and do NOT carry their own.
-- Q: How is the constitution's "one global DNS stack in prd" rule enforced? → A: Extend the `topology_scope` vocabulary with `prd-hub-only` (valid ONLY when `topology=hub` AND `environment=prd`). Seeded for `dns_zone` and `private_dns_zone`. The full vocabulary becomes `hub-only`, `spoke-only`, `either`, `prd-hub-only`. Child types still inherit and carry no scope of their own.
+| `service_type`           | `abbr`    | Shape         | Name format                                                  | Azure max |
+|--------------------------|-----------|---------------|--------------------------------------------------------------|-----------|
+| `resource_group`         | `rg`      | hyphenated    | `rg-{stack_purpose}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 90 |
+| `vnet`                   | `vnet`    | hyphenated    | `vnet-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `nsg`                    | `nsg`     | hyphenated    | `nsg-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `route_table`            | `rt`      | hyphenated    | `rt-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `public_ip`              | `pip`     | hyphenated    | `pip-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `log_analytics`          | `log`     | hyphenated    | `log-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 63 |
+| `app_insights`           | `appi`    | hyphenated    | `appi-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 260 |
+| `storage`                | `st`      | concatenated  | `st{p}{usecase}{tenant}{environment}{region}{instance}`       | 24 |
+| `keyvault`               | `kv`      | concatenated  | `kv{p}{usecase}{tenant}{environment}{region}{instance}`       | 24 |
+| `container_registry`     | `cr`      | concatenated  | `cr{p}{usecase}{tenant}{environment}{region}{instance}`       | 50 |
+| `user_assigned_identity` | `id`      | hyphenated    | `id-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 128 |
+| `vm`                     | `vm`      | hyphenated    | `vm-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `app_service_plan`       | `asp`     | hyphenated    | `asp-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 40 |
+| `apim`                   | `apim`    | hyphenated    | `apim-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 50 |
+| `vpn_gateway`            | `vpng`    | hyphenated    | `vpng-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `expressroute_gateway`   | `ergw`    | hyphenated    | `ergw-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `function_app`           | `func`    | hyphenated    | `func-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 60 |
+| `logic_app`              | `logic`   | hyphenated    | `logic-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `aml_workspace`          | `mlw`     | hyphenated    | `mlw-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 33 |
+| `openai`                 | `oai`     | hyphenated    | `oai-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `aifoundry`              | `aif`     | hyphenated    | `aif-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `language`               | `lang`    | hyphenated    | `lang-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `doc_intel`              | `di`      | hyphenated    | `di-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `search`                 | `srch`    | hyphenated    | `srch-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 60 |
+| `dns_zone`               | (none)    | n/a           | caller-supplied FQDN (e.g. `privatelink.blob.core.windows.net`) | 253 |
+| `private_dns_zone`       | (none)    | n/a           | caller-supplied FQDN                                          | 253 |
 
-## User Scenarios & Testing *(mandatory)*
+### Child resources
 
-### User Story 1 — Deterministic Names From Intent (Priority: P1)
+`{P}` is the parent's tuple re-formatted in hyphenated shape
+(`{abbr}-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}`,
+or `{abbr}-{stack_purpose}-{usecase}-{tenant}-{environment}-{region}-{instance}`
+for RGs), regardless of whether the parent's own canonical name is
+hyphenated or concatenated. Children therefore have a consistent
+shape across all parent types. Children inherit the parent's
+`(usecase, tenant, environment, region, instance)` via `{P}`.
 
-A landing-zone author provides only their *intent* — topology, tenant,
-environment, region, and a list of services with optional counts — and
-receives, for every Azure resource that will be deployed, a canonical
-name, a baseline tag set, and a stable `for_each` key that downstream
-modules can consume without ever constructing a name themselves.
+| `service_type`        | `abbr`     | Parent         | Name format                              | Notes |
+|-----------------------|------------|----------------|------------------------------------------|-------|
+| `subnet`              | `snet`     | `vnet`         | `snet-{child_purpose}-{P}`               | `child_purpose` 3–7 chars |
+| `nsg_rule`            | `nsgrule`  | `nsg`          | `nsgrule-{child_purpose}-{P}`            | `child_purpose` 3–7 chars |
+| `route`               | `udr`      | `route_table`  | `udr-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `apim_api`            | `api`      | `apim`         | `api-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `vnet_bastion`        | `bas`      | `vnet`         | `bas-{P}`                                | singleton, max 1 per parent |
+| `vnet_firewall`       | `afw`      | `vnet`         | `afw-{P}`                                | singleton, max 1 per parent |
+| `private_endpoint`    | `pep`      | any service    | `pep-{P}-{instance}`                     | positional, `001..` per parent |
+| `diagnostic_setting`  | `diag`     | any service    | `diag-{P}-{instance}`                    | positional, `001..` per parent |
 
-**Why this priority**: This is the entire product. Without it the
-repository cannot satisfy Constitution Principles II, III, IV, or V.
+## Baseline Tags
 
-**Independent Test**: Call the engine with a representative
-`(service_type, tenant, environment, region, instance)` tuple and assert
-the returned name conforms to Microsoft CAF guidance, matches the
-documented per-service shape, and is byte-identical on a repeat call.
+Every generated resource carries this tag map. Callers MAY add extra
+keys via a per-stack `var.extra_tags` map merged on top. Baseline
+keys MUST NOT be removed and their values MUST NOT be overridden
+(name and tag stay in sync). Adding a baseline key in `extra_tags`
+fails loudly.
 
-**Acceptance Scenarios**:
+| Tag key           | Value source                                       |
+|-------------------|----------------------------------------------------|
+| `tenant`          | `var.input.tenant`                                 |
+| `environment`     | `var.input.environment`                            |
+| `region`          | `var.input.region` (full name, not short code)     |
+| `managed_by`      | constant `"terraform"`                             |
+| `repo`            | `var.input.repo` (`github_org/github_repo`, verbatim) |
+| `usecase`         | `var.input.usecase`                                |
+| `stack_purpose`   | `var.input.stack_purpose`                          |
+| `service_purpose` | per-service entry's `service_purpose` (RG record uses `stack_purpose`) |
 
-1. **Given** a valid tuple for a service that allows hyphens, **When** a
-   name is requested, **Then** the engine returns a lowercase
-   hyphen-separated name composed of the CAF abbreviation, tenant,
-   environment, region, and zero-padded 3-digit instance.
-2. **Given** a valid tuple for a service that forbids hyphens (e.g. a
-   storage-account-class service), **When** a name is requested, **Then**
-   the engine returns the same logical fields concatenated with no
-   separators, lowercased, and within the service's character-set and
-   length limits.
-3. **Given** the same tuple twice, **When** a name is requested both
-   times, **Then** the two returned names are byte-identical and the
-   recommended `for_each` key is identical.
-4. **Given** a `services` list with two entries of the same `service_type`
-   and no explicit `instance`, **When** names are requested, **Then** the
-   engine assigns instance `001` and `002` based on list position,
-   starting at `001` for every `service_type` within the stack.
+## Rules
 
----
+- All names are lowercase. All input tokens MUST also be lowercase
+  (their regexes reject uppercase). The sole exception is `repo`,
+  which is preserved verbatim because it is a tag value only and
+  GitHub org/repo identifiers are case-sensitive.
+- Names MUST match the format in the table; the engine fails loudly
+  on any deviation. No truncation, hashing, or silent mutation.
+- Names are deterministic: identical inputs produce identical names.
+- The recommended Terraform `for_each` key is the canonical name itself.
+- Instance numbering starts at `001`. The engine sorts entries by
+  `(service_type, service_purpose, key)` where `key` is a caller-
+  supplied stable identifier (required on every top-level entry;
+  `^[a-z0-9]{1,16}$`; unique within its
+  `(service_type, service_purpose)` group), then assigns `001`,
+  `002`, ... in that order. Child positional numbering is by
+  `(child_type, parent, key)`. Max `999`. File reordering does not
+  affect names.
+- Child `child_purpose` tokens MUST be unique within their `(parent, child_type)`.
+- `tenant` and `usecase` are orthogonal and both required. `tenant`
+  identifies the subscription/network (`hub` or `spNN`); `usecase`
+  identifies the workload (`shd`, `ucNN`, ...). Any combination is
+  legal; the engine does not enforce a pairing.
+- Input widths are sized so that worst-case concatenated names
+  (`st`/`kv` = 24 chars max) always fit: `2 + 3 + 4 + 4 + 3 + 4 + 3 =
+  23` ≤ 24. The engine still validates each computed name against
+  the per-service Azure max and fails loudly on any overflow.
+- Names cannot be overridden. The engine-generated name is always
+  canonical; pre-existing Azure resources must be imported under the
+  canonical name or excluded from the engine.
+- The engine ships with a built-in `region` lookup mapping each CAF
+  short code to its full Azure region name (e.g. `uks → uksouth`,
+  `weu → westeurope`). The short code is used in names; the full
+  name is used in the `region` tag. Unknown short codes fail loudly.
+- The Naming Pattern Table is authoritative. The engine refuses to
+  generate a name for any `service_type` not listed. Adding a new
+  resource type requires a spec change (new row) before any module
+  may use it.
+- The engine's output is a Terraform map keyed by canonical name,
+  exposed via the engine module's `outputs.tf` as e.g.
+  `{ <canonical_name> = { service_type, tags, ... } }`. Consumers
+  iterate it via `for_each`. No files are written to disk.
+- For `dns_zone` and `private_dns_zone` the canonical name is the
+  caller-supplied FQDN. The engine validates it against
+  `^[a-z0-9.-]{1,253}$` (lowercase, valid DNS chars, ≤253 chars)
+  and fails loudly otherwise. The FQDN is used verbatim as the map
+  key; baseline tags apply as for any other service.
+- The eight baseline tag keys (plus any `var.extra_tags`) are
+  engine-owned. `terraform apply` resets drift on these keys to the
+  engine values. Tags added to a resource out-of-band under any
+  other key are preserved (modules use additive `merge(...)`
+  semantics, not exclusive ownership).
+- The engine validates every emitted tag against Azure limits: keys
+  ≤ 512 chars, values ≤ 256 chars. Any baseline or `var.extra_tags`
+  entry exceeding these fails loudly at engine time.
 
-### User Story 2 — Loud, Helpful Failure on Invalid Inputs (Priority: P1)
+## Success Criteria
 
-When the engine cannot produce a CAF-conformant name, it MUST fail loudly
-at plan time with a message that names the offending input and the
-expected shape. It MUST NOT silently truncate, rewrite, or hash the
-result.
-
-**Why this priority**: Silent truncation produces collisions and audit
-ambiguity. Loud failure is what the constitution promises.
-
-**Independent Test**: Submit each documented error class once and assert
-the engine raises a clear error rather than emitting a malformed name.
-
-**Acceptance Scenarios**:
-
-1. **Given** an unknown `service_type`, **When** a name is requested,
-   **Then** the engine fails with an error listing the supported service
-   types.
-2. **Given** a `tenant` that is neither `hub` nor matches the documented
-   spoke pattern, **When** a name is requested, **Then** the engine fails
-   with an error stating the expected tenant pattern.
-3. **Given** an unknown `region` code, **When** a name is requested,
-   **Then** the engine fails with an error listing the supported region
-   codes.
-4. **Given** inputs that would produce a name exceeding the per-service
-   length limit or violating its character set, **When** a name is
-   requested, **Then** the engine fails with an error citing the
-   violated constraint (length, charset, leading-character rule) — it
-   MUST NOT truncate, hash, or otherwise mangle the name.
-5. **Given** a `services[]` entry whose `service_type` is `hub-only`
-   and a request whose `topology` is `spoke` (or vice versa), **When**
-   the engine is invoked, **Then** the engine fails with an error that
-   names the offending `service_type`, its allowed topology scope, and
-   the requested topology; AND **Then** the engine emits no names from
-   the batch.
-6. **Given** a `services[]` entry whose `service_type` is
-   `prd-hub-only` (e.g. `dns_zone`) and a request whose
-   `(topology, environment)` is NOT `(hub, prd)` — for example
-   `(hub, npd)` or any spoke — **When** the engine is invoked, **Then**
-   the engine fails with an error that names the offending
-   `service_type`, its scope `prd-hub-only`, and the requested
-   `(topology, environment)` pair; AND **Then** the engine emits no
-   names from the batch.
-7. **Given** the same `prd-hub-only` service requested in `(hub, prd)`,
-   **When** the engine is invoked, **Then** the engine succeeds and
-   emits the canonical name.
-
----
-
-### User Story 3 — Single-Entry Catalogues for Extensibility (Priority: P2)
-
-Adding support for a new Azure service type, a new region, or a new
-default SKU is a single-entry change in one central catalogue. No
-module-side edits are required for the engine to start producing names
-and defaults for the new type.
-
-**Why this priority**: This is the constitution's "single source of
-truth" principle made operational. It is not on the critical path for
-the first release but is the principal long-term value.
-
-**Independent Test**: Add one entry to each catalogue (abbreviation,
-region, default) and assert the engine produces correct names, regions,
-and defaults for the new entry without any other code change.
-
-**Acceptance Scenarios**:
-
-1. **Given** a new service-type entry added to the CAF abbreviation
-   catalogue and a corresponding entry in the per-service constraints
-   catalogue, **When** the engine is invoked for that service type,
-   **Then** it returns a valid CAF-conformant name without any other
-   change to the repository.
-2. **Given** a new full-region-name → short-code mapping added to the
-   region catalogue, **When** the engine is invoked with that region,
-   **Then** the short code appears in the generated names exactly as
-   catalogued.
-3. **Given** a new default-settings entry added for an existing service
-   type, **When** a consumer requests defaults for that type and supplies
-   no overrides, **Then** the catalogue value is returned; **When** an
-   override keyed by the canonical resource name is supplied, **Then**
-   the override is returned instead.
-
----
-
-### User Story 4 — Baseline Tags Emitted Alongside Every Name (Priority: P2)
-
-Every name produced by the engine is accompanied by a baseline tag set
-derived from the same inputs, so consumers cannot accidentally tag
-resources inconsistently.
-
-**Why this priority**: Tags are the foundation of cost attribution and
-compliance reporting (Constitution Principle VIII). They must be
-co-located with name generation so they cannot drift.
-
-**Independent Test**: Request a name and assert the accompanying tag map
-contains the documented baseline keys with values derived from the
-inputs.
-
-**Acceptance Scenarios**:
-
-1. **Given** any valid name request, **When** the engine responds,
-   **Then** it emits a tag map containing at minimum `tenant`,
-   `topology`, `environment`, `region`, `managed_by`, and `repo`.
-2. **Given** per-resource tag overrides keyed by the canonical name,
-   **When** the engine is asked to merge them with the baseline,
-   **Then** override values replace baseline values for the same keys
-   but no baseline key is removed.
-
----
-
-### Edge Cases
-
-- A `services` list that is empty for a given `service_type` produces no
-  names for that type and no error.
-- A `services` list with `count: 1` and a `services` list with no
-  `count` produce identical output (default `count` is `1`).
-- A region whose short code is the maximum documented length still
-  produces a name within the per-service length budget; if it does not,
-  the engine fails loudly (User Story 2).
-- A spoke tenant at the boundary of the documented range (`sp01` and
-  `sp99`) still produces valid names; `sp00`, `sp1`, `sp100`, and any
-  other shape outside `^sp(0[1-9]|[1-9][0-9])$` cause the engine to
-  fail loudly.
-- The `instance` value `1` renders as `001`; the highest documented
-  instance (e.g. `999`) renders as `999`; values beyond the documented
-  range fail loudly.
-- Two service types whose CAF abbreviations happen to share a prefix do
-  not collide because the abbreviation is matched whole, not as a prefix.
-- A nested child whose `purpose` token duplicates another child of the
-  same parent (e.g. two subnets both with `purpose: app`) causes a hard
-  error; uniqueness is enforced per `(parent, child_type)`.
-- A nested child whose `parent` field references a service that is not
-  emitted in the same batch (e.g. a private endpoint targeting a
-  non-existent storage account) causes a hard error.
-
-## Requirements *(mandatory)*
-
-### Functional Requirements
-
-- **FR-001**: The engine MUST expose a single batch entry point that
-  accepts one request object containing: `topology`, `tenant`,
-  `environment`, `region`, `repo`, and `services` (an ordered list
-  whose entries carry `service_type` and an optional `count` defaulting
-  to `1`). `repo` is a required string carrying the canonical
-  repository identifier (e.g. `org/name`) and is used verbatim as the
-  baseline `repo` tag value (FR-014). The engine MUST NOT read git
-  state or any other ambient source for `repo`. Each `services[]`
-  entry MAY additionally carry typed child lists for nested
-  sub-resources, as described in FR-026/FR-027. The engine MUST own
-  the expansion of the `services` list (and any nested children) into
-  individual resource records. Callers MUST NOT pre-compute `instance`
-  values; the engine assigns them per FR-008.
-- **FR-002**: The engine MUST produce one canonical resource name per
-  request, conforming to Microsoft Cloud Adoption Framework guidance and
-  to the per-service constraints documented in the constraints catalogue.
-- **FR-003**: The engine MUST select between the hyphen-separated shape
-  and the concatenated (no-separator) shape based solely on the per-
-  service constraints catalogue entry for `service_type`.
-- **FR-004**: For hyphen-allowed services, the canonical shape MUST be
-  `{caf-abbr}-{tenant}-{environment}-{region}-{instance-3-digit}`,
-  lowercase, with the instance segment rendered as a zero-padded 3-digit
-  decimal.
-- **FR-005**: For hyphen-forbidden services, the canonical shape MUST be
-  the same logical fields in the same order, concatenated with no
-  separators, lowercase, and confined to the character set the service
-  permits.
-- **FR-006**: The engine MUST be deterministic: identical inputs MUST
-  produce byte-identical names on every invocation, with no use of
-  timestamps, random values, UUIDs, or hashes.
-- **FR-007**: The recommended `for_each` key for any generated resource
-  MUST be the canonical resource name itself, never a list index.
-- **FR-008**: Instance numbering rules:
-  - Top-level instance numbers MUST start at `1` and are scoped per
-    `(service_type, batch request)`. They are assigned by the engine
-    based on the position of the corresponding entry (and its `count`)
-    within the request's `services` list.
-  - Positional child instance numbers MUST start at `1` and are scoped
-    per `(child_type, parent canonical name)`. They are NOT per stack.
-  - Purpose-keyed children (e.g. subnets, NSG rules) skip positional
-    numbering entirely; their canonical name embeds the `purpose`
-    token in place of a numeric segment.
-  - In all cases: no offsets, no preserved gaps.
-  - The `services[]` list and every child list (`subnets:`,
-    `nsg_rules:`, `routes:`, `private_endpoints:`,
-    `diagnostic_settings:`) are ORDER-SENSITIVE for instance
-    assignment. Reordering produces different canonical names.
-    `services[]` order is the single source of determinism for
-    positional numbering; consumers MUST therefore commit their input
-    in a stable order.
-  - Maximum instance number is `999` (3-digit cap). Requesting
-    `count > 999`, or addressing any instance `> 999` (including from
-    positional-child assignment under a parent), MUST be a hard error
-    naming the offending `(service_type, parent?, requested_count_or_instance)`.
-- **FR-009**: The engine MUST expose a single CAF-abbreviation catalogue
-  mapping each supported `service_type` to its CAF abbreviation. The
-  catalogue MUST cover, at minimum, every service type already used by
-  modules in this repository (see Assumptions for the inventory).
-- **FR-010**: The engine MUST expose a single region catalogue mapping
-  full Azure region names to short region codes. Adding a region MUST be
-  a single-entry change (one PR, one row). Day-one supported regions
-  (derived from the CAF region-abbreviation conventions, pinned per
-  FR-036):
-
-  | Full region name | Short code |
-  |------------------|------------|
-  | `uksouth`        | `uks`      |
-  | `ukwest`         | `ukw`      |
-  | `westeurope`     | `weu`      |
-  | `northeurope`    | `neu`      |
-  | `eastus`         | `eus`      |
-  | `eastus2`        | `eus2`     |
-  | `westus2`        | `wus2`     |
-  | `westus3`        | `wus3`     |
-
-  Any `region` value not present in the catalogue MUST cause the hard
-  error described in FR-018.
-- **FR-011**: The engine MUST expose a single per-service constraints
-  catalogue holding, for each `service_type`: maximum length, allowed
-  character set, hyphen-allowed flag, case rule, and any
-  must-start-with-letter rule.
-- **FR-012**: The engine MUST expose a single default-settings catalogue
-  per `service_type` covering at minimum the settings a consumer would
-  otherwise have to pass (e.g. SKU, tier, capacity, retention) for the
-  service to deploy successfully with no user-supplied overrides.
-- **FR-013**: The engine MUST accept an optional overrides map keyed by
-  canonical resource name; when a key is present the override value MUST
-  win over the default; when a key is absent the default MUST be used.
-- **FR-014**: The engine MUST emit, alongside every name, a baseline
-  tag map containing EXACTLY six keys: `tenant`, `topology`,
-  `environment`, `region`, `managed_by`, and `repo`. All baseline keys
-  MUST be lowercase snake_case. Values:
-  - `tenant` ← `var.input.tenant`
-  - `topology` ← `var.input.topology`
-  - `environment` ← `var.input.environment`
-  - `region` ← `var.input.region` (full Azure region name, not the
-    short code)
-  - `managed_by` ← the literal constant `"terraform"`
-  - `repo` ← `var.input.repo`, verbatim (FR-001)
-
-  The engine MUST NOT read git state, environment variables, or any
-  other ambient source for any baseline value. Per FR-015, an
-  overrides map may ADD keys and OVERRIDE values, but the six baseline
-  keys MUST NOT be removable from the emitted tag map.
-- **FR-015**: The engine MUST accept an optional per-resource tag
-  overrides map keyed by canonical resource name and MUST merge it on
-  top of the baseline such that override keys replace baseline keys but
-  no baseline key is removed. Override keys MUST conform to Azure tag
-  key rules: length `1..512` characters and MUST NOT begin with any of
-  the Azure-reserved prefixes (`microsoft`, `azure`, `windows`). The
-  engine MUST hard-fail with an error listing every offending override
-  key when this validation does not pass.
-- **FR-016**: The engine MUST validate every generated name against its
-  per-service shape (a documented regex per shape) and against the
-  per-service length, charset, and case constraints. Validation failure
-  MUST be a hard error raised at plan time. The engine MUST NOT
-  truncate, hash, rewrite, or otherwise silently mutate a name to make
-  it pass validation.
-
-  The four canonical-shape regexes are:
-  - Top-level hyphenated:
-    `^[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{2,5}-[a-z0-9]{2,5}-[0-9]{3}$`
-  - Top-level concatenated (hyphen-forbidden):
-    `^[a-z]{2,6}(hub|sp[0-9]{2})[a-z0-9]{2,5}[a-z0-9]{2,5}[0-9]{3}$`
-  - Purpose-keyed child of a hyphenated parent:
-    `^[a-z]{2,6}-[a-z0-9]{2,16}-[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{2,5}-[a-z0-9]{2,5}-[0-9]{3}$`
-    (the engine MUST additionally verify that the parent-suffix
-    segments equal the parent's own `(tenant, environment, region,
-    instance)` segments — regex match alone is not sufficient)
-  - Positional child of a hyphenated parent (composable):
-    `^[a-z]{2,6}-<parent-canonical>-[0-9]{3}$` where
-    `<parent-canonical>` is the literal parent canonical name.
-
-  When a generated candidate name exceeds the per-service length
-  budget, the engine MUST hard-fail with an error message containing:
-  the offending `service_type`, the generated candidate string, the
-  per-service byte limit, and the over-budget byte count. The message
-  MUST instruct the operator to remediate by allocating a shorter
-  `region` short code or by allocating the resource to a different
-  `tenant`. The error message MUST NOT suggest truncation or hashing,
-  and the engine MUST NOT perform either.
-- **FR-017**: An unknown `service_type` MUST cause a hard error whose
-  message names the unknown value and lists the supported service types.
-- **FR-018**: An unknown `region` MUST cause a hard error whose message
-  names the unknown value and lists the supported region codes.
-- **FR-019**: An invalid `tenant` MUST cause a hard error whose message
-  names the unknown value and states the expected tenant pattern. The
-  expected pattern is: the literal `hub`, OR a fixed-width 2-digit
-  spoke token matching the regex `^sp(0[1-9]|[1-9][0-9])$` (i.e. `sp01`
-  through `sp99` inclusive). `sp00` is reserved and MUST be rejected.
-  Variable-width forms such as `sp1` or `sp100` MUST also be rejected.
-  Consequence: at most 99 spokes per environment, and the lexical sort
-  of spoke tokens matches their numeric sort.
-- **FR-020**: `topology` MUST be exactly one of `hub` or `spoke`. The
-  engine MUST cross-check that `topology = hub` implies `tenant = hub`
-  and that `topology = spoke` implies `tenant` matches the spoke
-  pattern; mismatches MUST be a hard error.
-- **FR-021**: The engine MUST treat `service_type` as a whole token; two
-  service types whose abbreviations share a prefix MUST NOT be confused
-  with each other.
-- **FR-022**: For Azure resources requiring global uniqueness, the
-  canonical combination above MUST be sufficient; the engine MUST NOT
-  introduce a hash or random suffix. If a collision occurs in practice,
-  the documented resolution is to allocate a different `tenant` or
-  `region`.
-- **FR-023**: A validation test fixture MUST exist that, for every
-  catalogued `service_type`, generates names for a representative
-  cross-product of inputs (hub and a spoke; `npd` and `prd`; one short
-  region code and one long region code; instance `1` and instance `999`)
-  and asserts each generated name matches the regex documented for its
-  shape and satisfies all per-service constraints.
-- **FR-024**: This feature is out of scope for refactoring existing
-  modules to consume the engine. Module migration is a downstream
-  feature and MUST be tracked separately with explicit `moved {}` blocks.
-- **FR-025**: The engine MUST emit exactly one resource-group record
-  per batch request, with a canonical name derived from the request's
-  `(tenant, environment, region)` and instance `001`. The engine MUST
-  treat every other service in the same batch as belonging to that
-  resource group. Callers MUST NOT supply a `resource_group` field per
-  service. Finer-grained RG strategies (one RG per service type, one
-  RG per instance, caller-supplied RG) are explicitly out of scope and
-  may be added by a future feature spec.
-- **FR-026**: The constraints catalogue MUST classify every entry as
-  either **top-level** (valid as a `services[]` entry) or
-  **child-only** (valid ONLY as a nested entry under a documented
-  parent type). A `services[]` entry whose `service_type` is
-  child-only MUST be a hard error.
-
-  **Day-one authoritative inventory.** Every row below is
-  catalogued at launch. `caf_abbr` is the abbreviation pinned by
-  FR-036; `shape` is `hyphenated` for hyphen-allowed services and
-  `concatenated` for hyphen-forbidden services; `topology_scope` is
-  per FR-033; `category` is `top-level` or `child-only`.
-
-  | service_type              | caf_abbr   | shape         | topology_scope | category   |
-  |---------------------------|------------|---------------|----------------|------------|
-  | `resource_group`          | `rg`       | hyphenated    | either         | top-level  |
-  | `vnet`                    | `vnet`     | hyphenated    | either         | top-level  |
-  | `nsg`                     | `nsg`      | hyphenated    | either         | top-level  |
-  | `route_table`             | `rt`       | hyphenated    | either         | top-level  |
-  | `public_ip`               | `pip`      | hyphenated    | either         | top-level  |
-  | `log_analytics`           | `log`      | hyphenated    | either         | top-level  |
-  | `app_insights`            | `appi`     | hyphenated    | either         | top-level  |
-  | `storage`                 | `st`       | concatenated  | either         | top-level  |
-  | `keyvault`                | `kv`       | hyphenated    | either         | top-level  |
-  | `container_registry`      | `cr`       | concatenated  | either         | top-level  |
-  | `user_assigned_identity`  | `id`       | hyphenated    | either         | top-level  |
-  | `vm`                      | `vm`       | hyphenated    | either         | top-level  |
-  | `app_service_plan`        | `asp`      | hyphenated    | either         | top-level  |
-  | `apim`                    | `apim`     | hyphenated    | either         | top-level  |
-  | `firewall`                | `afw`      | hyphenated    | hub-only       | top-level  |
-  | `bastion`                 | `bas`      | hyphenated    | hub-only       | top-level  |
-  | `vpn_gateway`             | `vpng`     | hyphenated    | hub-only       | top-level  |
-  | `expressroute_gateway`    | `ergw`     | hyphenated    | hub-only       | top-level  |
-  | `function_app`            | `func`     | hyphenated    | spoke-only     | top-level  |
-  | `logic_app`               | `logic`    | hyphenated    | spoke-only     | top-level  |
-  | `aml_workspace`           | `mlw`      | hyphenated    | spoke-only     | top-level  |
-  | `openai`                  | `oai`      | hyphenated    | spoke-only     | top-level  |
-  | `aifoundry`               | `aif`      | hyphenated    | spoke-only     | top-level  |
-  | `language`                | `lang`     | hyphenated    | spoke-only     | top-level  |
-  | `doc_intel`               | `di`       | hyphenated    | spoke-only     | top-level  |
-  | `search`                  | `srch`     | hyphenated    | spoke-only     | top-level  |
-  | `dns_zone`                | `dns`      | hyphenated    | prd-hub-only   | top-level  |
-  | `private_dns_zone`        | `pdns`     | hyphenated    | prd-hub-only   | top-level  |
-  | `subnet`                  | `snet`     | hyphenated    | (inherits)     | child-only |
-  | `nsg_rule`                | `nsgrule`  | hyphenated    | (inherits)     | child-only |
-  | `route`                   | `udr`      | hyphenated    | (inherits)     | child-only |
-  | `private_endpoint`        | `pep`      | hyphenated    | (inherits)     | child-only |
-  | `diagnostic_setting`      | `diag`     | hyphenated    | (inherits)     | child-only |
-
-  Child-only parent bindings:
-  - `subnet` → parent `vnet`
-  - `nsg_rule` → parent `nsg`
-  - `route` → parent `route_table`
-  - `private_endpoint` → parent: any top-level row the catalogue
-    marks PE-hostable (catalogue flag, not enumerated in this spec)
-  - `diagnostic_setting` → parent: any top-level row the catalogue
-    marks diagnostics-capable
-
-  Any addition to or change in this table is a single-PR catalogue
-  edit (per Constitution Principle V) and is out of scope for engine
-  code changes.
-- **FR-027**: Each parent service-type record in the catalogue MUST
-  declare which child types it accepts and, for each, the name of the
-  child-list key on the parent (e.g. `vnet` accepts `subnets:`, `nsg`
-  accepts `rules:`, `route_table` accepts `routes:`, PE-hostable
-  services accept `private_endpoints:`, diagnostics-capable services
-  accept `diagnostic_settings:`).
-- **FR-028**: For each child type, the catalogue MUST declare whether
-  the child is **positional** (numbered `001`, `002`, … per parent) or
-  **purpose-keyed** (named by an explicit `purpose` token supplied on
-  the child entry). Day-one classification:
-  - `subnet` — purpose-keyed (e.g. `purpose: app`, `purpose: data`).
-  - `nsg_rule` — purpose-keyed (e.g. `purpose: allow-https`).
-  - `route` — purpose-keyed.
-  - `private_endpoint` — positional, scoped per `(parent service)`.
-  - `diagnostic_setting` — positional, scoped per `(parent service)`.
-- **FR-029**: A `purpose` token MUST be unique within its
-  `(parent, child_type)`. Duplicates are a hard error. The `purpose`
-  token MUST follow the same character-set rules as a tenant token
-  (lowercase alphanumerics plus hyphen for hyphen-allowed shapes;
-  lowercase alphanumerics only for hyphen-forbidden shapes) and
-  contributes to the child's length budget like any other segment.
-- **FR-030**: Canonical child names embed the parent's identifying
-  suffix so that the parent is recoverable from the child name. The
-  exact shapes per child type are:
-  - For purpose-keyed children of hyphen-allowed parents:
-    `{child-caf-abbr}-{purpose}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}`.
-  - For positional children of hyphen-allowed parents:
-    `{child-caf-abbr}-{parent-tenant}-{parent-environment}-{parent-region}-{parent-instance}-{child-instance}`.
-  - For positional children of hyphen-forbidden parents: same logical
-    fields, no separators, lowercase.
-  - **Purpose-keyed children of hyphen-forbidden parents are NOT
-    permitted.** Day-one catalogue has no such combination. Any
-    future requirement to support one MUST be introduced by a
-    separate spec amendment that defines a new shape and new
-    canonical-shape regex; until then the engine MUST hard-fail any
-    such request with an error naming the offending
-    `(child_type, parent_service_type)` pair.
-
-  Per-service length and charset constraints (FR-016) apply to every
-  resulting child name without exception.
-- **FR-031**: The engine's batch output MUST be a flat map keyed by
-  canonical resource name. Each value MUST carry at minimum:
-  `service_type`, `parent` (the canonical name of the parent, or
-  `null` for top-level resources and for the per-stack resource
-  group), `tags`, and `defaults`. Consumer modules iterate this flat
-  map uniformly regardless of nesting depth in the input.
-- **FR-032**: A child entry whose `parent` reference cannot be
-  resolved within the same batch (because the parent service was not
-  declared, or the implicit parent of a nested child does not exist)
-  MUST cause a hard error naming the unresolved parent.
-- **FR-033**: The constraints catalogue MUST carry a `topology_scope`
-  field for every top-level service type, valued exactly one of:
-  `hub-only`, `spoke-only`, `either`, or `prd-hub-only`. The engine
-  MUST hard-fail at name-generation time if any `services[]` entry's
-  `service_type` does not permit the request's `(topology, environment)`
-  pair:
-  - `hub-only` permits any request whose `topology = hub`.
-  - `spoke-only` permits any request whose `topology = spoke`.
-  - `either` permits any request.
-  - `prd-hub-only` permits ONLY requests whose `topology = hub` AND
-    `environment = prd`. Any other combination MUST fail.
-  The error message MUST name the offending `service_type`, its
-  scope, and the requested `(topology, environment)` pair. On any
-  such failure the engine MUST emit no names from the batch
-  (all-or-nothing).
-- **FR-034**: Day-one `topology_scope` seed. The authoritative seed is
-  the FR-026 inventory table. This requirement is retained as an
-  anchor for traceability; it adds no rules beyond FR-026.
-- **FR-035**: Child types (`subnet`, `nsg_rule`, `route`,
-  `private_endpoint`, `diagnostic_setting`) MUST NOT carry their own
-  `topology_scope`; they inherit the scope of their parent at
-  validation time. Day-one note: the only `prd-hub-only` parents are
-  `dns_zone` and `private_dns_zone`, neither of which has catalogued
-  child types, so this inheritance rule is currently vacuous. The
-  rule remains normative and applies the moment a non-`either`
-  parent gains a child type.
-- **FR-036**: The authoritative source for CAF abbreviations and
-  naming guidance is pinned to the Microsoft Learn page
-  <https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/resource-abbreviations>
-  as of the date this specification is merged. The catalogue is
-  frozen against that page on the merge date. Any subsequent CAF
-  revision (new abbreviations, renamed abbreviations, new services)
-  MUST be tracked by a separate, dedicated PR that updates only the
-  catalogue and records the new freeze date in this section. The
-  engine code does not need to change to track CAF revisions.
-- **FR-037**: **Uniqueness analysis (worst case) for hyphen-forbidden
-  services.** For every catalogued hyphen-forbidden service, the
-  canonical concatenated shape `{caf_abbr}{tenant}{env}{region}{instance}`
-  MUST fit within the Azure-imposed max length for the
-  service for every combination of:
-  - `tenant` ∈ `{hub}` ∪ `{sp01..sp99}` (max width 4)
-  - `environment` short code (max width 4, per FR-019 sibling
-    constraint)
-  - `region` short code (max width 4 per FR-010)
-  - `instance` ∈ `001..999` (fixed width 3)
-
-  Day-one hyphen-forbidden services and worst-case lengths:
-
-  | service_type         | caf_abbr | Azure max | Worst-case computed length | Headroom |
-  |----------------------|----------|-----------|-----------------------------|----------|
-  | `storage`            | `st`     | 24        | `2 + 4 + 4 + 4 + 3 = 17`    | 7        |
-  | `container_registry` | `cr`     | 50        | `2 + 4 + 4 + 4 + 3 = 17`    | 33       |
-  | `keyvault` *(note)*  | `kv`     | 24        | `2 + 4 + 4 + 4 + 3 = 17`    | 7        |
-
-  *(Note: `keyvault` is catalogued as hyphenated per FR-026; the row
-  is included here as a defensive bound in case a future amendment
-  switches its shape. The current hyphenated shape
-  `kv-{tenant}-{env}-{region}-{instance}` has worst case
-  `2 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 3 = 21`, still within 24.)*
-
-  All headroom values are strictly positive, demonstrating that the
-  canonical combination is sufficient for global uniqueness without
-  any hash/random suffix (FR-022). Adding a new hyphen-forbidden
-  service in a catalogue PR MUST extend this table and demonstrate
-  strictly positive headroom; if headroom is non-positive, the PR
-  MUST be rejected and the service classified as hyphenated.
-- **FR-038**: **Snapshot lifecycle.** The reference snapshot under
-  `modules/naming/tests/snapshots/` is the canonical determinism
-  oracle (per Constitution Principle IV and FR-006). It MUST be
-  regenerated only by a PR that:
-  1. includes the regenerated snapshot file in the same commit;
-  2. explains, in the PR description, the input or catalogue change
-     that caused the divergence;
-  3. carries an explicit reviewer sign-off from a CAF or
-     cloud-architecture approver.
-
-  CI MUST run `terraform test` against the `modules/naming` suite on
-  every PR and MUST fail the PR if the live `output.names` map
-  diverges from the committed snapshot. A divergence without an
-  accompanying snapshot update in the same PR is a release blocker.
-- **FR-039**: **Zero / empty / unmatched-state semantics.** The
-  engine MUST behave as follows in these explicit corner cases:
-  - `services: []` → the engine emits ONLY the per-stack resource
-    group record (per FR-025). No error.
-  - `count: 0` on a `services[]` entry → that entry is skipped
-    silently and emits no names. Numbering of subsequent entries of
-    the same `service_type` still starts at `001`. No error.
-  - An empty child list on a parent (e.g. `subnets: []`,
-    `nsg_rules: []`, `private_endpoints: []`) → no children emitted.
-    No error.
-  - A key in `var.input.overrides` (whether resource-config
-    overrides per FR-013 or tag overrides per FR-015) that does NOT
-    match any canonical name emitted by the same batch → hard error
-    that lists every unmatched key. This catches typos and
-    stale overrides at plan time.
-
-### Key Entities *(include if feature involves data)*
-
-- **Service Type** — A logical key identifying an Azure service family
-  (e.g. `vnet`, `storage`, `keyvault`). Has exactly one CAF
-  abbreviation, exactly one constraints record, and exactly one default-
-  settings record. Classified as either **top-level** (valid as a
-  `services[]` entry) or **child-only** (valid only as a nested child).
-- **Child Type** — A service type classified as child-only (`subnet`,
-  `nsg_rule`, `route`, `private_endpoint`, `diagnostic_setting`). Each
-  child type is either **positional** or **purpose-keyed**.
-- **Purpose Token** — A short caller-supplied identifier carried on
-  purpose-keyed child entries (e.g. `app`, `data`, `allow-https`).
-  Unique per `(parent, child_type)`.
-- **CAF Abbreviation** — The short prefix taken from Microsoft CAF
-  recommended abbreviations; bound to one service type.
-- **Region Code** — A short token representing an Azure region; bound to
-  exactly one full Azure region name.
-- **Tenant Token** — `hub` for hub stacks; a fixed-width 2-digit spoke
-  token `sp01`–`sp99` (FR-019) for spoke stacks.
-- **Canonical Resource Name** — The deterministic output produced by the
-  engine for a given input tuple. Doubles as the `for_each` key.
-- **Baseline Tag Set** — The minimum tags emitted alongside every name,
-  derived from inputs and repository identity.
-- **Constraints Record** — Per service type: max length, charset,
-  hyphen-allowed flag, case rule, leading-character rule, and (for
-  top-level types) `topology_scope` (`hub-only` | `spoke-only` |
-  `either` | `prd-hub-only`). Child types do NOT carry `topology_scope`;
-  they inherit their parent's.
-- **Defaults Record** — Per service type: the minimum settings (SKU,
-  tier, capacity, retention, …) needed for the resource to deploy.
-- **Overrides Map** — User-supplied map keyed by canonical resource
-  name; values replace defaults on a per-resource basis.
-
-## Success Criteria *(mandatory)*
-
-### Measurable Outcomes
-
-- **SC-001**: For any catalogued service type, the engine produces a
-  canonical name in under 50 milliseconds per request on a standard
-  developer workstation.
-- **SC-002**: 100% of names produced for the cross-product test fixture
-  (every catalogued service type × {hub, one spoke} × {`npd`, `prd`} ×
-  {shortest, longest region code} × {instance 1, instance 999}) pass
-  CAF-shape regex validation and per-service constraint validation.
+- **SC-001**: 100% of names produced by the engine match the format in
+  the table for their `service_type`.
+- **SC-002**: 100% of names fit within the per-service Azure max length.
 - **SC-003**: Running the engine twice with identical inputs produces
-  zero textual differences across the entire output (names, tags,
-  defaults, `for_each` keys).
-- **SC-004**: Adding a new Azure service type — including its CAF
-  abbreviation, constraints, and defaults — requires changes in exactly
-  one catalogue file per concern (abbreviation, constraints, defaults)
-  and zero changes to any existing module under `modules/`.
-- **SC-005**: Adding a new Azure region requires exactly one entry in
-  the region catalogue and zero changes to any existing module.
-- **SC-006**: Every error class documented in User Story 2 produces an
-  error message that names both the offending input value and the
-  expected shape/list, verified by a test per class.
-- **SC-007**: No name produced by the engine for any catalogued service
-  type contains a timestamp, a random value, a UUID, or a hash, verified
-  by an automated check over the cross-product fixture.
-- **SC-008**: Every generated name carries a baseline tag set with all
-  six required keys (`tenant`, `topology`, `environment`, `region`,
-  `managed_by`, `repo`), verified by an automated check over the
-  cross-product fixture.
-
-## Assumptions
-
-- The authoritative day-one inventory of `service_type` keys is the
-  table in FR-026. The repository's existing module set (`vnet`,
-  `subnet`, `nsg`, `nsg_rule`, `route_table`, `public_ip`, `bastion`,
-  `firewall`, `dns_zone`, `private_dns_zone`, `private_endpoint`,
-  `resource_group`, `log_analytics`, `app_insights`, `storage`,
-  `keyvault`, `container_registry`, `function_app`,
-  `app_service_plan`, `logic_app`, `apim`, `openai`, `aifoundry`,
-  `language`, `doc_intel`, `search`, `vm`, `user_assigned_identity`,
-  `aml_workspace`) is fully covered by that table. `role_assignment`
-  names are produced by the existing RBAC module via UUIDv5 derivation
-  (Constitution Principle VIII) and are intentionally outside the
-  scope of this engine.
-- Day-one region short codes are the catalogue in FR-010.
-- Instance numbers are bounded by `001..999` (FR-008). Stacks needing
-  more than 999 instances of a single service type are out of scope and
-  are a known limitation.
-- `environment` is treated as opaque by the engine; the engine validates
-  only that it is a non-empty short token (length 1–4 per the
-  input-schema contract). The set of allowed values is governed
-  elsewhere (constitution + ops policy).
-- Public DNS zone *names* (i.e. fully-qualified domain names) are NOT
-  produced by this engine; they are domain names owned by the business
-  and bound to existing zones. The engine produces names for DNS-zone
-  Terraform addresses and Azure resource names where applicable, not
-  for DNS labels themselves.
-- The `repo` tag value is supplied by the caller (FR-001) and is
-  written verbatim into the baseline tag map (FR-014). The engine
-  never reads git state.
-- Cross-cutting `topology` is required as an explicit input even though
-  it is derivable from `tenant`, so that the engine can hard-fail on
-  inconsistencies (FR-020). Callers MUST NOT rely on the engine
-  inferring topology silently.
-- The migration of existing modules and stacks to consume the engine is
-  explicitly out of scope (FR-024).
-
-## Dependencies
-
-- Microsoft Cloud Adoption Framework — recommended resource
-  abbreviations and naming guidance. Authoritative source for the
-  abbreviation catalogue and shape rules.
-- Constitution v2.1.0, Principles II, III, IV, V, VI, and VIII. This
-  spec is the realization of Principle III ("Naming Follows Microsoft
-  CAF") and the principal consumer of Principle V ("Single Source of
-  Truth for Catalogues").
+  a byte-identical output map (same keys, same values, same
+  iteration order), verifiable via `terraform output -json | diff`.
+- **SC-004**: Every generated resource carries the eight baseline tag
+  keys.

@@ -75,6 +75,7 @@ architecture:
 - Every stack MUST be unambiguously either a hub or a spoke. There is no
   third category. The global DNS stack is part of the `prd` hub's scope
   for this classification.
+- We are governed by the [Microsoft Cloud Adoption Framework](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/) from an architectural stand point. 
 
 **Rationale**: A single, well-understood topology — with a clearly bounded
 shared hub per environment group and one authoritative DNS — eliminates
@@ -85,9 +86,13 @@ change predictable.
 
 Users describe intent, not implementation detail:
 
-- The full required input surface is: topology (hub vs spoke), tenant
-  identifier, environment, region, and a list of services with optional
-  counts.
+- The full required input surface is: 
+    - topology (hub vs spoke), 
+    - tenant identifier,
+    - purpose (dns, loganalytics, network, services etc.),
+    - environment, 
+    - region, 
+    - and an optional list of services with optional counts.
 - All other configuration MUST come from sensible, centrally-defined
   defaults.
 - Per-resource overrides are OPTIONAL and live in a single overrides map.
@@ -171,6 +176,11 @@ predictable.
   state location. State files MUST NEVER be committed.
 - Authentication MUST use OIDC, managed identity, or `az login` context. No
   secrets MAY appear in code, tfvars, providers, or outputs.
+- State for non-production (npd, dev, pre) environments and production environments (prd) must be handled separately. The state handling must follow the /<tenant>/<environment>/<purpose>.tfstate. eg:
+    - /hub/npd/net.tfstate
+    - /hub/prd/dns.tfstate
+    - /sp01/dev/services.tfstate
+    - /sp02/pre/net.tfstate
 
 **Rationale**: Pinning prevents silent provider upgrades from corrupting
 state. Remote state is the only safe collaboration model. Secrets in code

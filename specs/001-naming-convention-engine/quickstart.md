@@ -1,135 +1,90 @@
 # Quickstart: Naming Convention Engine
 
-A 5-minute tour from "I have a stack to build" to "I have a map of
-canonical Azure resource names with tags".
+This is the minimum a consumer needs to know to use `modules/naming`.
 
-## Prerequisites
-
-- Terraform `>= 1.9, < 2.0` on `PATH`.
-- This repository checked out.
-- No Azure credentials required to evaluate the engine — it is
-  provider-less.
-
-## 1. Wire the engine into a stack
+## 1. Add the module
 
 ```hcl
-# terraform/services/main.tf  (illustrative; real wiring is a follow-on spec)
+# terraform/<stack>/main.tf
 
-module "naming" {
+module "names" {
   source = "../../modules/naming"
 
   input = {
-    topology    = "spoke"
-    tenant      = "sp01"
-    environment = "npd"
-    region      = "uksouth"
+    tenant        = "hub"
+    environment   = "prd"
+    region        = "uks"
+    usecase       = "shd"
+    stack_purpose = "svc"
+    repo          = "tcsatheesh/tfiac"
+  }
 
-    services = [
-      { type = "vnet",
-        subnets = [
-          { purpose = "app" },
-          { purpose = "data" },
-        ],
-      },
-      { type = "storage", count = 2 },
-      { type = "keyvault" },
-    ]
+  services = [
+    { service_type = "resource_group", key = "main" },
+    { service_type = "log_analytics",  service_purpose = "lgs", key = "primary" },
+    { service_type = "storage",        service_purpose = "lgs", key = "audit" },
+    { service_type = "keyvault",       service_purpose = "app", key = "primary" },
+    { service_type = "vnet",           service_purpose = "net", key = "core" },
+  ]
 
-    overrides = {
-      "stsp01npduks001" = { account_tier = "Premium" }
-    }
+  children = [
+    { service_type = "subnet",       parent_key = "core", child_purpose = "app",   key = "app" },
+    { service_type = "subnet",       parent_key = "core", child_purpose = "pep",   key = "pep" },
+    { service_type = "vnet_bastion", parent_key = "core", key = "bas" },
+  ]
+
+  extra_tags = {
+    cost_center = "PLT-001"
+    owner       = "platform-team"
   }
 }
 ```
 
-## 2. Inspect the engine's output
-
-```bash
-cd terraform/_naming_test
-terraform init
-terraform plan
-```
-
-The harness root forwards `module.naming.names` and `module.naming.by_type`
-as outputs. Expected (abbreviated) shape:
-
-```text
-names = {
-  "rg-sp01-npd-uks-001"    = { service_type = "resource_group", ... }
-  "vnet-sp01-npd-uks-001"  = { service_type = "vnet", parent = null, resource_group = "rg-sp01-npd-uks-001", ... }
-  "snet-app-sp01-npd-uks-001"  = { service_type = "subnet", parent = "vnet-sp01-npd-uks-001", ... }
-  "snet-data-sp01-npd-uks-001" = { service_type = "subnet", parent = "vnet-sp01-npd-uks-001", ... }
-  "stsp01npduks001"        = { service_type = "storage", instance = 1, overrides = { account_tier = "Premium" }, ... }
-  "stsp01npduks002"        = { service_type = "storage", instance = 2, ... }
-  "kv-sp01-npd-uks-001"    = { service_type = "keyvault", ... }
-}
-
-by_type = {
-  resource_group = ["rg-sp01-npd-uks-001"]
-  vnet           = ["vnet-sp01-npd-uks-001"]
-  subnet         = ["snet-app-sp01-npd-uks-001", "snet-data-sp01-npd-uks-001"]
-  storage        = ["stsp01npduks001", "stsp01npduks002"]
-  keyvault       = ["kv-sp01-npd-uks-001"]
-}
-```
-
-## 3. Consume the output from a downstream module
+## 2. Consume the output
 
 ```hcl
-resource "azurerm_storage_account" "this" {
-  for_each = {
-    for n, r in module.naming.names : n => r if r.service_type == "storage"
-  }
+resource "azurerm_resource_group" "this" {
+  for_each = { for k, v in module.names.names : k => v if v.service_type == "resource_group" }
 
-  name                     = each.key
-  resource_group_name      = each.value.resource_group
-  location                 = each.value.region
-  account_tier             = lookup(each.value.overrides, "account_tier",
-                                    each.value.defaults.account_tier)
-  account_replication_type = lookup(each.value.overrides, "account_replication_type",
-                                    each.value.defaults.account_replication_type)
-  tags                     = each.value.tags
+  name     = each.key
+  location = "uksouth"  # or look up via your own region-full var
+  tags     = each.value.tags
 }
+
+# Similarly for other resource types: filter by service_type and iterate.
 ```
 
-The module never constructs a name; it receives one.
+## 3. Verify determinism
 
-## 4. Verify determinism locally
+```bash
+terraform init
+terraform plan -out tfplan
+terraform show -json tfplan > plan1.json
+
+# rearrange the `services` list in main.tf (do NOT change any values)
+
+terraform plan -out tfplan
+terraform show -json tfplan > plan2.json
+
+diff plan1.json plan2.json  # MUST be empty
+```
+
+## 4. Run the engine's own tests
 
 ```bash
 cd modules/naming
+terraform init -backend=false
 terraform test
 ```
 
-Expected: all positive fixtures pass; the snapshot fixture asserts
-`output.names == file("tests/snapshots/reference.json")` and passes.
-Negative fixtures plan-fail with the documented error messages.
+Expected output: all `*.tftest.hcl` files pass.
 
-## 5. Run the constitutional CI gates
+## 5. Common failures
 
-```bash
-terraform fmt -check -recursive
-terraform validate                  # in modules/naming and terraform/_naming_test
-terraform test                      # in modules/naming
-# tflint, if configured                 (Constitution IX)
-```
-
-## Common failure modes (these are intentional)
-
-| Symptom                                                  | Cause                                | Fix                                                                              |
-|----------------------------------------------------------|--------------------------------------|----------------------------------------------------------------------------------|
-| `input.tenant must be "hub" or ... sp01..sp99 ...`       | Used `sp1`, `sp00`, or `sp100`       | Use a two-digit spoke token in range `sp01..sp99` (FR-019).                      |
-| `service_type "subnet" is child-only ...`                | Put `subnet` in top-level `services[]` | Move it to `subnets:` under a `vnet` entry (FR-026).                             |
-| `service_type "dns_zone" is prd-hub-only ...`            | Requested DNS in `(hub, npd)` or in a spoke | Move the DNS request to the prd hub stack (Constitution I, FR-033).         |
-| `service_type "firewall" is hub-only ...`                | Requested firewall in a spoke         | Move it to the hub stack (FR-033).                                                |
-| `service_type "function_app" is spoke-only ...`          | Requested a workload service in the hub | Move it to a spoke stack (FR-033).                                                |
-| `name "<x>" exceeds max length N for service_type ...`   | Catalogue length budget exceeded     | Allocate a different `tenant` or `region`. NEVER add a hash (Constitution III).  |
-| Snapshot test fails                                      | Reference output changed              | If intentional, regenerate `tests/snapshots/reference.json` in the same PR and explain in the PR description. |
-
-## Where to go next
-
-- Read the full input contract: [contracts/input-schema.md](contracts/input-schema.md).
-- Read the output contract: [contracts/output-schema.md](contracts/output-schema.md).
-- Read the locals stages: [data-model.md](data-model.md).
-- File a follow-on spec to migrate a specific consumer module — see
-  `## Future Work` in [plan.md](plan.md).
+| Symptom                                                       | Likely cause                                                        |
+|---------------------------------------------------------------|---------------------------------------------------------------------|
+| `Error: unknown service_type "foo"`                           | The `service_type` isn't in the spec table / catalogue. Add a row.  |
+| `Error: duplicate key "primary" in (storage, lgs)`            | Two entries share the same key in the same group; rename one.       |
+| `Error: name "kv...001" exceeds azure_max 24`                 | Inputs combined wider than the worst-case sizing; recheck regexes.  |
+| `Error: extra_tags collides with baseline key "environment"`  | Remove that key from `var.extra_tags` (you can't override baseline).|
+| `Error: rg entry forbids service_purpose`                     | Drop `service_purpose` from RG entries.                             |

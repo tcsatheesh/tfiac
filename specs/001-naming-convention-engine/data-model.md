@@ -1,207 +1,155 @@
-# Data Model: Naming Convention Engine
+# Phase 1 Data Model: Naming Convention Engine
 
-The engine has no persistent storage. "Entities" are HCL object types
-that flow through the seven locals stages. This document fixes the
-shape of each stage so future contributors can extend the engine
-without reverse-engineering `locals.tf`.
+The engine has **no persisted state**. The "data model" below describes
+the in-memory shapes that flow through the module at `terraform plan`
+time. All shapes are HCL object types.
 
----
+## Inputs
 
-## Stage 1 — Intent Record (parsed)
-
-Produced by flattening `var.input.services` and its nested children
-into a single list of records.
+### `var.input` (stack-level)
 
 ```hcl
-{
-  type        = string                       # service_type
-  parent_ref  = optional(string)             # null for top-level
-  purpose     = optional(string)             # null for positional
-  pe_subnet   = optional(string)             # for private_endpoint child only
-  raw_index   = number                       # position in the original input (stable ordering key)
+input = object({
+  tenant          = string  # ^(hub|sp[0-9]{2})$
+  environment     = string  # ^[a-z]{3}$
+  region          = string  # CAF short code, present in catalogue.regions
+  usecase         = string  # ^[a-z0-9]{3,4}$
+  stack_purpose   = string  # ^[a-z0-9]{3}$
+  repo            = string  # github_org/github_repo, ≤256 chars
+})
+```
+
+Each field is validated by a `validation { ... }` block on the
+variable. Region is additionally cross-checked against
+`local.regions` in a `precondition`.
+
+### `var.services` (list of top-level service entries)
+
+```hcl
+services = list(object({
+  service_type    = string                       # must be a key in local.services AND a top-level row
+  service_purpose = optional(string)             # required for non-RG; forbidden for RG
+  stack_purpose   = optional(string)             # required for RG; forbidden for non-RG
+  key             = string                       # ^[a-z0-9]{1,16}$, unique within (service_type, service_purpose)
+  fqdn            = optional(string)             # required IFF service_type in {dns_zone, private_dns_zone}; ^[a-z0-9.-]{1,253}$
+  extra_tags      = optional(map(string), {})    # per-entry additive; overrides stack-level extra_tags for the same non-baseline key
+}))
+```
+
+Note: an RG entry uses the stack-level `var.input.stack_purpose` by
+default; the per-entry `stack_purpose` field is reserved for stacks
+that compose multiple RGs (e.g. a stack with `dns` + `log` RGs).
+
+### `var.children` (list of child entries)
+
+```hcl
+children = list(object({
+  service_type     = string  # must be a child row in catalogue
+  parent_key       = string  # = `key` of a top-level entry above
+  child_purpose    = optional(string)  # required for purpose-keyed children; forbidden for singletons/positional
+  key              = string  # ^[a-z0-9]{1,16}$, unique within (child_type, parent, ...)
+  extra_tags       = optional(map(string), {})
+}))
+```
+
+### `var.extra_tags` (stack-level)
+
+```hcl
+extra_tags = map(string)  # additive only; collision with baseline key fails loudly
+```
+
+## Internal locals
+
+### `local.services` (catalogue)
+
+```hcl
+local.services = {
+  # top-level
+  "resource_group"   = { abbr = "rg",   shape = "hyphenated",   azure_max = 90,  level = "top", rg_special = true }
+  "vnet"             = { abbr = "vnet", shape = "hyphenated",   azure_max = 64,  level = "top" }
+  # ... 24 more top-level rows (26 top-level rows total per spec table)
+  "storage"          = { abbr = "st",   shape = "concatenated", azure_max = 24,  level = "top" }
+  # ...
+  # children
+  "subnet"           = { abbr = "snet",    shape = "child_purpose", level = "child", parent_type = "vnet" }
+  "vnet_bastion"     = { abbr = "bas",     shape = "singleton",     level = "child", parent_type = "vnet" }
+  "vnet_firewall"    = { abbr = "afw",     shape = "singleton",     level = "child", parent_type = "vnet" }
+  "private_endpoint" = { abbr = "pep",     shape = "positional",    level = "child", parent_type = "*" }
+  # ...
 }
 ```
 
-**Invariants**:
+The `shape` field drives composition:
 
-- For top-level records: `parent_ref = null`, `purpose = null` (unless
-  the type itself happens to be purpose-keyed in future — none today).
-- For purpose-keyed children: `purpose != null`, `parent_ref` is the
-  parent's `raw_index` until Stage 4 rewrites it as the parent's
-  canonical name.
-- `raw_index` is the deterministic ordering key for instance numbering
-  (FR-008).
+| `shape`          | Format                                              |
+|------------------|-----------------------------------------------------|
+| `hyphenated`     | `{abbr}-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` |
+| `concatenated`   | `{abbr}{p}{usecase}{tenant}{environment}{region}{instance}` |
+| `rg_hyphenated`  | `rg-{stack_purpose}-{usecase}-{tenant}-{environment}-{region}-{instance}` |
+| `fqdn`           | passthrough; validated against `^[a-z0-9.-]{1,253}$` |
+| `child_purpose`  | `{abbr}-{child_purpose}-{P}` |
+| `singleton`      | `{abbr}-{P}` |
+| `positional`     | `{abbr}-{P}-{instance}` |
 
----
-
-## Stage 2 — Validated Record
-
-Identical shape to Stage 1. Validation is side-effectual only — if a
-record violates a rule, the module fails via `check {}` or
-`variable.validation {}`; no record is mutated.
-
-**Validations applied** (spec → mechanism):
-
-| Spec ref | Rule                                          | Mechanism                       |
-|----------|-----------------------------------------------|---------------------------------|
-| FR-019   | `tenant` matches regex                        | `variable.validation` on `input.tenant` |
-| FR-018   | `region` is a known full Azure region name    | `check {}` over `local.region_codes` |
-| FR-017   | `type` is in catalogue                        | `check {}` over `local.caf_abbr` |
-| FR-020   | topology↔tenant consistency                   | `variable.validation` cross-field |
-| FR-026   | child-only types not used at top level        | `check {}` over parsed records |
-| FR-027   | child appears under a permitted parent type   | `check {}` over parsed records |
-| FR-029   | `purpose` uniqueness per `(parent, child_type)` | `check {}` |
-| FR-032   | child's `parent_ref` is resolvable            | `check {}` |
-| FR-033   | `topology_scope` satisfied (incl. `prd-hub-only`) | `check {}` over parsed records |
-
----
-
-## Stage 3 — Numbered Record
+### `local.regions` (catalogue)
 
 ```hcl
-{
-  type        = string
-  parent_ref  = optional(string)
-  purpose     = optional(string)
-  pe_subnet   = optional(string)
-  instance    = optional(number)             # null for purpose-keyed children
-  raw_index   = number
+local.regions = {
+  uks  = "uksouth"
+  weu  = "westeurope"
+  eus2 = "eastus2"
+  # ... grows as needed
 }
 ```
 
-**Numbering rules** (FR-008):
+### `local.numbered_services`
 
-- Top-level: `instance = position-of-this-record-among-records-of-this-type-in-this-stack`. Starts at 1.
-- Positional child: `instance = position-among-records-of-this-child_type-under-this-parent`. Starts at 1.
-- Purpose-keyed child: `instance = null` (omitted from name).
+A list of top-level entries augmented with engine-assigned `instance`,
+produced by:
 
----
+1. Sort `var.services` by `(service_type, service_purpose, key)`.
+2. Group by `(service_type, service_purpose)`.
+3. Within each group, assign `instance = format("%03d", n + 1)`.
+4. `precondition`: max `999` per group; no duplicate `key` per group.
 
-## Stage 4 — Shaped Record
+### `local.numbered_children`
+
+Same shape for children, with positional numbering scoped by
+`(child_type, parent_canonical_name, key)`. Singletons get no
+`instance`; their `precondition` enforces max 1 per parent.
+
+## Outputs
+
+### `output "names"`
 
 ```hcl
-{
-  type           = string
-  parent_ref     = optional(string)
-  purpose        = optional(string)
-  instance       = optional(number)
-  shape          = string                    # "hyphenated" | "concatenated"
-  caf_abbr       = string                    # looked up from local.caf_abbr
-  region_code    = string                    # looked up from local.region_codes
-  constraints    = object({ max_len = number, charset = string, hyphen_allowed = bool, must_start_with_letter = bool })
-  raw_index      = number
+output "names" = {
+  "<canonical_name>" = {
+    service_type     = string
+    service_purpose  = optional(string)
+    stack_purpose    = optional(string)
+    parent           = optional(string)   # canonical_name of parent for child entries
+    tags             = map(string)        # baseline + extra_tags
+    azure_max        = number             # for downstream sanity checks
+  }
+  # ... one entry per resource
 }
 ```
 
-`shape` is `local.constraints[type].shape`. Lookup is whole-token
-(FR-021); prefix matches are impossible because keys are exact.
+Map iteration order is alphabetical by key (canonical name); HCL
+guarantees this for `output` of a `map` type, satisfying SC-003.
 
----
+## Invariants (asserted by `precondition` / `postcondition`)
 
-## Stage 5 — Named Record
-
-```hcl
-{
-  canonical_name = string                    # the output key
-  type           = string
-  parent         = optional(string)          # canonical name of parent, or null
-  instance       = optional(number)          # null for purpose-keyed; omitted from name
-  purpose        = optional(string)
-  shape          = string
-  raw_index      = number
-}
-```
-
-**Name templates** (FR-004 / FR-005 / FR-030):
-
-| Template | When |
-|---|---|
-| `{abbr}-{tenant}-{environment}-{region_code}-{NNN}` | top-level, hyphen_allowed=true |
-| `{abbr}{tenant}{environment}{region_code}{NNN}` | top-level, hyphen_allowed=false |
-| `{abbr}-{purpose}-{parent_tenant}-{parent_env}-{parent_region}-{parent_NNN}` | purpose-keyed child, hyphen_allowed=true |
-| `{abbr}-{parent_tenant}-{parent_env}-{parent_region}-{parent_NNN}-{NNN}` | positional child, hyphen_allowed=true |
-| (concatenated variants for hyphen_allowed=false) | as above, no separators |
-
-Charset and length asserted in a `check {}` after this stage.
-
----
-
-## Stage 6 — Tagged Record
-
-```hcl
-{
-  canonical_name  = string
-  service_type    = string
-  topology        = string
-  tenant          = string
-  environment     = string
-  region          = string                   # full Azure region name (kept for clarity)
-  instance        = optional(number)
-  parent          = optional(string)
-  resource_group  = string                   # always the per-stack RG canonical name
-  tags            = map(string)              # baseline merged with overrides[canonical_name]
-  defaults        = map(any)                 # local.defaults[service_type]
-  overrides       = map(any)                 # var.input.overrides[canonical_name] or {}
-}
-```
-
-Baseline tag set (FR-014 / Constitution VIII):
-
-| key          | source                                   |
-|--------------|------------------------------------------|
-| `tenant`     | `var.input.tenant`                       |
-| `topology`   | `var.input.topology`                     |
-| `environment`| `var.input.environment`                  |
-| `region`     | `var.input.region`                       |
-| `managed_by` | literal `"terraform"`                    |
-| `repo`       | sourced by the caller; passed via input or read from the harness; final source pinned in `quickstart.md` |
-
----
-
-## Stage 7 — Emitted
-
-Two outputs:
-
-```hcl
-output "names" {
-  value = { for r in local.tagged_records : r.canonical_name => r }
-}
-
-output "by_type" {
-  value = { for t, recs in { for r in local.tagged_records : r.service_type => r... } : t => [for r in recs : r.canonical_name] }
-}
-```
-
-`output "names"` is the primary contract; `output "by_type"` is a
-convenience index for consumers iterating one type at a time.
-
----
-
-## Cardinality summary
-
-| Stage     | Cardinality vs input |
-|-----------|----------------------|
-| Stage 1   | sum(services.count) + sum(children) + 1 (RG)  |
-| Stage 7   | identical to Stage 1 |
-
-The engine adds exactly one record per batch invocation: the implicit
-resource group (`rg-{tenant}-{environment}-{region}-001`).
-
----
-
-## Catalogue entities (static; defined in `catalogue.tf`)
-
-| Map | Key | Value shape |
-|---|---|---|
-| `local.caf_abbr`       | `service_type` | string |
-| `local.region_codes`   | full Azure region name | string |
-| `local.constraints`    | `service_type` | object as in Stage 4 plus `shape` |
-| `local.topology_scope` | `service_type` | string in {`hub-only`, `spoke-only`, `either`, `prd-hub-only`} |
-| `local.defaults`       | `service_type` | service-specific object |
-| `local.child_types`    | parent `service_type` | list of allowed child `service_type` |
-
-Catalogue completeness invariant (asserted by `check {}`):
-`keys(local.caf_abbr) == keys(local.constraints) == keys(local.topology_scope) == keys(local.defaults)`
-for the set of top-level types. Child-only types appear in
-`local.caf_abbr`, `local.constraints`, and `local.defaults` but NOT in
-`local.topology_scope` (FR-035).
+| ID  | Invariant                                                                 | Where                  |
+|-----|---------------------------------------------------------------------------|------------------------|
+| INV-1 | Every `service_type` in inputs is a key in `local.services`.            | `locals.tf` precond    |
+| INV-2 | `key` is unique within `(service_type, service_purpose)`.               | `locals.tf` precond    |
+| INV-3 | Per-group `instance` ≤ `999`.                                           | `locals.tf` precond    |
+| INV-4 | RG entries have `stack_purpose`, no `service_purpose`. Inverse for others. | `locals.tf` precond  |
+| INV-5 | Singleton children: ≤ 1 per parent.                                     | `locals.tf` precond    |
+| INV-6 | Each computed name fits within its `azure_max`.                         | `outputs.tf` postcond  |
+| INV-7 | Each computed name matches the regex implied by its shape.              | `outputs.tf` postcond  |
+| INV-8 | `var.extra_tags` shares no key with the baseline tag set.               | `locals.tf` precond    |
+| INV-9 | Every emitted tag value ≤ 256 chars and key ≤ 512 chars.                | `outputs.tf` postcond  |
+| INV-10 | `var.input.region` is a key in `local.regions`.                        | `locals.tf` precond    |
