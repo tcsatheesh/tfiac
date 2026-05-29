@@ -162,15 +162,15 @@ aka.ms, packages.microsoft.com, github.com). See C15 in [spec.md](spec.md).
 
 - [X] T074 `terraform fmt -recursive modules/network terraform/vnet` clean
 - [X] T075 `terraform test` GREEN in `modules/network/` AND `terraform/vnet/`
-- [ ] T076 Mark T070–T075 `[X]`, commit, push, open PR `004-vnet-egress → master`, merge, prune branch
-- [ ] T077 (post-merge, on master) Roll out to hub/npd:
+- [X] T076 Mark T070–T075 `[X]`, commit, push, open PR `004-vnet-egress → master`, merge, prune branch
+- [X] T077 (post-merge, on master) Roll out to hub/npd:
   1. Open state SA firewall (publicNetworkAccess=Enabled, add operator IP `86.28.117.247`)
   2. `cd terraform/vnet && terraform init -reconfigure -backend-config="..."` for hub/npd
   3. `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=883c9081-23ed-4674-95c5-45c74834e093 -out=hub.npd.tfplan`
   4. Inspect plan: confirm `module.network.module.rt.azurerm_route_table.this` (or `azurerm_route.this["to-firewall"]`) shows a single in-place add of `udr-defaultroute` 0.0.0.0/0 → 10.240.5.4. No other resources should change.
   5. `terraform apply hub.npd.tfplan`
   6. Restore state SA firewall (publicNetworkAccess=Disabled, defaultAction=Deny, remove temp IP)
-- [ ] T078 Re-bootstrap the build VM to validate egress unblocked. From operator workstation:
+- [X] T078 Re-bootstrap the build VM to validate egress unblocked. From operator workstation:
   ```bash
   az vm run-command invoke \
     -g rg-bld-shd-hub-npd-swc-001 \
@@ -180,6 +180,6 @@ aka.ms, packages.microsoft.com, github.com). See C15 in [spec.md](spec.md).
     --scripts "set -e; apt-get update -y; apt-get install -y curl jq ca-certificates apt-transport-https lsb-release gnupg; /opt/buildsvr/bootstrap.sh; az --version | head -1"
   ```
   Acceptance: `az --version` returns a version banner (Azure CLI installed) and `/var/log/buildsvr-bootstrap.log` shows the GitHub runner archive downloaded + extracted.
-- [ ] T079 Report SKU/route change, plan summary, and `az --version` output back to user.
+- [X] T079 Report SKU/route change, plan summary, and `az --version` output back to user.
 
 > Phase 7 tasks complete and consistent with spec FR-210 + C15.1–C15.11 and plan amendment.
