@@ -8,13 +8,6 @@
 
 **Input**: User description: "Build a naming convention engine that is the single source of truth for every Azure resource name produced by this repository."
 
-## Clarifications
-
-### Session 2026-05-29
-
-- Q: How should the day-one `PE-hostable` and `diagnostics-capable` parent flags in FR-026 be seeded? → A: Seed both flags from the Microsoft Azure published support matrices (Private Link service availability; Azure Monitor resource logs / metrics support) as of the FR-036 freeze date. Every top-level row in the FR-026 inventory carries an explicit boolean for each flag in the catalogue, frozen on the same date as the abbreviation catalogue, and revised only via dedicated catalogue PRs that record a new freeze date.
-- Q: What are the legal values and width of the `environment` token? → A: `environment` is a fixed-width 3-character lowercase alphanumeric token drawn from a closed catalogue of exactly four values: `npd`, `pre`, `dev`, `prd`. Any other value (different width, different spelling, mixed case) MUST cause a hard error at name-generation time, with the message naming the offending value and listing the four allowed values. All canonical-shape regexes (FR-016) and the FR-037 worst-case length math use a fixed environment width of 3.
-
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Deterministic Names From Intent (Priority: P1)
@@ -299,11 +292,23 @@ inputs.
 - **FR-015**: The engine MUST accept an optional per-resource tag
   overrides map keyed by canonical resource name and MUST merge it on
   top of the baseline such that override keys replace baseline keys but
-  no baseline key is removed. Override keys MUST conform to Azure tag
+  no baseline key is removed.
+
+  **Override key rules.** Override keys MUST conform to Azure tag
   key rules: length `1..512` characters and MUST NOT begin with any of
   the Azure-reserved prefixes (`microsoft`, `azure`, `windows`). The
-  engine MUST hard-fail with an error listing every offending override
-  key when this validation does not pass.
+  engine MUST hard-fail at plan time with an error listing every
+  offending override key (with its length when length is the
+  violation) when this validation does not pass.
+
+  **Override value rules.** Override values MUST be strings of length
+  `0..256` characters (the Azure tag-value limit). Non-string values
+  (numbers, booleans, lists, maps, null) MUST be rejected. The engine
+  MUST hard-fail at plan time with an error listing every offending
+  `(canonical_name, key, byte_count_or_type)` triple when this
+  validation does not pass. The engine MUST NOT truncate, coerce, or
+  otherwise silently mutate an override value to make it pass
+  validation.
 - **FR-016**: The engine MUST validate every generated name against its
   per-service shape (a documented regex per shape) and against the
   per-service length, charset, and case constraints. Validation failure
