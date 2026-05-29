@@ -329,7 +329,7 @@ inputs.
   - Top-level concatenated (hyphen-forbidden):
     `^[a-z]{2,6}(hub|sp[0-9]{2})[a-z0-9]{3}[a-z0-9]{2,5}[0-9]{3}$`
   - Purpose-keyed child of a hyphenated parent:
-    `^[a-z]{2,6}-[a-z0-9]{2,16}-[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
+    `^[a-z]{2,6}-[a-z0-9]{3}-[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
     (the engine MUST additionally verify that the parent-suffix
     segments equal the parent's own `(tenant, environment, region,
     instance)` segments — regex match alone is not sufficient)
@@ -480,17 +480,21 @@ inputs.
   the child is **positional** (numbered `001`, `002`, … per parent) or
   **purpose-keyed** (named by an explicit `purpose` token supplied on
   the child entry). Day-one classification:
-  - `subnet` — purpose-keyed (e.g. `purpose: app`, `purpose: data`).
-  - `nsg_rule` — purpose-keyed (e.g. `purpose: allow-https`).
-  - `route` — purpose-keyed.
+  - `subnet` — purpose-keyed (e.g. `purpose: app`, `purpose: dat`).
+  - `nsg_rule` — purpose-keyed (e.g. `purpose: htp`, `purpose: ssh`).
+  - `route` — purpose-keyed (e.g. `purpose: dfl`, `purpose: fwl`).
   - `private_endpoint` — positional, scoped per `(parent service)`.
   - `diagnostic_setting` — positional, scoped per `(parent service)`.
 - **FR-029**: A `purpose` token MUST be unique within its
   `(parent, child_type)`. Duplicates are a hard error. The `purpose`
-  token MUST follow the same character-set rules as a tenant token
-  (lowercase alphanumerics plus hyphen for hyphen-allowed shapes;
-  lowercase alphanumerics only for hyphen-forbidden shapes) and
-  contributes to the child's length budget like any other segment.
+  token MUST match the regex `^[a-z0-9]{3}$` — exactly 3 characters,
+  lowercase alphanumerics only, no hyphens — regardless of whether
+  the parent is hyphen-allowed or hyphen-forbidden. Non-conforming
+  values MUST cause a hard plan-time error naming the offending
+  `(parent, child_type, purpose)` triple and stating the expected
+  pattern. Callers SHOULD draw codes from the recommended
+  purpose-code dictionary (Appendix A) to keep names interpretable
+  across stacks; the dictionary is advisory, not enforced.
 - **FR-030**: Canonical child names embed the parent's identifying
   suffix so that the parent is recoverable from the child name. The
   exact shapes per child type are:
@@ -734,3 +738,57 @@ inputs.
   spec is the realization of Principle III ("Naming Follows Microsoft
   CAF") and the principal consumer of Principle V ("Single Source of
   Truth for Catalogues").
+
+## Appendix A — Recommended `purpose` Codes (advisory)
+
+FR-029 enforces only the shape (`^[a-z0-9]{3}$`). The dictionary
+below is the recommended set of 3-char `purpose` codes so that names
+remain interpretable across stacks and teams. It is advisory, not
+normative: the engine does NOT reject codes outside this list.
+Extending the dictionary is a single-PR documentation edit and
+requires no engine code change.
+
+**Subnets (`subnet`)**
+
+| Code  | Meaning                                  |
+|-------|------------------------------------------|
+| `app` | Application tier                         |
+| `dat` | Data tier                                |
+| `web` | Web / front-end tier                     |
+| `mgt` | Management / jumpbox                     |
+| `bas` | Azure Bastion (`AzureBastionSubnet`)     |
+| `fwl` | Azure Firewall (`AzureFirewallSubnet`)   |
+| `gwy` | Gateway (`GatewaySubnet`)                |
+| `pep` | Private endpoints                        |
+| `agw` | Application Gateway                      |
+| `aks` | AKS node pool                            |
+| `int` | Integration (e.g. App Service VNet inj.) |
+
+**NSG rules (`nsg_rule`)**
+
+| Code  | Meaning                          |
+|-------|----------------------------------|
+| `htp` | HTTP (80)                        |
+| `htt` | HTTPS (443)                      |
+| `ssh` | SSH (22)                         |
+| `rdp` | RDP (3389)                       |
+| `sql` | SQL (1433)                       |
+| `dns` | DNS (53)                         |
+| `dny` | Catch-all deny rule              |
+| `aly` | Catch-all allow rule (use sparingly) |
+
+**Routes (`route`)**
+
+| Code  | Meaning                                       |
+|-------|-----------------------------------------------|
+| `dfl` | Default route (`0.0.0.0/0`)                   |
+| `fwl` | Next-hop = Azure Firewall                     |
+| `nva` | Next-hop = third-party NVA                    |
+| `int` | Next-hop = internet (bypass firewall)         |
+| `vng` | Next-hop = virtual network gateway            |
+| `lcl` | Next-hop = VNet local (override default)      |
+
+New codes SHOULD be added here by the PR that first uses them.
+Collisions across child types are allowed (the same code may mean
+different things under `subnet` vs `nsg_rule`); collisions within
+a single `(parent, child_type)` are blocked by FR-029.
