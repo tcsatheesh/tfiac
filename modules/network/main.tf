@@ -141,4 +141,5 @@ module "firewall" {
   tags                = module.naming.names[local.firewall_canonical_name].tags
   pip_data_tags       = module.naming.names[local.pip_canonical_names.afw].tags
   pip_mgmt_tags       = module.naming.names[local.pip_canonical_names.afm].tags
+  firewall_sku_tier   = var.firewall_sku_tier
 }

@@ -38,25 +38,25 @@ locals {
       destination_port_range     = "443"
     }
     "AllowBastionHostCommunication" = {
-      direction                    = "Inbound"
-      priority                     = 150
-      access                       = "Allow"
-      protocol                     = "*"
-      source_address_prefix        = "VirtualNetwork"
-      source_port_range            = "*"
-      destination_address_prefix   = "VirtualNetwork"
-      destination_port_ranges      = ["8080", "5701"]
+      direction                  = "Inbound"
+      priority                   = 150
+      access                     = "Allow"
+      protocol                   = "*"
+      source_address_prefix      = "VirtualNetwork"
+      source_port_range          = "*"
+      destination_address_prefix = "VirtualNetwork"
+      destination_port_ranges    = ["8080", "5701"]
     }
     # ---- Outbound ----
     "AllowSshRdpOutbound" = {
-      direction                    = "Outbound"
-      priority                     = 100
-      access                       = "Allow"
-      protocol                     = "*"
-      source_address_prefix        = "*"
-      source_port_range            = "*"
-      destination_address_prefix   = "VirtualNetwork"
-      destination_port_ranges      = ["22", "3389"]
+      direction                  = "Outbound"
+      priority                   = 100
+      access                     = "Allow"
+      protocol                   = "*"
+      source_address_prefix      = "*"
+      source_port_range          = "*"
+      destination_address_prefix = "VirtualNetwork"
+      destination_port_ranges    = ["22", "3389"]
     }
     "AllowAzureCloudOutbound" = {
       direction                  = "Outbound"
@@ -69,14 +69,14 @@ locals {
       destination_port_range     = "443"
     }
     "AllowBastionCommunication" = {
-      direction                    = "Outbound"
-      priority                     = 120
-      access                       = "Allow"
-      protocol                     = "*"
-      source_address_prefix        = "VirtualNetwork"
-      source_port_range            = "*"
-      destination_address_prefix   = "VirtualNetwork"
-      destination_port_ranges      = ["8080", "5701"]
+      direction                  = "Outbound"
+      priority                   = 120
+      access                     = "Allow"
+      protocol                   = "*"
+      source_address_prefix      = "VirtualNetwork"
+      source_port_range          = "*"
+      destination_address_prefix = "VirtualNetwork"
+      destination_port_ranges    = ["8080", "5701"]
     }
     "AllowGetSessionInformation" = {
       direction                  = "Outbound"

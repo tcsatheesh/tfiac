@@ -30,12 +30,12 @@ module "pip_mgmt" {
   enable_telemetry    = false
 }
 
-# Empty Standard policy (spec C5: empty firewall policy day-one).
+# Empty policy (SKU follows var.firewall_sku_tier; FR-209/C5).
 resource "azurerm_firewall_policy" "this" {
   name                = format("afwp-%s", var.name)
   location            = var.location
   resource_group_name = var.resource_group_name
-  sku                 = "Standard"
+  sku                 = var.firewall_sku_tier
   tags                = var.tags
 }
 
@@ -47,7 +47,7 @@ module "firewall" {
   location            = var.location
   resource_group_name = var.resource_group_name
   firewall_sku_name   = "AZFW_VNet"
-  firewall_sku_tier   = "Standard"
+  firewall_sku_tier   = var.firewall_sku_tier
   firewall_zones      = ["1", "2", "3"]
   firewall_policy_id  = azurerm_firewall_policy.this.id
   tags                = var.tags

@@ -106,3 +106,14 @@ variable "hub_subscription_id" {
   type        = string
   default     = null
 }
+
+variable "firewall_sku_tier" {
+  description = "Azure Firewall + Firewall Policy SKU tier for hub deployments (FR-209). One of Basic, Standard, Premium. Ignored when role=spoke."
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.firewall_sku_tier)
+    error_message = "firewall_sku_tier must be one of \"Basic\", \"Standard\", or \"Premium\" (FR-209)."
+  }
+}
