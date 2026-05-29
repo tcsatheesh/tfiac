@@ -22,17 +22,28 @@ for the operator walkthrough.
 
 ```bash
 az login
-az account set --subscription <prd-hub-subscription-id>
+set -a && . ../../.env && set +a          # loads SUBSCRIPTION_ID_PRD_DNS, GITHUB_*, TFSTATE_*
+az account set --subscription "$SUBSCRIPTION_ID_PRD_DNS"
 
 cd terraform/dns
 terraform init -backend-config=../../variables/backend.hcl
 ```
 
 The backend `key` is hard-coded to `hub/prd/dns.tfstate` (Constitution VII).
+The backend storage account uses **AAD auth** (`use_azuread_auth = true`);
+the operator needs `Storage Blob Data Contributor` on the state SA.
 
 ## Plan / apply
 
+Per-environment **values** (region, topology, tenant, environment, custom/disabled
+zones) live in `variables/hub/prd/dns.tfvars.json`. **Identity values**
+(subscription, repo) come from `.env` via `TF_VAR_*` environment variables so
+the repo carries no subscription IDs.
+
 ```bash
+export TF_VAR_subscription_id="$SUBSCRIPTION_ID_PRD_DNS"
+export TF_VAR_repo="$GITHUB_ORGANIZATION/$GITHUB_REPOSITORY"
+
 terraform plan  -var-file=../../variables/hub/prd/dns.tfvars.json -out=tfplan
 terraform apply tfplan
 ```

@@ -4,6 +4,7 @@
 # subscription_id) are supplied at init time via `-backend-config=variables/backend.hcl`.
 terraform {
   backend "azurerm" {
-    key = "hub/prd/dns.tfstate"
+    key              = "hub/prd/dns.tfstate"
+    use_azuread_auth = true
   }
 }
