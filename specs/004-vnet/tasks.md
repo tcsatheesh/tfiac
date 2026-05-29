@@ -129,7 +129,7 @@ See "## Amendment plan — FR-209 firewall SKU" in [plan.md](plan.md).
 - [X] T066 `terraform fmt -recursive modules/network terraform/vnet` clean
 - [X] T067 `terraform test` GREEN in `modules/network/` AND `terraform/vnet/`. Existing hub snapshot tests (`positive_baseline_hub.tftest.hcl`, `plan_snapshot_hub.tftest.hcl`, `plan_zero_diff_hub.tftest.hcl`) must remain green — they inline their own `variables` block and do not load `variables/hub/npd/vnet.tfvars.json`, so T063 does not affect them.
 - [X] T068 Mark T059–T067 `[X]`, commit, push, open PR `004-vnet-firewall-sku → master`, merge, prune branch
-- [ ] T069 (post-merge, on master) Roll out Basic SKU to hub/npd:
+- [X] T069 (post-merge, on master) Roll out Basic SKU to hub/npd:
   1. Open state SA firewall (publicNetworkAccess=Enabled, add CI/operator IP)
   2. `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=<sub> -out=hub.npd.tfplan`
   3. Inspect plan: confirm `azurerm_firewall_policy.this` and the AVM firewall resource show `-/+ destroy and then create replacement`; the data PIP, mgmt PIP, AzureFirewallSubnet, and route table must NOT be replaced
