@@ -1,5 +1,5 @@
 ###############################################################################
-# modules/network/locals.tf — subnet role catalogue (FR-208 Q8=A)
+# modules/network/locals.tf — subnet role catalogue + AVM-friendly NSG rules.
 ###############################################################################
 
 locals {
@@ -89,8 +89,6 @@ locals {
         }
       }]
     }
-    # preprod-* aliases (used by spoke stack) reuse defaults of the
-    # base role. Names kept <= 16 chars to satisfy engine purpose regex.
     "preprod-func" = {
       azure_subnet_name = null
       add_nsg           = true
@@ -132,13 +130,16 @@ locals {
     if local.subnet_roles[r].add_route_table
   ]
 
-  # Engine name lookups (top-level instance #001 of each type).
-  rg_name   = "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
+  # RG carries an optional `purpose` segment (matches modules/loganalytics +
+  # modules/dnszones precedent: rg-<tenant>-<env>-[<purpose>-]<region>-001).
+  rg_name = (
+    try(var.input.purpose, null) == null
+    ? "rg-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
+    : "rg-${var.input.tenant}-${var.input.environment}-${var.input.purpose}-${var.region_code}-001"
+  )
   vnet_name = "vnet-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
   rt_name   = "rt-${var.input.tenant}-${var.input.environment}-${var.region_code}-001"
 
-  # Per-role subnet canonical name (engine purpose-keyed) — fall back to
-  # Azure-mandated literal when the role catalogue demands it.
   subnet_name_for = {
     for r in local.requested_roles :
     r => coalesce(
@@ -147,9 +148,6 @@ locals {
     )
   }
 
-  # Per-role NSG canonical name (engine numbers nsgs positionally; we use a
-  # deterministic role→index map). Naming engine emits
-  # nsg-{tenant}-{env}-{region_code}-NNN; we follow the same scheme here.
   nsg_index_for = {
     for idx, r in local.nsg_roles : r => idx + 1
   }
@@ -157,5 +155,36 @@ locals {
   nsg_name_for = {
     for r, i in local.nsg_index_for :
     r => format("nsg-%s-%s-%s-%03d", var.input.tenant, var.input.environment, var.region_code, i)
+  }
+
+  # Baseline NSG rules required by Azure for AzureBastionSubnet. All rules
+  # carry every optional attribute (with `null`) so the resulting map has a
+  # uniform object shape — that lets the ternary in nsg_security_rules_for
+  # unify the bastion-vs-non-bastion arms with an empty map.
+  bastion_baseline_rules = [
+    { name = "AllowHttpsInbound", priority = 120, direction = "Inbound", access = "Allow", protocol = "Tcp", source_port_range = "*", destination_port_ranges = ["443"], source_address_prefix = "Internet", destination_address_prefix = "*" },
+    { name = "AllowGatewayManagerInbound", priority = 130, direction = "Inbound", access = "Allow", protocol = "Tcp", source_port_range = "*", destination_port_ranges = ["443"], source_address_prefix = "GatewayManager", destination_address_prefix = "*" },
+    { name = "AllowLoadBalancerInbound", priority = 140, direction = "Inbound", access = "Allow", protocol = "Tcp", source_port_range = "*", destination_port_ranges = ["443"], source_address_prefix = "AzureLoadBalancer", destination_address_prefix = "*" },
+    { name = "AllowBastionHostCommunication", priority = 150, direction = "Inbound", access = "Allow", protocol = "*", source_port_range = "*", destination_port_ranges = ["8080", "5701"], source_address_prefix = "VirtualNetwork", destination_address_prefix = "VirtualNetwork" },
+    { name = "AllowSshRdpOutbound", priority = 100, direction = "Outbound", access = "Allow", protocol = "*", source_port_range = "*", destination_port_ranges = ["22", "3389"], source_address_prefix = "*", destination_address_prefix = "VirtualNetwork" },
+    { name = "AllowAzureCloudOutbound", priority = 110, direction = "Outbound", access = "Allow", protocol = "Tcp", source_port_range = "*", destination_port_ranges = ["443"], source_address_prefix = "*", destination_address_prefix = "AzureCloud" },
+    { name = "AllowBastionCommunicationOutbound", priority = 120, direction = "Outbound", access = "Allow", protocol = "*", source_port_range = "*", destination_port_ranges = ["8080", "5701"], source_address_prefix = "VirtualNetwork", destination_address_prefix = "VirtualNetwork" },
+    { name = "AllowGetSessionInformation", priority = 130, direction = "Outbound", access = "Allow", protocol = "*", source_port_range = "*", destination_port_ranges = ["80"], source_address_prefix = "*", destination_address_prefix = "Internet" },
+  ]
+
+  # Bastion baseline rules pre-keyed by name (AVM `security_rules` map shape).
+  bastion_baseline_rules_map = {
+    for rule in local.bastion_baseline_rules : rule.name => rule
+  }
+
+  # Per-role NSG rule map keyed by rule name (AVM `security_rules` shape).
+  # Bastion gets the Azure baseline; every role can layer extras via
+  # var.extra_nsg_rules.
+  nsg_security_rules_for = {
+    for r in local.nsg_roles :
+    r => merge(
+      r == "bastion" ? local.bastion_baseline_rules_map : {},
+      { for rule in try(var.extra_nsg_rules[r], []) : rule.name => rule },
+    )
   }
 }

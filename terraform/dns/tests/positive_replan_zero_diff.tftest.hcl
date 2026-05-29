@@ -27,9 +27,9 @@ run "first_plan_baseline" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = []
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
   assert {
     condition     = length(output.zone_names) == 25
@@ -45,9 +45,9 @@ run "second_plan_identical_inputs" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = []
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
   assert {
     condition = jsonencode(output.zone_names) == jsonencode({

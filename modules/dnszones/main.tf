@@ -43,6 +43,22 @@ resource "azurerm_resource_group" "this" {
   name     = local.rg_canonical_name
   location = var.region
   tags     = var.naming[local.rg_canonical_name].tags
+
+  lifecycle {
+    precondition {
+      # Fail fast if the engine's `naming.names` map does not contain a record
+      # keyed by the canonical name we just string-built. Catches drift
+      # between this module's rg_canonical_name expression and the engine's
+      # actual rg-naming output (e.g. if the engine changes its rg shape
+      # without this module being updated).
+      condition = contains(keys(var.naming), local.rg_canonical_name)
+      error_message = format(
+        "engine drift: var.naming has no record keyed %q. The dnszones module re-derives the RG canonical to look up tags; if the engine's RG-naming shape changes, this module must be updated in lock-step. Available naming keys: %v.",
+        local.rg_canonical_name,
+        sort(keys(var.naming)),
+      )
+    }
+  }
 }
 
 # AVM resource module — Private DNS Zone. One call per zone.

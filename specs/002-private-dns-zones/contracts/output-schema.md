@@ -22,7 +22,7 @@ Consumers (spoke stacks) read these outputs via `data "terraform_remote_state" "
 ### `resource_group_name`
 
 - **Type**: `string`
-- **Description**: Canonical (engine-emitted) name of the per-stack RG, e.g. `rg-hub-prd-uks-001`.
+- **Description**: Canonical (engine-emitted) name of the per-stack RG. For the prd-hub stack the canonical resolves to `rg-hub-prd-dns-sdc-001` (FR-009: `rg-{tenant}-{environment}-{purpose}-{region_code}-001`, with `purpose="dns"` pinned in `local.input`).
 
 ### `resource_group_id`
 

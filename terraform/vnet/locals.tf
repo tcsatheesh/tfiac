@@ -15,11 +15,11 @@ locals {
   # produces a real list, not a tuple — required to avoid HCL ternary
   # tuple-length type errors). `include` is the role gate.
   service_specs = {
-    vnet         = { type = "vnet",         count = 1, subnets = local.subnet_purposes, include = true }
-    route_table  = { type = "route_table",  count = 1, subnets = [],                    include = true }
-    bastion      = { type = "bastion",      count = 1, subnets = [],                    include = local.is_hub }
-    firewall     = { type = "firewall",     count = 1, subnets = [],                    include = local.is_hub }
-    public_ip    = { type = "public_ip",    count = 3, subnets = [],                    include = local.is_hub }
+    vnet        = { type = "vnet", count = 1, subnets = local.subnet_purposes, include = true }
+    route_table = { type = "route_table", count = 1, subnets = [], include = true }
+    bastion     = { type = "bastion", count = 1, subnets = [], include = local.is_hub }
+    firewall    = { type = "firewall", count = 1, subnets = [], include = local.is_hub }
+    public_ip   = { type = "public_ip", count = 3, subnets = [], include = local.is_hub }
   }
 
   input = {

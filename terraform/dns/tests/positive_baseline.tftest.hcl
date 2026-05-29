@@ -29,9 +29,9 @@ run "baseline_25_catalogue_zones" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = []
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
 
   assert {
@@ -52,5 +52,13 @@ run "baseline_25_catalogue_zones" {
   assert {
     condition     = contains(keys(output.zone_names), "cosmos-sql") && contains(keys(output.zone_names), "iothub-dps")
     error_message = "Catalogue keys with hyphens (cosmos-sql, iothub-dps) must round-trip through the output map."
+  }
+
+  assert {
+    # C1 — FR-023: the `naming` passthrough exposes module.naming.names; assert
+    # the per-stack RG record is reachable so consumers can audit names without
+    # re-running the engine.
+    condition     = contains(keys(output.naming), output.resource_group_name)
+    error_message = "output.naming must contain a record keyed by the per-stack RG canonical name (FR-023)."
   }
 }

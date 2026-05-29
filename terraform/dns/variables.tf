@@ -1,14 +1,19 @@
 ###############################################################################
 # terraform/dns/variables.tf  (feature 002 — replaces legacy variables)
 #
-# Exactly the FIVE inputs allowed by FR-014 / input-schema.md. No others.
+# Exactly the EIGHT inputs allowed by FR-014 / input-schema.md. No others.
 #
 # EXCLUSIVITY (per T017):
-#   - typing + region-allowlist live here
+#   - typing + region-allowlist + scope-discriminator parse-time validations
+#     live here (subscription_id regex, region allowlist, topology/tenant/
+#     environment validations)
 #   - custom_zones FQDN-regex + de-dup → T028 (Phase 4)
 #   - disable_catalogue_zones de-dup → T033 (Phase 5)
-#   - disable_catalogue_zones catalogue-membership → module precondition
-#     (modules/dnszones/main.tf — T010/T015)
+#   - disable_catalogue_zones catalogue-membership → root terraform_data
+#     `guard_disable_keys_known` precondition in validate.tf (see validate.tf
+#     header for why this lives in root, not in the module — FR-018)
+#   - custom_zones no-shadow → root terraform_data
+#     `guard_custom_zones_no_shadow` precondition in validate.tf (FR-017)
 ###############################################################################
 
 variable "subscription_id" {

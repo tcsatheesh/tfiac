@@ -2,7 +2,7 @@
 
 One-time bootstrap that provisions:
 
-- a tooling resource group (`rg-hub-tool-sdc-001`)
+- a tooling resource group (`rg-hub-npd-tool-sdc-001`)
 - a ZRS, StorageV2, public-network-disabled, Entra-only storage account
 - the `tfstate` blob container
 
@@ -21,7 +21,8 @@ somewhere safe.
 | `subscription_id` | GUID | — |
 | `region` | string | `swedencentral` |
 | `repo` | string | — |
-| `environment` | string | `tool` |
+| `environment` | string (`npd` \| `prd`) | — |
+| `purpose` | string | `tool` |
 
 Reference template:
 [`variables/bootstrap.tfvars.example`](../../variables/bootstrap.tfvars.example).
@@ -65,5 +66,5 @@ against the new storage account.
 cd terraform/bootstrap && terraform init -backend=false && terraform test
 ```
 
-1 test: naming engine resolves `rg-hub-tool-sdc-NNN` + `sthubtoolsdcNNN`,
+1 test: naming engine resolves `rg-hub-npd-tool-sdc-NNN` + `sthubnpdsdcNNN`,
 ZRS replication, shared-key disabled, container is `tfstate`.

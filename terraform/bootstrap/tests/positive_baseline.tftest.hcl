@@ -11,20 +11,21 @@ variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
   region          = "swedencentral"
   repo            = "_github_org/_github_repo"
-  environment     = "tool"
+  environment     = "npd"
+  purpose         = "tool"
 }
 
 run "bootstrap_plan" {
   command = plan
 
   assert {
-    condition     = startswith(azurerm_resource_group.this.name, "rg-hub-tool-sdc-")
-    error_message = "Tooling RG must follow naming convention rg-hub-tool-sdc-NNN."
+    condition     = startswith(azurerm_resource_group.this.name, "rg-hub-npd-tool-sdc-")
+    error_message = "Tooling RG must follow naming convention rg-hub-npd-tool-sdc-NNN."
   }
 
   assert {
-    condition     = startswith(azurerm_storage_account.tfstate.name, "sthubtoolsdc")
-    error_message = "Tooling storage account must follow naming convention sthubtoolsdcNNN."
+    condition     = startswith(azurerm_storage_account.tfstate.name, "sthubnpdsdc")
+    error_message = "Tooling storage account must follow naming convention sthubnpdsdcNNN."
   }
 
   assert {

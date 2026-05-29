@@ -54,7 +54,7 @@ The platform team has, for legacy or organisational reasons, an existing private
 
 **Acceptance Scenarios**:
 
-1. **Given** `disable_catalogue_zones = ["acr"]`, **When** the stack is applied, **Then** `outputs.zone_ids` does NOT contain the `acr` key and `azurerm_private_dns_zone.this["acr"]` does not exist in state.
+1. **Given** `disable_catalogue_zones = ["acr"]`, **When** the stack is applied, **Then** `outputs.zone_ids` does NOT contain the `acr` key and `module.dnszones.module.zone["acr"].azurerm_private_dns_zone.this` does not exist in state.
 2. **Given** an applied state with `disable_catalogue_zones = []`, **When** the operator adds `"acr"` to `disable_catalogue_zones`, **Then** `terraform plan` shows exactly one destroy (the `acr` zone) and zero other changes.
 3. **Given** the operator submits `disable_catalogue_zones = ["frobnicate"]` (unknown key), **When** `terraform plan` runs, **Then** the stack hard-fails with a message naming the unknown key and listing valid catalogue keys.
 
@@ -94,7 +94,7 @@ The repository already has `terraform/dns/` and `modules/dns/` predating the nam
 #### Scope and topology
 
 - **FR-001**: The stack MUST be deployable ONLY in `(topology=hub, environment=prd, region=<single supported prd-hub region>)`. Any other combination MUST hard-fail at plan time via the naming engine's `topology_scope` check on the `private_dns_zone` service entry.
-- **FR-002**: The stack MUST host Azure Private DNS Zones only. Public DNS zones, Private Resolver, forwarding rulesets, conditional forwarders, on-prem hybrid resolution, and per-zone diagnostic settings (forwarding query/audit logs to a Log Analytics workspace) are explicitly out of scope for v1. Diagnostic settings are deferred to a follow-up feature once the hub `log_analytics` stack is engine-driven *(Resolved by OQ-004 → option B)*.
+- **FR-002**: The stack MUST host Azure Private DNS Zones only. Public DNS zones, Private Resolver, forwarding rulesets, conditional forwarders, on-prem hybrid resolution, and per-zone diagnostic settings (forwarding query/audit logs to a Log Analytics workspace) are explicitly out of scope for v1. Diagnostic settings are deferred to a follow-up feature once the hub `log_analytics` stack is engine-driven *(Resolved by OQ-004 → option B; see also Open Questions log).*
 - **FR-003**: The stack MUST NOT create any `azurerm_private_dns_zone_virtual_network_link` resources. Vnet-to-zone linking is the consumer's responsibility.
 - **FR-004**: The stack MUST NOT manage DNS record sets (A/CNAME/TXT/SOA). Zones are containers only; record creation is the consumer's responsibility and is implicit for private endpoints.
 
@@ -104,7 +104,7 @@ The repository already has `terraform/dns/` and `modules/dns/` predating the nam
 - **FR-006**: The stack MUST add a `private_dns_zone` service entry to the naming engine's day-one catalogue (feature 001 `local.services`) with `topology_scope = "prd-hub-only"` and `category = "top-level"`. The caf_abbr is `pdnsz` and the shape is hyphenated.
 - **FR-007**: The catalogue key (e.g. `blob`, `acr`) is the PUBLIC identity of each zone. It is the `for_each` key in the dnszones module (FR-024), the key in `output.zone_ids` / `output.zone_names` (FR-025), and the key in `var.disable_catalogue_zones` (FR-018). The naming engine names private DNS zone INSTANCES by instance suffix (`pdnsz-{tenant}-{environment}-{region}-NNN`) per its top-level service convention; the catalogue key is NOT passed as the engine `purpose`. The Azure resource name (`azurerm_private_dns_zone.name`) is the FQDN from the catalogue (FR-005), not the engine-emitted name.
 - **FR-008**: For each `custom_zones` entry, the stack MUST bypass the naming engine for the zone resource itself. The `azurerm_private_dns_zone.name` argument MUST be the FQDN literally; no engine `private_dns_zone` slot is emitted for custom zones; no entry appears in `naming.names` for the custom zone. The engine continues to name the per-stack resource group and any housekeeping resources. *(Resolved by OQ-001 → option B.)*
-- **FR-009**: The per-stack resource group MUST be the engine-emitted RG (`rg-hub-prd-<region_code>-001`). No additional resource groups are created.
+- **FR-009**: The per-stack resource group MUST be the engine-emitted RG. The canonical shape is `rg-{tenant}-{environment}-{purpose}-{region_code}-001`, with a hard-coded `purpose = "dns"` segment supplied by the stack's `local.input.purpose` so the RG is discoverable and disambiguated from any other prd-hub stack sharing the same region. For the prd-hub instance the canonical resolves to `rg-hub-prd-dns-{region_code}-001` (e.g. `rg-hub-prd-dns-sdc-001`). No additional resource groups are created.
 - **FR-010**: Any UAI or other Azure resource the stack provisions for housekeeping MUST also flow through the naming engine.
 
 #### Catalogue contract
@@ -145,12 +145,17 @@ The repository already has `terraform/dns/` and `modules/dns/` predating the nam
 #### Inputs
 
 - **FR-014**: The stack MUST accept exactly the following inputs and no others:
-  - `subscription_id` (required, string)
-  - `region` (required, string) — MUST be in the platform-approved prd-hub region allowlist enforced by a stack-level `validation` block; not pinned in the constitution. *(Resolved by OQ-003 → option A.)*
-  - `repo` (required, string)
-  - `custom_zones` (optional, list(string), default `[]`)
-  - `disable_catalogue_zones` (optional, list(string), default `[]`)
-- **FR-015**: The stack MUST NOT accept any input that influences SKU, retention, network rules, or per-resource configuration beyond what the naming engine and module defaults provide.
+  - `subscription_id` (required, string) — cross-checked against `data.azurerm_client_config` per FR-029.
+  - `region` (required, string) — MUST be in the platform-approved prd-hub region allowlist enforced by a stack-level `validation` block. *(Resolved by OQ-003 → option A.)*
+  - `repo` (required, string).
+  - `topology` (required, string) — scope discriminator; MUST be `"hub"` (defence-in-depth alongside the engine's `topology_scope` check on `private_dns_zone`, FR-001). Validation: `contains(["hub", "spoke"], var.topology)` at variable parse time; mismatch with the engine's `prd-hub-only` constraint is the canonical hard-fail path.
+  - `tenant` (required, string) — scope discriminator; MUST be the constant `"hub"` for this stack. Validation: lowercase alphanumeric.
+  - `environment` (required, string) — scope discriminator; MUST be `"prd"`. Validation: `contains(["npd", "pre", "prd"], var.environment)`.
+  - `custom_zones` (optional, list(string), default `[]`).
+  - `disable_catalogue_zones` (optional, list(string), default `[]`).
+
+  RATIONALE for the three scope discriminators (`topology`/`tenant`/`environment`): they are intent-surface variables (Constitution II), not per-resource knobs. They make the engine input object in [terraform/dns/locals.tf](terraform/dns/locals.tf) explicit and grep-able, match the input shape every other root stack in this repo uses (`terraform/log/`, `terraform/vnet/`, `terraform/services/`, ...), and let CI fixtures override them to exercise the FR-001 hard-fail path without needing to mutate locals. They do NOT relax the prd-hub-only constraint — the engine's `topology_scope` check still hard-fails on any non-`(hub, prd)` combination.
+- **FR-015**: The stack MUST NOT accept any input that influences SKU, retention, network rules, tags, or any per-resource configuration beyond what the naming engine and module defaults provide. The 8 inputs listed in FR-014 are exhaustive; the three scope discriminators (`topology`/`tenant`/`environment`) are permitted because they are intent-surface variables (Constitution II), not per-resource knobs.
 - **FR-016**: `custom_zones` entries MUST be valid DNS FQDNs (regex: each label `[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`, labels separated by `.`, total length ≤ 253, ≥ 2 labels). Invalid entries MUST hard-fail at plan time with a message naming each offending entry.
 - **FR-017**: `custom_zones` entries MUST NOT shadow any catalogue FQDN. Shadowing MUST hard-fail at plan time with a message naming the shadowed FQDN.
 - **FR-018**: `disable_catalogue_zones` entries MUST be a subset of the catalogue keys. Unknown entries MUST hard-fail at plan time with a message naming each unknown key and listing valid keys.
@@ -166,7 +171,7 @@ The repository already has `terraform/dns/` and `modules/dns/` predating the nam
 
 #### Determinism
 
-- **FR-025**: `for_each` keys for `azurerm_private_dns_zone` MUST be the catalogue key (or the custom FQDN). The canonical engine-emitted name MUST flow only through the `name` argument.
+- **FR-025**: `for_each` keys for each zone wrapper module instance (`module.zone` — AVM `Azure/avm-res-network-privatednszone/azurerm`, see plan.md Constitution IX) MUST be the catalogue key (or the custom FQDN). The canonical engine-emitted name MUST flow only through the engine input (and appears in `naming.names` for audit only); the AzureRM `azurerm_private_dns_zone.name` argument MUST be the FQDN literally.
 - **FR-026**: `terraform plan` on unchanged inputs MUST report zero changes.
 - **FR-027**: Reordering `custom_zones` or `disable_catalogue_zones` (set semantics) MUST report zero changes.
 - **FR-028**: The reference-input `zone_ids` and `zone_names` maps MUST be captured in a committed snapshot fixture and asserted equal on every CI run.
@@ -189,8 +194,8 @@ The repository already has `terraform/dns/` and `modules/dns/` predating the nam
 
 ### Key Entities
 
-- **Catalogue zone**: A `(key, fqdn)` pair drawn from the Microsoft-published private-link DNS zone list. The key is a short, lowercase, charset-constrained token used as both the `for_each` key and the engine `purpose`. The FQDN is the immutable zone name as published by Microsoft.
-- **Custom zone**: An FQDN supplied via `custom_zones`. Its `for_each` key and output key is the FQDN itself; its engine `purpose` is derived from the leftmost FQDN label.
+- **Catalogue zone**: A `(key, fqdn)` pair drawn from the Microsoft-published private-link DNS zone list. The key is a short, lowercase, charset-constrained token used as the `for_each` key, the public output key (`zone_ids` / `zone_names`), and the `disable_catalogue_zones` selector key. The key is NOT passed as the engine `purpose`; engine naming for `private_dns_zone` is instance-suffixed (`pdnsz-{tenant}-{environment}-{region}-NNN`) per FR-007. The FQDN is the immutable zone name as published by Microsoft and is used verbatim in `azurerm_private_dns_zone.name`.
+- **Custom zone**: An FQDN supplied via `custom_zones`. Its `for_each` key and output key is the FQDN itself. Custom zones bypass the naming engine entirely (FR-008 / OQ-001 → B): no engine `private_dns_zone` slot is emitted, no entry appears in `naming.names`, and no engine `purpose` is derived. Only the module-internal baseline-tag derivation (from `var.input`) applies.
 - **Per-stack resource group**: The single engine-emitted RG that contains every zone produced by the stack.
 - **Zone-IDs contract**: The published `zone_ids` output. The interface between this stack and every downstream stack that needs a private-endpoint zone.
 
@@ -211,7 +216,7 @@ The repository already has `terraform/dns/` and `modules/dns/` predating the nam
 
 - The naming engine (feature 001) is merged to `master` and stable; this feature consumes it as a versioned module dependency.
 - The naming engine's `private_dns_zone` service entry will be added in this feature (catalogue edit, single PR), with `topology_scope = "prd-hub-only"`, `shape = "hyphenated"`, `caf_abbr = "pdnsz"`, and an appropriate `max_length` value derived from the Azure-documented limit for private DNS zone names.
-- The naming engine's purpose-token regex (lowercase alphanumeric + hyphen, length 2..16) is sufficient to express every catalogue key in FR-011 and every label-derived purpose in FR-008. The catalogue keys in FR-011 have been chosen to satisfy this constraint.
+- The catalogue keys in FR-011 satisfy the engine's purpose-token charset (lowercase alphanumeric + hyphen, length 2..16) so the same keys are safely usable as `for_each` / output / disable-selector identifiers; the keys are NOT passed to the engine as `purpose` (see FR-007 / Key Entities).
 - The prd hub has exactly one supported region for this stack. The `region` input is a required string drawn from the naming engine's `region_codes` catalogue. *(See OQ-003.)*
 - Consumers will be migrated to read this stack's `zone_ids` via `terraform_remote_state` in a follow-up feature. This spec defines only the producer contract.
 - The Azure provider's `data.azurerm_client_config.current.subscription_id` is a reliable source of the resolved subscription for the FR-029 cross-check.
@@ -235,5 +240,5 @@ The user description ended with five explicit open questions for `/speckit.clari
 - **OQ-001** *(affects FR-008, FR-020, FR-021, FR-024)*: ~~Whether `custom_zones` entries should occupy `private_dns_zone` slots in `naming.names` (with a `purpose` derived from the FQDN's leftmost label, as currently drafted in FR-008), or be exempt from engine naming because their name IS the FQDN.~~ **Resolved → option B (engine bypass for custom zones; FQDN-as-name).**
 - **OQ-002** *(affects FR-018, FR-019)*: ~~Whether `disable_catalogue_zones` is the right shape, or whether the catalogue should be a map with `enabled = true` defaults that the existing `overrides` pattern (engine FR-013) handles.~~ **Resolved → option A (keep `disable_catalogue_zones` as a separate list input; engine overrides scoped to tags + defaults only).**
 - **OQ-003** *(affects FR-001, FR-014, scope)*: ~~Whether the prd-hub region is an input (current FR-014) or a constitution-pinned constant.~~ **Resolved → option A (`region` stays a required input; stack-level validation restricts to platform-approved prd-hub region(s)).**
-- **OQ-004** *(affects FR-015)*: ~~Whether diagnostic settings on each zone (sending to a hub `log_analytics` workspace) are in scope or deferred.~~ **Resolved → option B (deferred to a follow-up feature; v1 ships zones-only).**
+- **OQ-004** *(affects FR-002)*: ~~Whether diagnostic settings on each zone (sending to a hub `log_analytics` workspace) are in scope or deferred.~~ **Resolved → option B (deferred to a follow-up feature; v1 ships zones-only).**
 - **OQ-005** *(affects FR-032, FR-033)*: ~~Whether the stack should accept a list of existing zone IDs to ADOPT (import) rather than create, to support migration from pre-existing hosted-zone state.~~ **Resolved → option A (`moved {}` blocks only; no `adopt_zones` input; zero-state adoption is a non-breaking follow-up).**

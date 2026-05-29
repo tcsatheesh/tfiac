@@ -22,9 +22,9 @@ run "disable_acr_yields_24_zones" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = []
     disable_catalogue_zones = ["acr"]
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
 
   assert {

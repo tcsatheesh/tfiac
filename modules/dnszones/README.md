@@ -8,8 +8,8 @@ Thin module that owns the Private DNS Zone catalogue (25 entries) and emits
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `naming` | `map(any)` | yes | Passthrough of `module.naming.names`. |
-| `region` | `string` | yes | Azure region (e.g. `uksouth`). |
-| `region_code` | `string` | yes | Short region code (e.g. `uks`). Supplied by the root stack from `module.naming`'s region_codes catalogue (or a static fallback map); never re-derived inside this module. |
+| `region` | `string` | yes | Azure region (e.g. `swedencentral`). |
+| `region_code` | `string` | yes | Short region code (e.g. `sdc`). Supplied by the root stack from a static `local.region_codes` map; the naming engine does NOT expose region_codes as a public output. Never re-derived inside this module. |
 | `custom_zones` | `list(string)` | no (default `[]`) | Operator-supplied FQDNs. Validated by FR-016 regex + de-dup. |
 | `disable_catalogue_zones` | `list(string)` | no (default `[]`) | Catalogue **keys** to exclude. De-dup is variable-level; catalogue-membership is a precondition on `azurerm_resource_group.this`. |
 | `input` | engine input object | yes | Carries `(topology, tenant, environment, region, repo)` for the six-key baseline-tag derivation. |

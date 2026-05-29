@@ -27,7 +27,17 @@ variable "repo" {
 }
 
 variable "environment" {
-  description = "Environment token for the tooling stack (default: tooling)."
+  description = "Environment token for the tooling stack (e.g. \"npd\" or \"prd\"). Bootstrap stacks are deployed per-environment so the tfstate storage account stays scoped to a single subscription/env."
+  type        = string
+
+  validation {
+    condition     = contains(["npd", "prd"], var.environment)
+    error_message = "environment must be one of: npd, prd."
+  }
+}
+
+variable "purpose" {
+  description = "Purpose segment for the tooling RG (default: \"tool\"). Produces canonical RG name `rg-{tenant}-{environment}-{purpose}-{region_code}-001`."
   type        = string
   default     = "tool"
 }

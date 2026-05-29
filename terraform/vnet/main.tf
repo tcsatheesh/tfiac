@@ -39,6 +39,7 @@ module "network" {
     environment = local.input.environment
     region      = local.input.region
     repo        = local.input.repo
+    purpose     = local.input.purpose
   }
 
   address_space = var.address_space
@@ -61,6 +62,7 @@ module "bastion" {
   region_code         = local.region_codes[var.region]
   input               = { topology = local.input.topology, tenant = local.input.tenant, environment = local.input.environment, region = local.input.region, repo = local.input.repo }
   resource_group_name = module.network.resource_group_name
+  resource_group_id   = module.network.resource_group_id
   subnet_id           = module.network.subnet_ids["bastion"]
 }
 

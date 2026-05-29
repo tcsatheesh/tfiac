@@ -23,9 +23,9 @@ run "subscription_mismatch_fails" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = []
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
 
   expect_failures = [

@@ -22,7 +22,7 @@ output "container_name" {
 
 output "backend_config_snippet" {
   description = "Ready-to-paste -backend-config block."
-  value = <<-EOT
+  value       = <<-EOT
     resource_group_name  = "${azurerm_resource_group.this.name}"
     storage_account_name = "${azurerm_storage_account.tfstate.name}"
     container_name       = "${azurerm_storage_container.tfstate.name}"

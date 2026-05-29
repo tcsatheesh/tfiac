@@ -22,9 +22,9 @@ run "first_plan_ab_order" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = ["a.example.com", "b.example.com"]
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
   assert {
     condition     = length(output.zone_names) == 27
@@ -40,9 +40,9 @@ run "second_plan_ba_order_same_keyspace" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = ["b.example.com", "a.example.com"]
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
   assert {
     condition     = output.zone_names["a.example.com"] == "a.example.com" && output.zone_names["b.example.com"] == "b.example.com"

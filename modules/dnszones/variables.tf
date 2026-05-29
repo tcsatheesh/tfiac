@@ -7,12 +7,12 @@ variable "naming" {
 }
 
 variable "region" {
-  description = "Azure region (e.g. \"uksouth\"). Used as azurerm_resource_group.location."
+  description = "Azure region (e.g. \"swedencentral\"). Used as azurerm_resource_group.location."
   type        = string
 }
 
 variable "region_code" {
-  description = "Short engine-mapped region code (e.g. \"uks\" for \"uksouth\"). Supplied by the root stack from module.naming's region_codes catalogue (or a static fallback map) to avoid re-deriving inside this module."
+  description = "Short engine-mapped region code (e.g. \"sdc\" for \"swedencentral\"). Supplied by the root stack from local.region_codes (the static fallback map — the naming engine does not expose region_codes as a public output) to avoid re-deriving inside this module."
   type        = string
 }
 

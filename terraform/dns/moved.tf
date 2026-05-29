@@ -1,8 +1,9 @@
 ###############################################################################
 # terraform/dns/moved.tf  (feature 002 — T039)
 #
-# State migration from the legacy module.dns (AVM-based) addresses to the
-# new engine-driven module.dnszones addresses.
+# State migration from the legacy `module.dns` (raw azurerm_private_dns_zone
+# `for_each` — see specs/002-private-dns-zones/legacy-state-inventory.txt)
+# to the new engine-driven `module.dnszones` (AVM-wrapped per Constitution IX).
 #
 # ──────────────────────────────────────────────────────────────────────────
 # STATUS: stub — populate from a real backend refresh before cut-over.
@@ -17,18 +18,17 @@
 #     > /tmp/inventory.txt
 #
 # Then, for each legacy address discovered, append a `moved` block here
-# mapping it to the new canonical address.
-#
-# Expected shape (one block per zone + one for the RG):
+# mapping it to the new canonical address. Note: the new addresses are
+# AVM-wrapped (Constitution IX), so the right-hand side for zones is nested:
 #
 #   moved {
-#     from = module.dns.azurerm_resource_group.avmrg
+#     from = module.dns.azurerm_resource_group.this
 #     to   = module.dnszones.azurerm_resource_group.this
 #   }
 #
 #   moved {
-#     from = module.dns.module.private_dns_zones["blob"].azurerm_private_dns_zone.this
-#     to   = module.dnszones.azurerm_private_dns_zone.this["blob"]
+#     from = module.dns.azurerm_private_dns_zone.this["privatelink.blob.core.windows.net"]
+#     to   = module.dnszones.module.zone["blob"].azurerm_private_dns_zone.this
 #   }
 #
 # After populating, run `terraform plan` and confirm:

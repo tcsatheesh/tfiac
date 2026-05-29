@@ -11,16 +11,18 @@ output "resource_group_id" {
 }
 
 output "vnet_id" {
-  value = azurerm_virtual_network.this.id
+  value = module.vnet.resource_id
 }
 
 output "vnet_name" {
-  value = azurerm_virtual_network.this.name
+  # Use the canonical name (not module.vnet.resource.name) to avoid
+  # pulling any sensitive-output attributes from the AVM resource object.
+  value = local.vnet_name
 }
 
 output "subnet_ids" {
   description = "Map of role => subnet ID."
-  value       = { for r, s in azurerm_subnet.this : r => s.id }
+  value       = { for r, s in module.vnet.subnets : r => s.resource_id }
 }
 
 output "subnet_names" {
@@ -30,12 +32,12 @@ output "subnet_names" {
 
 output "nsg_ids" {
   description = "Map of role => NSG ID (only for roles with add_nsg=true)."
-  value       = { for r, n in azurerm_network_security_group.this : r => n.id }
+  value       = { for r, n in module.nsg : r => n.resource_id }
 }
 
 output "route_table_id" {
   description = "Route table ID (null when no route-attached subnet roles requested)."
-  value       = length(azurerm_route_table.this) > 0 ? azurerm_route_table.this[0].id : null
+  value       = length(module.route_table) > 0 ? module.route_table[0].resource_id : null
 }
 
 output "subnet_role_catalogue" {

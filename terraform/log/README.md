@@ -66,8 +66,8 @@ shared azurerm backend container.
 data "terraform_remote_state" "log" {
   backend = "azurerm"
   config = {
-    resource_group_name  = "rg-hub-tool-sdc-001"
-    storage_account_name = "sthubtoolsdc001"
+    resource_group_name  = "rg-hub-npd-tool-sdc-001"
+    storage_account_name = "sthubnpdsdc001"
     container_name       = "tfstate"
     key                  = "npd/hub/log.tfstate"
     use_azuread_auth     = true

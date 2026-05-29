@@ -13,15 +13,19 @@ This is the worked example for `terraform/dns/`. Use it as the reference input f
 
 ```hcl
 subscription_id = "00000000-0000-0000-0000-000000000000"  # prd hub
-region          = "uksouth"
+region          = "swedencentral"
 repo            = "_github_org/_github_repo"
+
+topology    = "hub"
+tenant      = "hub"
+environment = "prd"
 
 custom_zones = [
   "internal.contoso.local",
 ]
 
 disable_catalogue_zones = [
-  # "redis",   # uncomment to skip
+  # "acr",   # uncomment to skip the Azure Container Registry zone
 ]
 ```
 
@@ -36,10 +40,10 @@ terraform plan -var-file=../../variables/prd/hub/dns.tfvars
 Expected plan summary on a clean subscription:
 
 - `+ azurerm_resource_group.this` (1)
-- `+ module.dnszones.azurerm_private_dns_zone.this["blob"]`
-- `+ module.dnszones.azurerm_private_dns_zone.this["file"]`
+- `+ module.dnszones.module.zone["blob"].azurerm_private_dns_zone.this`
+- `+ module.dnszones.module.zone["file"].azurerm_private_dns_zone.this`
 - … (one per non-disabled catalogue key — 25 total at day one)
-- `+ module.dnszones.azurerm_private_dns_zone.this["internal.contoso.local"]` (custom)
+- `+ module.dnszones.module.zone["internal.contoso.local"].azurerm_private_dns_zone.this` (custom)
 
 **Total**: 1 RG + 25 catalogue + 1 custom = 27 resources.
 
@@ -60,7 +64,7 @@ zone_names = {
   "internal.contoso.local"   = "internal.contoso.local"
 }
 
-resource_group_name = "rg-hub-prd-uks-001"
+resource_group_name = "rg-hub-prd-dns-sdc-001"
 ```
 
 ## Consuming from a spoke stack

@@ -23,13 +23,14 @@ variable "region_code" {
 }
 
 variable "input" {
-  description = "Engine input object — for tag derivation."
+  description = "Engine input object — drives tag derivation and (optionally) the RG purpose segment."
   type = object({
     topology    = string
     tenant      = string
     environment = string
     region      = string
     repo        = string
+    purpose     = optional(string)
   })
 }
 

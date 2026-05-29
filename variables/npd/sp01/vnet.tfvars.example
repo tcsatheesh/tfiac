@@ -34,8 +34,8 @@ subnets = {
 # our convention `<env>/<scope>/vnet.tfstate`. Values come from the
 # terraform/bootstrap/ stack's outputs.
 hub_state_backend = {
-  resource_group_name  = "rg-hub-tool-sdc-001"
-  storage_account_name = "sthubtoolsdc001"
+  resource_group_name  = "rg-hub-npd-tool-sdc-001"
+  storage_account_name = "sthubnpdsdc001"
   container_name       = "tfstate"
   key                  = "npd/hub/vnet.tfstate"
 }

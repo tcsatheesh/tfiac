@@ -10,6 +10,7 @@ locals {
     topology    = "hub"
     tenant      = "hub"
     environment = var.environment
+    purpose     = var.purpose
     region      = var.region
     repo        = var.repo
 

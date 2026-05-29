@@ -56,7 +56,7 @@
 
 ### 6. Per-stack `region` validation
 
-- **Decision**: `variable "region"` carries a `validation { condition = contains(local.allowed_prd_hub_regions, var.region) }` block. `local.allowed_prd_hub_regions = ["uksouth"]` for v1 (platform-approved single region). The naming engine independently rejects any region not in its `region_codes` map; this validation is an additional stack-level allowlist on top.
+- **Decision**: `variable "region"` carries a `validation { condition = contains(local.allowed_prd_hub_regions, var.region) }` block. `local.allowed_prd_hub_regions = ["swedencentral"]` for v1 (platform-approved single region). The naming engine independently rejects any region not in its `region_codes` map; this validation is an additional stack-level allowlist on top.
 - **Rationale**: OQ-003 → A keeps the region as a stack input. The allowlist makes "what regions are valid for the prd hub?" a code-grep-able single-line answer in `terraform/dns/locals.tf`.
 - **Alternatives considered**:
   - Engine-side enforcement — rejected; engine's `prd-hub-only` topology check fires on env, not on region.

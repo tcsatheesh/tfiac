@@ -28,7 +28,8 @@ locals {
   # ─── Engine input object (T018) ────────────────────────────────────────────
   # ONE batched private_dns_zone service request with count = N (N = enabled
   # catalogue + custom). The engine names INSTANCES by suffix
-  # (pdnsz-hub-prd-sdc-001..NNN); the catalogue key is the PUBLIC for_each /
+  # ({prefix}-{tenant}-{environment}-{purpose}-{region_code}-NNN, per the
+  # naming engine's contract); the catalogue key is the PUBLIC for_each /
   # output / disable key per the rewritten FR-007.
   #
   # Why a single batched entry rather than one entry per catalogue key:

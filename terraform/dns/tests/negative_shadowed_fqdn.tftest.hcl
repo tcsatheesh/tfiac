@@ -23,9 +23,9 @@ run "shadow_blob_fqdn_fails" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = ["privatelink.blob.core.windows.net"]
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
 
   expect_failures = [

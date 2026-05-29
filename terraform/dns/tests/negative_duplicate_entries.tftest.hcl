@@ -23,9 +23,9 @@ run "duplicate_custom_zones_rejected" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = ["a.b.com", "a.b.com"]
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
 
   expect_failures = [

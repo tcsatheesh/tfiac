@@ -23,9 +23,9 @@ run "custom_zone_extends_catalogue" {
     repo                    = "_github_org/_github_repo"
     custom_zones            = ["internal.contoso.local"]
     disable_catalogue_zones = []
-    topology        = "hub"
-    tenant          = "hub"
-    environment     = "prd"
+    topology                = "hub"
+    tenant                  = "hub"
+    environment             = "prd"
   }
 
   assert {
