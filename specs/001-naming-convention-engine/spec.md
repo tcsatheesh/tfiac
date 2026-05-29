@@ -671,7 +671,7 @@ inputs.
   more than 999 instances of a single service type are out of scope and
   are a known limitation.
 - `environment` is treated as opaque by the engine; the engine validates
-  only that it is a non-empty short token (length 1–4 per the
+  only that it is a non-empty short token (length 3 per the
   input-schema contract). The set of allowed values is governed
   elsewhere (constitution + ops policy).
 - Public DNS zone *names* (i.e. fully-qualified domain names) are NOT
