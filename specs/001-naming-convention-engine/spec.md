@@ -148,7 +148,8 @@ inputs.
 
 1. **Given** any valid name request, **When** the engine responds,
    **Then** it emits a tag map containing at minimum `tenant`,
-   `topology`, `environment`, `region`, `managed_by`, and `repo`.
+   `topology`, `environment`, `region`, `managed_by`, `repo`, and
+   `purpose`.
 2. **Given** per-resource tag overrides keyed by the canonical name,
    **When** the engine is asked to merge them with the baseline,
    **Then** override values replace baseline values for the same keys
@@ -201,9 +202,10 @@ inputs.
   state or any other ambient source for `repo`. `purpose` is a
   required 3-char stack identifier (e.g. `dns`, `log`, `net`, `svc`)
   that MUST match `^[a-z0-9]{3}$` per the same shape rule as FR-029;
-  it is consumed only by the resource-group name per FR-025 and is
-  NOT propagated into other service names or into the baseline tag
-  set. Non-conforming values MUST cause a hard plan-time error naming
+  it is consumed by the resource-group name (FR-025) AND emitted as
+  a baseline tag on every generated resource (FR-014). It is NOT
+  embedded in the canonical name of any non-RG service.
+  Non-conforming values MUST cause a hard plan-time error naming
   the offending value and stating the expected pattern. Each
   `services[]` entry MAY additionally carry typed child lists for
   nested sub-resources, as described in FR-026/FR-027. The engine
@@ -286,9 +288,9 @@ inputs.
   canonical resource name; when a key is present the override value MUST
   win over the default; when a key is absent the default MUST be used.
 - **FR-014**: The engine MUST emit, alongside every name, a baseline
-  tag map containing EXACTLY six keys: `tenant`, `topology`,
-  `environment`, `region`, `managed_by`, and `repo`. All baseline keys
-  MUST be lowercase snake_case. Values:
+  tag map containing EXACTLY seven keys: `tenant`, `topology`,
+  `environment`, `region`, `managed_by`, `repo`, and `purpose`. All
+  baseline keys MUST be lowercase snake_case. Values:
   - `tenant` ← `var.input.tenant`
   - `topology` ← `var.input.topology`
   - `environment` ← `var.input.environment`
@@ -296,11 +298,12 @@ inputs.
     short code)
   - `managed_by` ← the literal constant `"terraform"`
   - `repo` ← `var.input.repo`, verbatim (FR-001)
+  - `purpose` ← `var.input.purpose`, verbatim (FR-001)
 
   The engine MUST NOT read git state, environment variables, or any
   other ambient source for any baseline value. Per FR-015, an
-  overrides map may ADD keys and OVERRIDE values, but the six baseline
-  keys MUST NOT be removable from the emitted tag map.
+  overrides map may ADD keys and OVERRIDE values, but the seven
+  baseline keys MUST NOT be removable from the emitted tag map.
 - **FR-015**: The engine MUST accept an optional per-resource tag
   overrides map keyed by canonical resource name and MUST merge it on
   top of the baseline such that override keys replace baseline keys but
@@ -697,9 +700,9 @@ inputs.
   type contains a timestamp, a random value, a UUID, or a hash, verified
   by an automated check over the cross-product fixture.
 - **SC-008**: Every generated name carries a baseline tag set with all
-  six required keys (`tenant`, `topology`, `environment`, `region`,
-  `managed_by`, `repo`), verified by an automated check over the
-  cross-product fixture.
+  seven required keys (`tenant`, `topology`, `environment`, `region`,
+  `managed_by`, `repo`, `purpose`), verified by an automated check
+  over the cross-product fixture.
 
 ## Assumptions
 
