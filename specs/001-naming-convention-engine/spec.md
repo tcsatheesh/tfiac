@@ -13,6 +13,7 @@
 ### Session 2026-05-29
 
 - Q: How should the day-one `PE-hostable` and `diagnostics-capable` parent flags in FR-026 be seeded? → A: Seed both flags from the Microsoft Azure published support matrices (Private Link service availability; Azure Monitor resource logs / metrics support) as of the FR-036 freeze date. Every top-level row in the FR-026 inventory carries an explicit boolean for each flag in the catalogue, frozen on the same date as the abbreviation catalogue, and revised only via dedicated catalogue PRs that record a new freeze date.
+- Q: What are the legal values and width of the `environment` token? → A: `environment` is a fixed-width 3-character lowercase alphanumeric token drawn from a closed catalogue of exactly four values: `npd`, `pre`, `dev`, `prd`. Any other value (different width, different spelling, mixed case) MUST cause a hard error at name-generation time, with the message naming the offending value and listing the four allowed values. All canonical-shape regexes (FR-016) and the FR-037 worst-case length math use a fixed environment width of 3.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -310,13 +311,14 @@ inputs.
   truncate, hash, rewrite, or otherwise silently mutate a name to make
   it pass validation.
 
-  The four canonical-shape regexes are:
+  The four canonical-shape regexes are (note: `environment` is a
+  fixed-width 3-char segment per FR-019b):
   - Top-level hyphenated:
-    `^[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{2,5}-[a-z0-9]{2,5}-[0-9]{3}$`
+    `^[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
   - Top-level concatenated (hyphen-forbidden):
-    `^[a-z]{2,6}(hub|sp[0-9]{2})[a-z0-9]{2,5}[a-z0-9]{2,5}[0-9]{3}$`
+    `^[a-z]{2,6}(hub|sp[0-9]{2})[a-z0-9]{3}[a-z0-9]{2,5}[0-9]{3}$`
   - Purpose-keyed child of a hyphenated parent:
-    `^[a-z]{2,6}-[a-z0-9]{2,16}-[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{2,5}-[a-z0-9]{2,5}-[0-9]{3}$`
+    `^[a-z]{2,6}-[a-z0-9]{2,16}-[a-z]{2,6}-(hub|sp(0[1-9]|[1-9][0-9]))-[a-z0-9]{3}-[a-z0-9]{2,5}-[0-9]{3}$`
     (the engine MUST additionally verify that the parent-suffix
     segments equal the parent's own `(tenant, environment, region,
     instance)` segments — regex match alone is not sufficient)
@@ -344,6 +346,14 @@ inputs.
   Variable-width forms such as `sp1` or `sp100` MUST also be rejected.
   Consequence: at most 99 spokes per environment, and the lexical sort
   of spoke tokens matches their numeric sort.
+- **FR-019b**: `environment` MUST be a fixed-width 3-character
+  lowercase alphanumeric token drawn from the closed catalogue
+  `{npd, pre, dev, prd}`. Any other value (different width, different
+  spelling, mixed case, non-alphanumeric) MUST cause a hard error
+  whose message names the offending value and lists the four allowed
+  values. The catalogue is frozen on the FR-036 freeze date and
+  revised only via a dedicated catalogue PR that records a new freeze
+  date.
 - **FR-020**: `topology` MUST be exactly one of `hub` or `spoke`. The
   engine MUST cross-check that `topology = hub` implies `tenant = hub`
   and that `topology = spoke` implies `tenant` matches the spoke
@@ -533,8 +543,7 @@ inputs.
   MUST fit within the Azure-imposed max length for the
   service for every combination of:
   - `tenant` ∈ `{hub}` ∪ `{sp01..sp99}` (max width 4)
-  - `environment` short code (max width 4, per FR-019 sibling
-    constraint)
+  - `environment` ∈ `{npd, pre, dev, prd}` (fixed width 3 per FR-019b)
   - `region` short code (max width 4 per FR-010)
   - `instance` ∈ `001..999` (fixed width 3)
 
@@ -542,15 +551,15 @@ inputs.
 
   | service_type         | caf_abbr | Azure max | Worst-case computed length | Headroom |
   |----------------------|----------|-----------|-----------------------------|----------|
-  | `storage`            | `st`     | 24        | `2 + 4 + 4 + 4 + 3 = 17`    | 7        |
-  | `container_registry` | `cr`     | 50        | `2 + 4 + 4 + 4 + 3 = 17`    | 33       |
-  | `keyvault` *(note)*  | `kv`     | 24        | `2 + 4 + 4 + 4 + 3 = 17`    | 7        |
+  | `storage`            | `st`     | 24        | `2 + 4 + 3 + 4 + 3 = 16`    | 8        |
+  | `container_registry` | `cr`     | 50        | `2 + 4 + 3 + 4 + 3 = 16`    | 34       |
+  | `keyvault` *(note)*  | `kv`     | 24        | `2 + 4 + 3 + 4 + 3 = 16`    | 8        |
 
   *(Note: `keyvault` is catalogued as hyphenated per FR-026; the row
   is included here as a defensive bound in case a future amendment
   switches its shape. The current hyphenated shape
   `kv-{tenant}-{env}-{region}-{instance}` has worst case
-  `2 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 3 = 21`, still within 24.)*
+  `2 + 1 + 4 + 1 + 3 + 1 + 4 + 1 + 3 = 20`, still within 24.)*
 
   All headroom values are strictly positive, demonstrating that the
   canonical combination is sufficient for global uniqueness without
@@ -670,10 +679,14 @@ inputs.
 - Instance numbers are bounded by `001..999` (FR-008). Stacks needing
   more than 999 instances of a single service type are out of scope and
   are a known limitation.
-- `environment` is treated as opaque by the engine; the engine validates
-  only that it is a non-empty short token (length 3 per the
-  input-schema contract). The set of allowed values is governed
-  elsewhere (constitution + ops policy).
+- `environment` is NOT opaque to the engine. Per FR-019b it is a
+  fixed-width 3-character lowercase alphanumeric token drawn from
+  the closed catalogue `{npd, pre, dev, prd}`. All canonical-shape
+  regexes (FR-016) and worst-case length math (FR-037) assume this
+  fixed width. Any future addition to the environment catalogue MUST
+  be a single-PR catalogue edit (per FR-019b) and MUST preserve the
+  3-character width to avoid invalidating the snapshot oracle
+  (FR-038).
 - Public DNS zone *names* (i.e. fully-qualified domain names) are NOT
   produced by this engine; they are domain names owned by the business
   and bound to existing zones. The engine produces names for DNS-zone
