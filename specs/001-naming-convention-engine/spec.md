@@ -10,47 +10,9 @@
 
 ## Clarifications
 
-### Session 2026-05-28 (Round 2 — checklist gap closure)
+### Session 2026-05-29
 
-Applied as a single batch to close gaps surfaced by
-[checklists/naming-convention.md](checklists/naming-convention.md):
-
-- Day-one authoritative service-type inventory added to FR-026 with
-  `service_type`, `caf_abbr`, `shape`, `topology_scope`, `category`.
-  (closes CHK002, CHK003, CHK027)
-- CAF source pinned in new FR-036; spec merge date is the freeze date.
-  (closes CHK004)
-- Day-one supported regions and short codes added to FR-010.
-  (closes CHK005, CHK006)
-- Canonical-shape regexes written out verbatim in FR-016.
-  (closes CHK010)
-- Purpose-keyed children under hyphen-forbidden parents are explicitly
-  prohibited (FR-030). (closes CHK015)
-- Instance numbers capped at 999 (FR-008). (closes CHK020)
-- `repo` is a required top-level input; engine never reads git state
-  (FR-001, FR-014). (closes CHK022)
-- Baseline tag set fixed to exactly six keys; `managed_by` is always
-  `"terraform"` (FR-014). (closes CHK023)
-- All baseline tag keys are snake_case; override keys validated against
-  Azure tag-key rules (FR-014, FR-015). (closes CHK024)
-- Length-budget remediation error message contract added (FR-016).
-  (closes CHK030)
-- Worst-case uniqueness analysis appendix added for hyphen-forbidden
-  services (FR-037). (closes CHK032)
-- Zero / empty / unmatched-override semantics specified (FR-039).
-  (closes CHK033)
-- `services[]` order-sensitivity for numbering is the single source of
-  determinism (FR-008). (closes CHK021)
-- Snapshot lifecycle and CI divergence-failure rule added (FR-038).
-  (closes CHK035)
-
-### Session 2026-05-28
-
-- Q: Does the engine accept one name tuple at a time or the whole `services` list? → A: Batch — the engine accepts `{topology, tenant, environment, region, services[]}` and returns the full map of names, tags, defaults, and `for_each` keys. The engine owns the iteration and instance numbering.
-- Q: Who owns resource-group naming and the RG-to-resource mapping? → A: One RG per stack — the engine emits exactly one resource-group name per batch request and treats every service in the batch as belonging to that RG. Callers do not pass an RG; finer-grained RG splits are out of scope.
-- Q: How are sub-resources (subnets, NSG rules, route entries, private endpoints, diagnostic settings) modelled? → A: Nested under their parent. Sub-resources are NOT valid top-level `services[]` entries. Each parent entry carries a typed child list (e.g. a `vnet` entry has `subnets: [{ purpose }]`; an `nsg` entry has `rules: [{ purpose }]`; resources that can host private endpoints carry `private_endpoints: [{ subnet }]`). The engine emits a FLAT output map keyed by canonical name, with each record carrying its `service_type` and `parent`. Child instance numbering is per `(child_type, parent)`. Purpose-driven children use the `purpose` token in place of a positional number.
-- Q: Should the engine enforce hub-vs-spoke validity per service type? → A: Yes — the constraints catalogue carries a `topology_scope` column (`hub-only` | `spoke-only` | `either`). The engine hard-fails at name-generation time on mismatch. Child types inherit their parent's topology scope and do NOT carry their own.
-- Q: How is the constitution's "one global DNS stack in prd" rule enforced? → A: Extend the `topology_scope` vocabulary with `prd-hub-only` (valid ONLY when `topology=hub` AND `environment=prd`). Seeded for `dns_zone` and `private_dns_zone`. The full vocabulary becomes `hub-only`, `spoke-only`, `either`, `prd-hub-only`. Child types still inherit and carry no scope of their own.
+- Q: How should the day-one `PE-hostable` and `diagnostics-capable` parent flags in FR-026 be seeded? → A: Seed both flags from the Microsoft Azure published support matrices (Private Link service availability; Azure Monitor resource logs / metrics support) as of the FR-036 freeze date. Every top-level row in the FR-026 inventory carries an explicit boolean for each flag in the catalogue, frozen on the same date as the abbreviation catalogue, and revised only via dedicated catalogue PRs that record a new freeze date.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -452,7 +414,7 @@ inputs.
   | `doc_intel`               | `di`       | hyphenated    | spoke-only     | top-level  |
   | `search`                  | `srch`     | hyphenated    | spoke-only     | top-level  |
   | `dns_zone`                | `dns`      | hyphenated    | prd-hub-only   | top-level  |
-  | `private_dns_zone`        | `pdns`     | hyphenated    | prd-hub-only   | top-level  |
+  | `private_dns_zone`        | `pdnsz`     | hyphenated    | prd-hub-only   | top-level  |
   | `subnet`                  | `snet`     | hyphenated    | (inherits)     | child-only |
   | `nsg_rule`                | `nsgrule`  | hyphenated    | (inherits)     | child-only |
   | `route`                   | `udr`      | hyphenated    | (inherits)     | child-only |
@@ -464,13 +426,22 @@ inputs.
   - `nsg_rule` → parent `nsg`
   - `route` → parent `route_table`
   - `private_endpoint` → parent: any top-level row the catalogue
-    marks PE-hostable (catalogue flag, not enumerated in this spec)
+    marks `pe_hostable = true`. The day-one seed for `pe_hostable`
+    is the Microsoft Azure Private Link service-availability matrix
+    pinned at the FR-036 freeze date; every top-level row in the
+    inventory above MUST carry an explicit boolean.
   - `diagnostic_setting` → parent: any top-level row the catalogue
-    marks diagnostics-capable
+    marks `diagnostics_capable = true`. The day-one seed for
+    `diagnostics_capable` is the Microsoft Azure Monitor resource
+    logs/metrics support matrix pinned at the FR-036 freeze date;
+    every top-level row in the inventory above MUST carry an
+    explicit boolean.
 
-  Any addition to or change in this table is a single-PR catalogue
-  edit (per Constitution Principle V) and is out of scope for engine
-  code changes.
+  Both flags are catalogue data, frozen on the FR-036 freeze date,
+  and revised only via dedicated catalogue PRs that record a new
+  freeze date (mirroring FR-036). Any addition to or change in this
+  table is a single-PR catalogue edit (per Constitution Principle V)
+  and is out of scope for engine code changes.
 - **FR-027**: Each parent service-type record in the catalogue MUST
   declare which child types it accepts and, for each, the name of the
   child-list key on the parent (e.g. `vnet` accepts `subnets:`, `nsg`
