@@ -75,36 +75,20 @@ check "apim_hub_only" {
   }
 }
 
-# aifoundry_requires_hub_deps (spec.md C-015): selecting aifoundry requires
-# exactly one storage + one keyvault in the SAME services stack. The Hub
-# wrapper takes their resource IDs via sibling-module composition.
-check "aifoundry_requires_hub_deps" {
-  assert {
-    condition = !(
-      length([for s in var.services : s if s.type == "aifoundry"]) > 0 &&
-      length([for s in var.services : s if s.type == "storage"]) != 1
-    )
-    error_message = "C-015 — aifoundry requires exactly one 'storage' selection in the same services stack."
-  }
-  assert {
-    condition = !(
-      length([for s in var.services : s if s.type == "aifoundry"]) > 0 &&
-      length([for s in var.services : s if s.type == "keyvault"]) != 1
-    )
-    error_message = "C-015 — aifoundry requires exactly one 'keyvault' selection in the same services stack."
-  }
-}
-
-# aifoundry_project_requires_hub (spec.md C-015): selecting aifoundry_project
-# requires exactly one aifoundry Hub in the SAME services stack so the Project
-# wrapper can wire properties.hubResourceId.
-check "aifoundry_project_requires_hub" {
+# aifoundry_project_requires_account (spec.md C-017 / FR-026; renamed by C-017
+# from the C-015 §4 check `aifoundry_project_requires_hub`): selecting
+# `aifoundry_project` requires exactly one `aifoundry` (Cognitive Services
+# Foundry account) in the SAME services stack so the Project wrapper can wire
+# `parent_id = var.parent_account_id`. C-017 also removes the former
+# `aifoundry_requires_hub_deps` check — Foundry accounts manage their own
+# storage/secrets and no longer need sibling KV/SA.
+check "aifoundry_project_requires_account" {
   assert {
     condition = !(
       length([for s in var.services : s if s.type == "aifoundry_project"]) > 0 &&
       length([for s in var.services : s if s.type == "aifoundry"]) != 1
     )
-    error_message = "C-015 — aifoundry_project requires exactly one 'aifoundry' selection in the same services stack."
+    error_message = "C-017 / FR-026 — aifoundry_project requires exactly one 'aifoundry' (Cognitive Services account) selection in the same services stack."
   }
 }
 

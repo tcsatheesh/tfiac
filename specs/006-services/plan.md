@@ -411,3 +411,275 @@ After squash-merge:
    AI Foundry Project). Restore the state-SA firewall
    (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove any
    temp IPs) once the apply settles.
+
+## Phase C-017 — Foundry account + project (Cognitive Services kind=AIServices + accounts/projects child)
+
+This phase is an **amendment** to feature 006-services delivering
+[spec.md C-017 / FR-026](spec.md#clarifications): rebase the `aifoundry`
+and `aifoundry_project` wrappers from the legacy MachineLearningServices
+RP (Hub/Project workspaces, which require a sibling Key Vault + Storage
+Account) onto the modern `Microsoft.CognitiveServices/accounts`
+(kind=`AIServices`, `allowProjectManagement=true`) +
+`Microsoft.CognitiveServices/accounts/projects` child pair. The
+services stack day-one shrinks to just those two resources; the
+companion KV/SA that existed only to satisfy the old Hub dependency
+contract are dropped from tfvars and from the dependency `check` block.
+APIM, environment allowlists, naming engine, and hub stacks are
+**untouched**.
+
+**Pre-condition (must complete before this branch merges).** The live
+sp01/dev services stack currently materialises four resources on the
+old RP:
+
+- `aif-uc1-uc1-sp01-dev-swc-001`
+  (`Microsoft.MachineLearningServices/workspaces`, kind=`Hub`)
+- `aifp-uc1-uc1-sp01-dev-swc-001`
+  (`Microsoft.MachineLearningServices/workspaces`, kind=`Project`)
+- `kvuc1uc1sp01devswc001` (`Microsoft.KeyVault/vaults`)
+- `stuc1uc1sp01devswc001` (`Microsoft.Storage/storageAccounts`)
+
+`terraform plan` against the rewritten modules cannot translate the
+first two from MachineLearningServices to CognitiveServices (different
+RPs, non-convertible resource IDs); KV+SA are dropped from tfvars so
+their state entries also become orphans. All four must be destroyed
+**before** the amendment merges, and the stale
+`sp01/dev/services.tfstate` blob removed from the backend SA
+(`sttfsshdhubnpdswc001`) so the next apply starts from a clean
+greenfield. Preferred path: dispatch
+`gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true`
+on master against the pre-C-017 tfvars. Fallback: direct `az resource
+delete` for the four resources (Key Vault may require
+`az keyvault purge` if soft-delete is enabled), followed by
+`az storage blob delete --container-name tfstate --name sp01/dev/services.tfstate`
+against the state SA after temp-opening its firewall (restore
+`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove the
+operator IP afterwards).
+
+### File-level edits
+
+1. **`modules/aifoundry/main.tf` — swap RP.** Replace the existing
+   `azapi_resource` body from
+   `type = "Microsoft.MachineLearningServices/workspaces@2024-10-01"`
+   (kind=`Hub`, body requiring `storageAccount` + `keyVault`
+   sub-properties) to
+   `type = "Microsoft.CognitiveServices/accounts@2025-09-01"` with body
+   `{kind = "AIServices", sku = {name = "S0"}, identity = {type = "SystemAssigned"}, properties = {allowProjectManagement = true, customSubDomainName = var.canonical_name, publicNetworkAccess = local.config.public_network_access}}`.
+   `parent_id` (subscription/RG-scoped) and `tags` propagation patterns
+   stay as-is. `response_export_values` becomes
+   `["id", "properties.endpoints"]` — the old discoveryUrl export goes
+   away and the Foundry per-capability endpoints map takes its place
+   (consumed by the wrapper's `outputs.tf`). Diagnostic settings block
+   keeps its existing shape (target = the new account `id`).
+
+2. **`modules/aifoundry/variables.tf` — drop sibling-dep inputs.**
+   Remove `variable "storage_account_id"` and `variable "key_vault_id"`
+   entirely (both regex-validated `^/subscriptions/.+/...` inputs). The
+   surviving inputs are exactly: `canonical_name`,
+   `resource_group_name`, `location`, `tags`, `engine_record`,
+   `overrides`, `shared_log_analytics_workspace_id`,
+   `diagnostic_settings_enabled`.
+
+3. **`modules/aifoundry/locals.tf` — flip default kind.** Remove
+   `local.defaults.kind` and `local.defaults.sku_name` (both are now
+   inlined as constants in `main.tf` per resolution 2). Keep the
+   `public_network_access = "Enabled"` default and the
+   `merge(local.defaults, var.overrides)` collapse into `local.config`.
+
+4. **`modules/aifoundry/README.md` — refresh.** Update the resource
+   table row from
+   `Microsoft.MachineLearningServices/workspaces (kind=Hub)` to
+   `Microsoft.CognitiveServices/accounts (kind=AIServices, allowProjectManagement=true)`.
+   Add an "Amendment C-017" note recording that `storage_account_id`
+   and `key_vault_id` inputs were removed and that the wrapper is now
+   standalone (no sibling-module composition required).
+
+5. **`modules/aifoundry/tests/*.tftest.hcl` — adjust fixtures.**
+   - `positive.tftest.hcl`: remove `storage_account_id` and
+     `key_vault_id` from the `variables` block; assertions on
+     `module.aifoundry.resource_id` and tag propagation unchanged.
+   - `negative.tftest.hcl`: the file retains the
+     `empty_canonical_name_rejected` run unchanged; the C-015
+     `storage_account_id` / `key_vault_id` inputs no longer exist,
+     so any historical run referencing them is dropped.
+   - `shared_la_regex_negative.tftest.hcl`: untouched — the LA
+     resource-ID regex validator on
+     `var.shared_log_analytics_workspace_id` is unchanged by C-017.
+
+6. **`modules/aifoundryproject/main.tf` — swap RP.** Replace the
+   `azapi_resource` body from
+   `Microsoft.MachineLearningServices/workspaces@2024-10-01`
+   (kind=`Project`, `properties.hubResourceId = var.hub_resource_id`)
+   to `Microsoft.CognitiveServices/accounts/projects@2025-09-01`.
+   `parent_id` becomes `var.parent_account_id` **directly** — the
+   parent is the full account resource ID, not the resource-group
+   scope. Body: `{identity = {type = "SystemAssigned"}, properties = {displayName = var.canonical_name, description = "Foundry project ${var.canonical_name}"}}`.
+   Remove the `location` argument from `azapi_resource` entirely
+   (child projects do not accept `location` at the body level for this
+   RP — they inherit from the parent account). Remove the `tags`
+   argument (Foundry projects inherit tags from the parent account).
+   `response_export_values = ["id"]` suffices.
+
+7. **`modules/aifoundryproject/variables.tf` — rename Hub→parent.**
+   Rename `variable "hub_resource_id"` to
+   `variable "parent_account_id"`; replace its regex with
+   `^/subscriptions/.+/providers/Microsoft\\.CognitiveServices/accounts/[^/]+$`
+   and update the `error_message` to reference C-017 / FR-026
+   verbatim. Drop the `location` input if it existed solely to set
+   `azapi_resource.location` (resolution 6 makes it inert); keep
+   `canonical_name`, `resource_group_name`, `engine_record`,
+   `overrides`, `shared_log_analytics_workspace_id`,
+   `diagnostic_settings_enabled`. `tags` input is also dropped per
+   resolution 6.
+
+8. **`modules/aifoundryproject/locals.tf` — drop
+   `public_network_access` default.** The project resource does not
+   own a public-access toggle; it inherits from the parent account.
+   The file may end up effectively empty (just an empty `locals {}`
+   block or no file at all) — either form is acceptable as long as
+   `terraform fmt` is clean.
+
+9. **`modules/aifoundryproject/README.md` — refresh.** Update the
+   resource table row to
+   `Microsoft.CognitiveServices/accounts/projects (child of AIServices account)`.
+   Add an "Amendment C-017" note that the project no longer carries
+   its own location/tags/public-access — all three inherit from the
+   parent account — and that `hub_resource_id` was renamed to
+   `parent_account_id` with a CognitiveServices-account regex.
+
+10. **`modules/aifoundryproject/tests/*.tftest.hcl` — adjust.** Bulk
+    rename `hub_resource_id = "..."` fixture inputs to
+    `parent_account_id = "..."` with valid CognitiveServices account
+    resource-ID strings. The negative test that previously asserted
+    the `hub_resource_id` regex must now assert the renamed
+    `parent_account_id` regex (e.g. a malformed string, or an ID
+    pointing at MachineLearningServices/workspaces, triggers
+    `expect_failures = [var.parent_account_id]`).
+
+11. **`terraform/services/main.tf` — sibling-module rewire.**
+    - `module "aifoundry"` block: delete the
+      `storage_account_id = ...` and `key_vault_id = ...` argument
+      lines. Surviving arguments: `for_each`, `canonical_name`,
+      `engine_record`, `resource_group_name`, `location`, `tags`,
+      `overrides`, `shared_log_analytics_workspace_id`,
+      `diagnostic_settings_enabled`.
+    - `module "aifoundry_project"` block: rename the
+      `hub_resource_id = values(module.aifoundry)[0].resource_id`
+      argument to
+      `parent_account_id = values(module.aifoundry)[0].resource_id`.
+      The 1:1 cardinality is still enforced by the `check` block
+      (renamed in edit 12). Also remove `location = ...` and
+      `tags = ...` argument lines if present (the module no longer
+      accepts them per edit 7).
+
+12. **`terraform/services/check.tf` — three edits.**
+    - **REMOVE** the entire `check "aifoundry_requires_hub_deps"`
+      block (the assertion that selecting `aifoundry` also requires
+      `keyvault` + `storage` in the same stack). KV and SA are no
+      longer dependencies of the rewritten wrapper.
+    - **RENAME** `check "aifoundry_project_requires_hub"` to
+      `check "aifoundry_project_requires_account"`. The assertion
+      expression itself (counting `aifoundry` entries in
+      `var.services` and asserting exactly one when `aifoundry_project`
+      is selected) is unchanged. Update the `error_message` to read
+      verbatim: `C-017 — aifoundry_project requires exactly one 'aifoundry' (Cognitive Services account) selection in the same services stack.`.
+    - **KEEP** `check "apim_hub_only"` and
+      `check "environment_workload_only"` (C-016) untouched.
+
+13. **`terraform/services/tests/_fixtures.tftest.hcl` and any fixture
+    that selected `keyvault`/`storage` solely to satisfy the old
+    C-015 dep check — refresh.** Remove `keyvault` and `storage`
+    entries from the default `services` list in `_fixtures.tftest.hcl`
+    so the shared fixture is `[aifoundry, aifoundry_project]` only
+    (matching the new sp01/dev tfvars). Audit every other
+    `*.tftest.hcl` under `terraform/services/tests/` for hard-coded
+    `services = [...]` overrides that include `keyvault`/`storage`
+    purely as dep-check satisfiers and trim them; preserve KV/SA
+    entries only in tests that genuinely exercise those wrapper code
+    paths (none today). The new negative test below joins the suite.
+
+14. **NEW `terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl`.**
+    Modelled on `terraform/services/tests/reject_apim_spoke.tftest.hcl`:
+    a single `run "reject_project_without_account"` block that loads
+    `_fixtures.tftest.hcl` defaults, overrides `services` to
+    `[{type = "aifoundry_project", purpose = "main"}]` (no
+    `aifoundry`), and declares `expect_failures` against the renamed
+    `check.aifoundry_project_requires_account` block. Rationale:
+    pinning the negative path in CI guarantees the renamed
+    account-presence check cannot silently regress.
+
+15. **`variables/sp01/dev/services.tfvars.json` — shrink to Foundry
+    pair.** Edit the `services` array to exactly
+    `[{"type":"aifoundry","purpose":"main"},{"type":"aifoundry_project","purpose":"main"}]`.
+    Remove the `keyvault` and `storage` entries (they were only
+    present to satisfy the now-removed C-015 dep check). All other
+    keys (`tenant = "sp01"`, `environment = "dev"`,
+    `usecase = "uc1"`, `region = "swc"`, `topology = "spoke"`)
+    remain unchanged from C-016. The emitted RG name therefore stays
+    `rg-svc-uc1-sp01-dev-swc-001`.
+
+16. **`modules/naming/catalogue/services.tf` — tighten
+    `aifoundry_project.azure_max`.** Change
+    `azure_max = 64` to `azure_max = 32` for the `aifoundry_project`
+    row. The Cognitive Services accounts/projects child name limit is
+    32 chars; the day-one canonical name
+    `aifp-uc1-uc1-sp01-dev-swc-001` (31 chars) still fits. Audit
+    `modules/naming/tests/` for any positive/negative fixture that
+    asserts the prior 64-cap on `aifoundry_project` specifically and
+    update if present. The `us6` catalogue-completeness test only
+    counts rows and is unaffected.
+
+17. **No-touch list (explicit, to short-circuit accidental edits).**
+    - `.github/workflows/deploy.yaml` — env enum stays the C-016
+      union `[npd, prd, dev, pre]`; no Cognitive-Services-specific
+      gating in the workflow.
+    - `.github/workflows/services.yml` — path filter already
+      references `variables/sp01/dev/services.tfvars.json` (correct
+      after C-016); no change.
+    - `terraform/services/variables.tf` — `environment` and `usecase`
+      validators are unchanged from C-016.
+    - Hub stacks (`terraform/log/`, `terraform/vnet/`,
+      `terraform/dns/`) — unchanged.
+    - `modules/keyvault/`, `modules/storage/` — wrappers retained for
+      future use; only their selection from `services.tfvars.json` is
+      removed.
+    - Naming engine regexes — `aifoundry` and `aifoundry_project`
+      tokens unchanged; only the `aifoundry_project.azure_max` cap
+      tightens per edit 16.
+
+### Test impact
+
+- `terraform fmt -recursive` must be clean across the repo.
+- `terraform -chdir=modules/naming test` must pass (covers the
+  catalogue `azure_max` tightening on `aifoundry_project`).
+- `terraform -chdir=modules/aifoundry test` must pass (drops the
+  hub-deps fixture inputs, retains the LA-regex negative test).
+- `terraform -chdir=modules/aifoundryproject test` must pass (covers
+  the `hub_resource_id` → `parent_account_id` rename, including the
+  CognitiveServices-account regex on the negative path).
+- `terraform -chdir=terraform/services test` must pass — including the
+  new `reject_aifoundry_project_without_account.tftest.hcl` and the
+  KV/SA-free `_fixtures.tftest.hcl`. The existing C-016 negative
+  (`reject_npd_environment.tftest.hcl`) and APIM-hub-only negative
+  (`reject_apim_spoke.tftest.hcl`) remain green.
+
+### Rollout (CLAUDE.md step 4)
+
+After squash-merge:
+
+1. `git checkout master && git pull --ff-only`.
+2. Dispatch
+   `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`.
+3. Verify `rg-svc-uc1-sp01-dev-swc-001` contains **exactly two**
+   resources:
+   - The Cognitive Services account
+     `aif-uc1-uc1-sp01-dev-swc-001`
+     (`type = Microsoft.CognitiveServices/accounts`, `kind = AIServices`,
+     `properties.allowProjectManagement = true`,
+     `properties.customSubDomainName = aif-uc1-uc1-sp01-dev-swc-001`).
+   - The project child
+     `aif-uc1-uc1-sp01-dev-swc-001/aifp-uc1-uc1-sp01-dev-swc-001`
+     (`type = Microsoft.CognitiveServices/accounts/projects`, system-assigned
+     identity, inherited location + tags).
+4. Restore the state-SA firewall on `sttfsshdhubnpdswc001`
+   (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove any
+   temp operator IPs) once the apply settles.

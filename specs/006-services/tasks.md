@@ -459,3 +459,72 @@ from the legacy `npd` slot to `dev`. All tasks are post-implement.
 - [X] T-C016-023 [P] Edit `specs/006-services/quickstart.md`: replace `sp01/npd` references at ~lines 94, 113, 125, 161 with `sp01/dev` (both tfvars path AND backend state-key). (Satisfies analyze MAJOR M2 / C-016.)
 - [X] T-C016-024 [P] Edit `specs/006-services/contracts/cross-stack-outputs.md` ~line 201: refresh the `terraform_remote_state` example from `key = "sp01/npd/services.tfstate"` to `key = "sp01/dev/services.tfstate"`. (Satisfies analyze MINOR m1.)
 - [X] T-C016-025 Clarification for T-C016-012: when widening `.github/workflows/deploy.yaml` `inputs.environment.options`, preserve `default: npd` verbatim — do NOT change the default. Only the `options` list is widened. (Plan §5 sub-note.)
+
+## Phase C-017 — Foundry account + project (Cognitive Services kind=AIServices + accounts/projects child)
+
+Implements [spec.md C-017](spec.md#c-017) / FR-026 on the shipped
+006-services stack. Replaces the legacy `Microsoft.MachineLearningServices/workspaces`
+hub + project pair with a single `Microsoft.CognitiveServices/accounts`
+(kind=AIServices, `allowProjectManagement=true`) and one
+`Microsoft.CognitiveServices/accounts/projects` child. Day-one tfvars
+drops the legacy KV + SA fixtures. All tasks are post-implement.
+
+### Phase C-017.A — Pre-merge cleanup (HARD pre-condition)
+
+- [ ] T-C017-001 Trigger `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true` on `master` to destroy the currently-deployed legacy resources (KV, SA, aifoundry Hub workspace, aifoundry project workspace) in `rg-svc-uc1-sp01-dev-swc-001`. Wait for the run to complete green before proceeding. (FR-026 / C-017)
+- [ ] T-C017-002 If Key Vault soft-delete leaves a tombstone after T-C017-001, run `az keyvault purge --name kvuc1uc1sp01devswc001 --location swedencentral` to free the name for any (unlikely) future re-use. (FR-026 / C-017)
+- [ ] T-C017-003 Temp-open the state SA firewall (`sttfsshdhubnpdswc001`) for the current egress IP, run `az storage blob delete --account-name sttfsshdhubnpdswc001 --container-name tfstate --name sp01/dev/services.tfstate --auth-mode login`, then restore the firewall (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove the temp IP) per CLAUDE.md rollout discipline. (FR-026 / C-017)
+
+### Phase C-017.B — modules/aifoundry/ refactor (Cognitive Services account)
+
+- [X] T-C017-004 Rewrite [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf) per [plan.md §1](plan.md): switch the `azapi_resource` type to `Microsoft.CognitiveServices/accounts@2025-09-01`, set the body to `kind=AIServices` + `properties.allowProjectManagement=true` + `properties.customSubDomainName=var.canonical_name` + `sku.name=S0` + `identity.type=SystemAssigned`, and set `response_export_values = ["id","properties.endpoints"]`. Keep the existing `azurerm_monitor_diagnostic_setting` block referencing `azapi_resource.this.id`. (FR-026 / C-017)
+- [X] T-C017-005 Edit [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf) per [plan.md §2](plan.md): remove the `storage_account_id` and `key_vault_id` variable blocks entirely (no longer required by the Cognitive Services account). (FR-026 / C-017)
+- [X] T-C017-006 Edit [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf) per [plan.md §3](plan.md): drop the legacy `kind` and `sku_name` defaults; keep `public_network_access = "Enabled"` (still consumed by the body). (FR-026 / C-017)
+- [X] T-C017-007 Refresh [modules/aifoundry/README.md](../../modules/aifoundry/README.md) per [plan.md §4](plan.md): document the new Cognitive Services account shape, the removed `storage_account_id` / `key_vault_id` inputs, and the C-017 / FR-026 rationale. (FR-026 / C-017)
+- [X] T-C017-008 Edit [modules/aifoundry/tests/positive.tftest.hcl](../../modules/aifoundry/tests/positive.tftest.hcl) per [plan.md §5](plan.md): drop the `storage_account_id` and `key_vault_id` fixture inputs; the wrapper must plan-green standalone with only the remaining inputs. (FR-026 / C-017)
+- [X] T-C017-009 Edit [modules/aifoundry/tests/negative.tftest.hcl](../../modules/aifoundry/tests/negative.tftest.hcl) per analyze MAJOR M2: KEEP the existing `empty_canonical_name_rejected` run unchanged (still valuable), and drop the `storage_account_id` / `key_vault_id` lines from its `variables {}` block (those variables disappear in T-C017-005). No new negative required. (FR-026 / C-017)
+- [X] T-C017-010 Edit [modules/aifoundry/tests/shared_la_regex_negative.tftest.hcl](../../modules/aifoundry/tests/shared_la_regex_negative.tftest.hcl) per [plan.md §5](plan.md): drop any storage/keyvault fixture inputs (the LA-regex assertion itself is unchanged). (FR-026 / C-017)
+
+### Phase C-017.C — modules/aifoundryproject/ refactor (Cognitive Services account/projects child)
+
+- [X] T-C017-011 Rewrite [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf) per [plan.md §6](plan.md): switch the `azapi_resource` type to `Microsoft.CognitiveServices/accounts/projects@2025-09-01`, set `parent_id = var.parent_account_id`, remove the `location` argument (inherited from the parent account), set the body to `{identity: {type: "SystemAssigned"}, properties: {displayName: var.canonical_name, description: "Foundry project ${var.canonical_name}"}}`, and omit top-level `tags` (the child inherits from the parent account). Keep the `azurerm_monitor_diagnostic_setting` block referencing `azapi_resource.this.id`. (FR-026 / C-017)
+- [X] T-C017-012 Edit [modules/aifoundryproject/variables.tf](../../modules/aifoundryproject/variables.tf) per [plan.md §7](plan.md) + analyze BLOCKER B1: rename `hub_resource_id` → `parent_account_id`, tighten the validation regex to `^/subscriptions/.+/providers/Microsoft\.CognitiveServices/accounts/[^/]+$`, update the `error_message` to cite C-017 / FR-026, AND remove `variable "location"` and `variable "tags"` entirely (the project inherits both from the parent account in the new RP). (FR-026 / C-017)
+- [X] T-C017-013 Edit [modules/aifoundryproject/locals.tf](../../modules/aifoundryproject/locals.tf) per [plan.md §8](plan.md): drop the legacy `public_network_access` default; the file may become empty (acceptable — leave a single-line comment or delete contents). (FR-026 / C-017)
+- [X] T-C017-014 Refresh [modules/aifoundryproject/README.md](../../modules/aifoundryproject/README.md) per [plan.md §9](plan.md): document the new `parent_account_id` input, the renamed-from-`hub_resource_id` migration note, and the C-017 / FR-026 rationale. (FR-026 / C-017)
+- [X] T-C017-015 Edit every fixture under [modules/aifoundryproject/tests/](../../modules/aifoundryproject/tests/) per [plan.md §10](plan.md) + analyze MAJOR M3: rename `hub_resource_id = ...` → `parent_account_id = ...` with a valid Cognitive Services account resource-ID string in every positive fixture, AND delete the `location = ...` and `tags = {...}` lines from every fixture's `variables {}` block (those variables are removed by T-C017-012). The negative regex test must assert the new regex from T-C017-012. (FR-026 / C-017)
+
+### Phase C-017.D — terraform/services/ root-stack rewire
+
+- [X] T-C017-016 Edit [terraform/services/main.tf](../../terraform/services/main.tf) per [plan.md §11](plan.md) + analyze BLOCKER B1: drop the `storage_account_id` and `key_vault_id` arguments from `module "aifoundry"`; on `module "aifoundry_project"`, rename `hub_resource_id` → `parent_account_id` (the value remains `values(module.aifoundry)[0].resource_id`) AND delete the `location = ...` and `tags = ...` argument lines (the wrapper no longer accepts them per T-C017-012). (FR-026 / C-017)
+- [X] T-C017-017 Edit [terraform/services/check.tf](../../terraform/services/check.tf) per [plan.md §12](plan.md): delete the `check "aifoundry_requires_hub_deps"` block; rename `check "aifoundry_project_requires_hub"` → `check "aifoundry_project_requires_account"` and update its `error_message` to cite the new account dependency (C-017 / FR-026). (FR-026 / C-017)
+- [X] T-C017-018 Edit [terraform/services/tests/_fixtures.tftest.hcl](../../terraform/services/tests/_fixtures.tftest.hcl) per [plan.md §13](plan.md): drop any KV/SA-only-for-old-check entries from fixtures that select `aifoundry`; ensure the remaining fixture continues to plan-green. (FR-026 / C-017)
+- [X] T-C017-019 [P] Create [terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl](../../terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl) per [plan.md §14](plan.md), modelled on [terraform/services/tests/reject_apim_spoke.tftest.hcl](../../terraform/services/tests/reject_apim_spoke.tftest.hcl): include the same `mock_provider azurerm/azapi/modtm/random/time` + `override_data` for `data.terraform_remote_state.hub_log` boilerplate; a `plan` run that selects `aifoundry_project` without `aifoundry` and `expect_failures` the new `aifoundry_project_requires_account` check with the C-017 / FR-026 error message. (FR-026 / C-017)
+
+### Phase C-017.E — Day-one tfvars shrink
+
+- [X] T-C017-020 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json) per [plan.md §15](plan.md): replace the `services` array with `[{"type":"aifoundry","purpose":"main"},{"type":"aifoundry_project","purpose":"main"}]` (the legacy KV + SA entries are dropped — the account no longer needs them). (FR-026 / C-017)
+
+### Phase C-017.F — Naming catalogue tightening
+
+- [X] T-C017-021 Edit [modules/naming/catalogue/services.tf](../../modules/naming/catalogue/services.tf) per [plan.md §16](plan.md): change `aifoundry_project.azure_max` from 64 to 32 (Cognitive Services project name limit). Run `terraform -chdir=modules/naming test` to confirm no regression. (FR-026 / C-017)
+
+### Phase C-017.G — Verification gates (HARD)
+
+- [X] T-C017-022 `terraform fmt -recursive` from repo root → no changes. (FR-026 / C-017)
+- [X] T-C017-023 [P] `terraform -chdir=modules/naming test` → 100% pass (catalogue tightening must not regress). (FR-026 / C-017)
+- [X] T-C017-024 [P] `terraform -chdir=modules/aifoundry test` → 100% pass (Cognitive Services account wrapper plan-green standalone). (FR-026 / C-017)
+- [X] T-C017-025 [P] `terraform -chdir=modules/aifoundryproject test` → 100% pass (account/projects child wrapper plan-green standalone; new regex negative green). (FR-026 / C-017)
+- [X] T-C017-026 `terraform -chdir=terraform/services test` → 100% pass (new `reject_aifoundry_project_without_account` test green; relocated fixtures green). (FR-026 / C-017)
+
+### Phase C-017.H — Rollout
+
+- [ ] T-C017-027 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-026 / C-017)
+- [ ] T-C017-028 `git checkout master && git pull --ff-only`; dispatch `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`. (FR-026 / C-017)
+- [ ] T-C017-029 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 2 resources are present: `Microsoft.CognitiveServices/accounts` (kind=AIServices) and `Microsoft.CognitiveServices/accounts/projects`. Confirm the account shows `properties.allowProjectManagement == true`. (FR-026 / C-017)
+
+### Phase C-017.I — Analyze remediations (folded from /speckit.analyze)
+
+- [X] T-C017-030 Fix spec ↔ plan filename drift (analyze MAJOR M1): edit the C-017 §4 block in [specs/006-services/spec.md](../../specs/006-services/spec.md) to rename the negative-test file from `aifoundry_project_requires_account.tftest.hcl` to `reject_aifoundry_project_without_account.tftest.hcl` (matches the existing `reject_*.tftest.hcl` directory convention used by plan.md §14 / T-C017-019). (FR-026 / C-017)
+- [X] T-C017-031 Fix plan §5 wording drift (analyze MAJOR M2): edit the C-017 §5 line in [specs/006-services/plan.md](../../specs/006-services/plan.md) to remove the inaccurate "the existing 'missing storage_account_id' run is removed" phrase — the existing run is `empty_canonical_name_rejected` (kept verbatim) per T-C017-009. (FR-026 / C-017)
+- [X] T-C017-032 Add `properties.publicNetworkAccess` reminder to T-C017-004 implementation (analyze MINOR m1) — covered by plan.md §1 verbatim; included here for implementer hygiene. (FR-026 / C-017)
+- [X] T-C017-033 Remove now-unused `data "azurerm_subscription" "current"` from [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf) once T-C017-011 swaps to `parent_id = var.parent_account_id` (analyze MINOR m4). (FR-026 / C-017)

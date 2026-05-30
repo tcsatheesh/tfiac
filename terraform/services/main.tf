@@ -38,6 +38,20 @@ resource "azurerm_resource_group" "svc" {
         var.topology,
       )
     }
+    # C-017 / FR-026 — aifoundry_project requires exactly one aifoundry
+    # (Cognitive Services Foundry account) selection in the same services
+    # stack so the project wrapper can resolve parent_id. Defence-in-depth
+    # pair for `check "aifoundry_project_requires_account"` in check.tf —
+    # the precondition fires BEFORE module-variable validation so an
+    # operator gets a meaningful error instead of "var.parent_account_id
+    # is null".
+    precondition {
+      condition = !(
+        length([for s in var.services : s if s.type == "aifoundry_project"]) > 0 &&
+        length([for s in var.services : s if s.type == "aifoundry"]) != 1
+      )
+      error_message = "C-017 / FR-026 — aifoundry_project requires exactly one 'aifoundry' (Cognitive Services account) selection in the same services stack. Add an 'aifoundry' entry to services[*] alongside the 'aifoundry_project' entry, or remove the project."
+    }
   }
 }
 
@@ -204,11 +218,8 @@ module "aifoundry" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
-  # C-015 (Amendment 2026-05-31) — Hub dependencies sourced from sibling
-  # modules. v1 enforces exactly one storage + one keyvault per services
-  # stack when aifoundry is selected (root-stack precondition in check.tf).
-  storage_account_id = one([for k, v in module.storage : v.resource_id])
-  key_vault_id       = one([for k, v in module.keyvault : v.resource_id])
+  # C-017 (Amendment 2026-05-30) — the Cognitive Services Foundry account
+  # manages its own storage/secrets; sibling KV/SA wiring removed.
 }
 
 module "aifoundry_project" {
@@ -219,16 +230,16 @@ module "aifoundry_project" {
 
   canonical_name      = each.key
   resource_group_name = azurerm_resource_group.svc.name
-  location            = azurerm_resource_group.svc.location
-  tags                = each.value.tags
   engine_record       = each.value
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
-  # C-015 (Amendment 2026-05-31) — Project must point at its parent Hub.
-  # v1 enforces exactly one aifoundry Hub per services stack when
-  # aifoundry_project is selected (root-stack precondition in check.tf).
-  hub_resource_id = one([for k, v in module.aifoundry : v.resource_id])
+  # C-017 (Amendment 2026-05-30) — Project parented directly by the Foundry
+  # account (Microsoft.CognitiveServices/accounts). v1 enforces exactly one
+  # aifoundry account per stack when aifoundry_project is selected
+  # (root-stack precondition aifoundry_project_requires_account in check.tf).
+  # location and tags are inherited from the parent account.
+  parent_account_id = one([for k, v in module.aifoundry : v.resource_id])
 }
 
 module "language" {

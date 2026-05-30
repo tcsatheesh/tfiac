@@ -43,7 +43,7 @@ locals {
     "aml_workspace"          = { abbr = "mlw", shape = "hyphenated", azure_max = 33, level = "top" }
     "openai"                 = { abbr = "oai", shape = "hyphenated", azure_max = 64, level = "top" }
     "aifoundry"              = { abbr = "aif", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry_project"      = { abbr = "aifp", shape = "hyphenated", azure_max = 64, level = "top" }
+    "aifoundry_project"      = { abbr = "aifp", shape = "hyphenated", azure_max = 32, level = "top" }
     "language"               = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
     "doc_intel"              = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
     "search"                 = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }

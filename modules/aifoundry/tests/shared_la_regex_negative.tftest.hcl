@@ -32,8 +32,6 @@ variables {
   overrides                         = {}
   shared_log_analytics_workspace_id = "not-a-resource-id"
   diagnostic_settings_enabled       = true
-  storage_account_id                = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-svc-shd-sp01-npd-uks-001/providers/Microsoft.Storage/storageAccounts/stshdshdsp01npdukso01"
-  key_vault_id                      = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-svc-shd-sp01-npd-uks-001/providers/Microsoft.KeyVault/vaults/kvshdshdsp01npdukso01"
 }
 
 mock_provider "azurerm" {

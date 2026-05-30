@@ -1,7 +1,5 @@
 locals {
   defaults = {
-    kind                  = "Hub"
-    sku_name              = "Basic"
     public_network_access = "Enabled"
   }
 
