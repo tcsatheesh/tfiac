@@ -3,17 +3,26 @@
 # diagnostic-capable wrapper in this stack can wire its
 # azurerm_monitor_diagnostic_setting at the SHARED hub workspace.
 #
-# Operationally: the `terraform/log/` stack for the target environment
+# C-016 (Amendment 2026-05-31) — services stack environments are
+# {dev, pre, prd}; hub stacks are {npd, prd}. Map the workload env onto
+# the hub-log env so non-prod workload stacks (dev, pre) all share the
+# single non-prod hub LA. prd workloads point at prd hub LA.
+#
+# Operationally: the `terraform/log/` stack for the MAPPED environment
 # MUST be applied BEFORE this stack, or this data source fails with a
 # clear "shared LA state lookup failed" message — see
 # specs/006-services/quickstart.md § Troubleshooting.
+locals {
+  hub_log_environment = var.environment == "prd" ? "prd" : "npd"
+}
+
 data "terraform_remote_state" "hub_log" {
   backend = "azurerm"
   config = {
     resource_group_name  = var.tfstate_resource_group
     storage_account_name = var.tfstate_storage_account
     container_name       = var.tfstate_container
-    key                  = "hub/${var.environment}/log.tfstate"
+    key                  = "hub/${local.hub_log_environment}/log.tfstate"
     use_azuread_auth     = true
     subscription_id      = var.subscription_id
   }
