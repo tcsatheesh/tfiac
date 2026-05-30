@@ -19,7 +19,6 @@ on:
       - modules/apim/**
       - modules/loganalytics/**
       - terraform/services/**
-      - variables/hub/npd/services.tfvars.json
       - variables/hub/prd/services.tfvars.json
       - variables/sp01/dev/services.tfvars.json
       - variables/sp01/prd/services.tfvars.json
@@ -43,7 +42,6 @@ on:
       - modules/apim/**
       - modules/loganalytics/**
       - terraform/services/**
-      - variables/hub/npd/services.tfvars.json
       - variables/hub/prd/services.tfvars.json
       - variables/sp01/dev/services.tfvars.json
       - variables/sp01/prd/services.tfvars.json
