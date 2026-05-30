@@ -1,0 +1,100 @@
+name: services
+
+on:
+  pull_request:
+    paths:
+      - modules/keyvault/**
+      - modules/storage/**
+      - modules/appinsights/**
+      - modules/cntreg/**
+      - modules/uai/**
+      - modules/search/**
+      - modules/openai/**
+      - modules/aifoundry/**
+      - modules/language/**
+      - modules/docint/**
+      - modules/fnapp/**
+      - modules/lgapp/**
+      - modules/aml/**
+      - modules/apim/**
+      - modules/loganalytics/**
+      - terraform/services/**
+      - variables/hub/npd/services.tfvars.json
+      - variables/hub/prd/services.tfvars.json
+      - variables/sp01/npd/services.tfvars.json
+      - variables/sp01/prd/services.tfvars.json
+      - .github/workflows/services.yml
+  push:
+    branches: [master, main]
+    paths:
+      - modules/keyvault/**
+      - modules/storage/**
+      - modules/appinsights/**
+      - modules/cntreg/**
+      - modules/uai/**
+      - modules/search/**
+      - modules/openai/**
+      - modules/aifoundry/**
+      - modules/language/**
+      - modules/docint/**
+      - modules/fnapp/**
+      - modules/lgapp/**
+      - modules/aml/**
+      - modules/apim/**
+      - modules/loganalytics/**
+      - terraform/services/**
+      - variables/hub/npd/services.tfvars.json
+      - variables/hub/prd/services.tfvars.json
+      - variables/sp01/npd/services.tfvars.json
+      - variables/sp01/prd/services.tfvars.json
+      - .github/workflows/services.yml
+
+permissions:
+  contents: read
+
+jobs:
+  fmt-validate-test:
+    name: ${{ matrix.dir }} fmt / validate / test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - modules/keyvault
+          - modules/storage
+          - modules/appinsights
+          - modules/cntreg
+          - modules/uai
+          - modules/search
+          - modules/openai
+          - modules/aifoundry
+          - modules/language
+          - modules/docint
+          - modules/fnapp
+          - modules/lgapp
+          - modules/aml
+          - modules/apim
+          - terraform/services
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.4
+          terraform_wrapper: false
+
+      - name: terraform fmt -check
+        working-directory: ${{ matrix.dir }}
+        run: terraform fmt -check -recursive
+
+      - name: terraform init -backend=false
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+
+      - name: terraform test
+        working-directory: ${{ matrix.dir }}
+        run: terraform test
