@@ -45,12 +45,12 @@ variable "tenant" {
 }
 
 variable "environment" {
-  description = "Environment short code: npd|prd."
+  description = "Environment short code: dev|pre|prd (workload environments only; 'npd' is reserved for shared/hub stacks per C-016 / FR-025)."
   type        = string
 
   validation {
-    condition     = contains(["npd", "prd"], var.environment)
-    error_message = "environment must be one of [\"npd\", \"prd\"]."
+    condition     = contains(["dev", "pre", "prd"], var.environment)
+    error_message = "environment must be one of dev|pre|prd (C-016 / FR-025); 'npd' is reserved for shared/hub stacks."
   }
 }
 
@@ -65,12 +65,12 @@ variable "region" {
 }
 
 variable "usecase" {
-  description = "Stack usecase token (default day-one value: \"shd\"). Tighter than engine regex ^[a-z0-9]{3,4}$ so the CA-004 strategy-B fallback service_purpose = coalesce(s.purpose, var.usecase) always satisfies the engine's service_purpose regex ^[a-z0-9]{3}$."
+  description = "Stack usecase token (3–4 lowercase alphanumerics per C-016 / FR-025). Matches engine regex ^[a-z0-9]{3,4}$ so the CA-004 strategy-B fallback service_purpose = coalesce(s.purpose, var.usecase) always satisfies the engine's service_purpose validation."
   type        = string
 
   validation {
-    condition     = can(regex("^[a-z0-9]{3}$", var.usecase))
-    error_message = "usecase must match ^[a-z0-9]{3}$ (e.g. \"shd\")."
+    condition     = can(regex("^[a-z0-9]{3,4}$", var.usecase))
+    error_message = "usecase must be 3–4 lowercase alphanumerics (C-016 / FR-025)."
   }
 }
 

@@ -14,7 +14,7 @@ variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
   topology        = "spoke"
   tenant          = "sp01"
-  environment     = "npd"
+  environment     = "dev"
   region          = "uks"
   usecase         = "shd"
   repo            = "tcsatheesh/tfiac"

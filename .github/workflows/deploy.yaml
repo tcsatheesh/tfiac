@@ -22,7 +22,7 @@ on:
         description: "Environment short code."
         required: true
         type: choice
-        options: [npd, prd]
+        options: [npd, prd, dev, pre]
         default: npd
       action:
         description: "apply | destroy."

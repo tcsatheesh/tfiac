@@ -63,12 +63,12 @@ Contract: [../../specs/006-services/contracts/cross-stack-outputs.md](../../spec
 ```sh
 # CLI:
 terraform plan \
-  -var-file=../../variables/sp01/npd/services.tfvars.json \
+  -var-file=../../variables/sp01/dev/services.tfvars.json \
   -var "subscription_id=$AZURE_SUBSCRIPTION_ID"
 
 # env-var path:
 TF_VAR_subscription_id=$AZURE_SUBSCRIPTION_ID \
-  terraform plan -var-file=../../variables/sp01/npd/services.tfvars.json
+  terraform plan -var-file=../../variables/sp01/dev/services.tfvars.json
 ```
 
 The `subscription_id` placeholder in `variables/<tenant>/<env>/services.tfvars.json`

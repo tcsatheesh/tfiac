@@ -28,7 +28,7 @@
 
 Resolved per CLAUDE.md standing directive (no operator interview; defensible answers encoded directly).
 
-- **C-001 — v1 selectable inventory scope (narrows A2 / FR-007)**
+- **C-001 — v1 selectable inventory scope (narrows A2 / FR-007; see C-016 for the environment allowlist narrowing)**
   Q: Should v1 ship every service type listed in Assumption A2, or a tighter MVP subset?
   A: Ship a tight MVP subset limited to service types that already have a wrapper module under `modules/` today AND that operationally belong in a workload `svc` RG. The v1 selectable list is exactly: `keyvault`, `storage`, `log_analytics`, `app_insights`, `container_registry`, `user_assigned_identity`, `search`, `openai`, `aifoundry`, `language`, `doc_intel`, `function_app`, `logic_app`, `aml_workspace`, `apim`. The per-stack `resource_group` is always emitted by the engine (FR-009) and is not operator-selectable. EXPLICITLY DEFERRED to a follow-up: `vnet`, `nsg`, `route_table`, `public_ip` (owned by `terraform/vnet/`, feature 004); `firewall`, `bastion`, `vpn_gateway`, `expressroute_gateway` (hub-only platform primitives); `vm`, `app_service_plan` (pure-compute, no clear MVP consumer). Selecting any deferred-but-catalogued type in v1 MUST hard-fail at plan time with a "deferred to follow-up" message naming the type and pointing at the owning stack (where applicable). The engine's broader catalogue (feature 001 FR-026) is unchanged; the narrowing is a stack-level allowlist on top of FR-007.
 
@@ -165,7 +165,7 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 
 ### Edge Cases
 
-- An empty `services = []` selection emits ONLY the per-stack `svc` resource group and nothing else (engine FR-039 / FR-025). No error.
+- An empty `services = []` selection emits ONLY the per-stack `svc` resource group and nothing else (feature 001 engine FR-039 / FR-025). No error.
 - A `topology=hub` request with a service type whose `topology_scope` is `spoke-only` (or vice versa) hard-fails at plan time naming the offending type, its scope, and the request's `(topology, environment)` (feature 001 FR-033).
 - A `(topology=hub, environment=prd)` request that selects a `prd-hub-only` service (`dns_zone`, `private_dns_zone`) is **rejected by this stack** even though the engine would accept it — those resources are owned by `terraform/dns/` (feature 002), not by `terraform/services/`. This stack's selectable inventory MUST exclude `prd-hub-only` types.
 - A duplicate service entry (e.g. two entries both `{ type = "keyvault", count = 1 }` without any distinguishing identity) is treated by the engine as two instances and produces `kv-...-001` and `kv-...-002`; this is supported, not an error.
@@ -244,6 +244,10 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 
 - **FR-023**: This feature REPLACES the contents of the existing `terraform/services/` root stack (currently present in the repo as `locals.tf`, `main.tf`, `outputs.tf`, `providers.tf`, `README.md`, `variables.tf`). Replacement MUST use explicit `moved {}` blocks for any resource address that changes between the legacy stack and the engine-driven stack so no destroy/recreate occurs in any live environment. If a destroy/recreate is unavoidable for any specific resource, the PR description MUST surface it under a dedicated "Operator approval required" heading.
 - **FR-024**: The migration MUST NOT change Azure resource names where they were already CAF-compliant under the legacy stack; only Terraform-internal resource addresses MAY change. Any Azure-side rename of a non-recreatable resource (storage account, key vault) MUST be surfaced for explicit operator approval.
+
+#### Environment allowlist (services stack)
+
+- **FR-025**: The services stack rejects `environment ∈ {npd}` and accepts only `{dev, pre, prd}`; hub stacks (`terraform/log/`, `terraform/vnet/`, `terraform/dns/`) are unaffected and retain their `{npd, prd}` allowlist. Enforcement is defence-in-depth: (i) `terraform/services/variables.tf` `validation` block on `var.environment`; (ii) root-stack `check "environment_workload_only"` in `terraform/services/check.tf`; (iii) negative test `terraform/services/tests/reject_npd_environment.tftest.hcl`. See C-016 for rationale and full rollout decisions.
 
 ### Key Entities
 
@@ -600,3 +604,82 @@ The Hub bumps the azapi API version from `2024-04-01` to `2024-10-01`
 Out of scope for v1: multi-Hub or multi-Project topologies, Foundry
 connections / deployments, Foundry Agent service, customer-managed-key
 encryption on the Hub or Project. These are tracked as follow-ups.
+
+### C-016 — Services stack environment allowlist (narrows C-001 / FR-025; supersedes the prior sp01/npd deploy attempt)
+
+**Date:** 2026-05-31. **Status:** Resolved.
+
+Operator intent: "the services stack must never be in the npd ... its
+either dev or pre or prd". A prior attempt deployed the services stack
+into `sp01/npd`; that deployment was destroyed pre-amendment and is not
+migrated. The day-one target is the spoke RG
+`rg-svc-uc1-sp01-dev-swc-001` (decomposing as
+`rg-svc-{usecase=uc1}-{tenant=sp01}-{environment=dev}-{region=swc}-001`).
+
+Resolutions (encoded directly per CLAUDE.md autonomy rules; no operator
+interview):
+
+1. **Workload-only environment allowlist.** The services stack
+   `var.environment` allowlist is narrowed to `["dev", "pre", "prd"]`
+   (previously `["npd", "prd"]`). Rationale: services stacks deploy
+   workload resources; `npd` is reserved for shared/hub stacks
+   (`terraform/log/`, `terraform/vnet/`, `terraform/dns/`). Workload
+   tenants progress `dev → pre → prd`.
+2. **Hub stacks unchanged.** The hub-only allowlist for
+   `terraform/log/`, `terraform/vnet/`, and `terraform/dns/` stays
+   `["npd", "prd"]`. The cross-stack divergence is intentional: shared
+   platform plumbing lives in `npd`/`prd`; workload services live in
+   `dev`/`pre`/`prd`. The shared hub Log Analytics referenced by C-014
+   continues to point at the `npd` or `prd` hub workspace, not at a
+   per-environment workspace; the existing regex validator on
+   `shared_log_analytics_workspace_id` already enforces only the
+   resource-id shape, so no validator change is required.
+3. **Tfvars layout.** Per-tenant services tfvars now live at
+   `variables/<tenant>/{dev,pre,prd}/services.tfvars.json`. The legacy
+   `variables/sp01/npd/services.tfvars.json` is removed (no in-place
+   migration; the prior deploy was destroyed pre-amendment).
+4. **Workflow input is the UNION.** The
+   `.github/workflows/deploy.yaml` `workflow_dispatch.inputs.environment`
+   enum stays `[npd, prd, dev, pre]` (union of hub and services
+   allowlists) so both stack families can be dispatched from a single
+   workflow. Stack-level validators reject invalid combinations at plan
+   time; the workflow does no per-stack gating.
+5. **Defence-in-depth enforcement (three places).**
+   - `terraform/services/variables.tf` `validation` block on
+     `var.environment` (regex `^(dev|pre|prd)$`).
+   - New root-stack `check "environment_workload_only"` block in
+     `terraform/services/check.tf`.
+   - New negative test
+     `terraform/services/tests/reject_npd_environment.tftest.hcl`
+     asserting `environment = "npd"` hard-fails at plan time with a
+     message naming the workload-only allowlist.
+6. **Usecase token regex widened to 3–4 chars.** The engine regex
+   already permits `^[a-z0-9]{3,4}$`; the services stack
+   `var.usecase` validator is widened from `^[a-z0-9]{3}$` to
+   `^[a-z0-9]{3,4}$` so operators may use 3-char tokens (e.g. `uc1`)
+   or 4-char tokens (e.g. `uc01`). Day-one sp01 selection uses
+   `usecase = "uc1"`.
+7. **Day-one tfvars (sp01/dev).**
+   `variables/sp01/dev/services.tfvars.json` carries
+   `environment = "dev"`, `usecase = "uc1"`, `region = "swc"`, and the
+   same C-015 v1 service list (`keyvault`, `storage`, `aifoundry`,
+   `aifoundry_project`). The emitted RG is therefore
+   `rg-svc-uc1-sp01-dev-swc-001`.
+8. **Backend state-key path.** The state-key path follows the existing
+   `{tenant}/{environment}/services.tfstate` convention —
+   `sp01/dev/services.tfstate` — no backend changes needed. The shared
+   state SA `sttfsshdhubnpdswc001` is environment-agnostic; the new
+   key path uses the same SA / container as `sp01/npd/*.tfstate`.
+
+**Note on FR numbering.** The user-facing amendment request named the
+new functional requirement "FR-022", but FR-022 is already allocated
+(root-stack provider pinning, Principle VII). Per the CLAUDE.md
+defensible-decision rule the new requirement was inserted as
+**FR-025** (next available ID after the current highest FR-024) to
+avoid collisions. The semantic content is unchanged from the request.
+
+Out of scope for this amendment: deleting or renaming the `npd`
+allowlist on the hub stacks; changing the workflow enum to be
+stack-aware (the union enum + per-stack validators is the chosen
+pattern); migrating any in-place `sp01/npd/services.*` state (none
+exists — the prior deploy was destroyed).

@@ -91,7 +91,7 @@ export TF_VAR_subscription_id="00000000-0000-0000-0000-000000000000"
 
 ```bash
 terraform plan -var "subscription_id=$AZURE_SUBSCRIPTION_ID" \
-  -var-file=../../variables/sp01/npd/services.tfvars.json
+  -var-file=../../variables/sp01/dev/services.tfvars.json
 ```
 
 Either path overrides the committed placeholder. The stack's
@@ -110,7 +110,7 @@ terraform init \
   -backend-config="resource_group_name=$STATE_RG" \
   -backend-config="storage_account_name=$STATE_SA" \
   -backend-config="container_name=tfstate" \
-  -backend-config="key=sp01/npd/services.tfstate" \
+  -backend-config="key=sp01/dev/services.tfstate" \
   -backend-config="subscription_id=$HUB_SUBSCRIPTION_ID"
 ```
 
@@ -122,7 +122,7 @@ State key follows `"{tenant}/{environment}/services.tfstate"`
 ## Step 4 — Plan
 
 ```bash
-terraform plan -var-file=../../variables/sp01/npd/services.tfvars.json
+terraform plan -var-file=../../variables/sp01/dev/services.tfvars.json
 ```
 
 Expected plan output for the reference input above (`subscription_id` set
@@ -158,7 +158,7 @@ change, 0 to destroy** ([SC-002](spec.md#measurable-outcomes)).
 ## Step 5 — Apply
 
 ```bash
-terraform apply -var-file=../../variables/sp01/npd/services.tfvars.json
+terraform apply -var-file=../../variables/sp01/dev/services.tfvars.json
 ```
 
 After apply, all resources land in the single `rg-svc-shd-sp01-npd-uks-001`
