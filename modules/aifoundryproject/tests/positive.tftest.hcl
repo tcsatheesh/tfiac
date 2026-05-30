@@ -5,6 +5,7 @@
 variables {
   canonical_name      = "aifp-shd-shd-sp01-dev-uks-001"
   resource_group_name = "rg-svc-shd-sp01-dev-uks-001"
+  location            = "uksouth"
   engine_record = {
     service_type    = "aifoundry_project"
     service_purpose = "shd"
