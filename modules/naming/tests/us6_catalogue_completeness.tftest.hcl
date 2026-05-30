@@ -27,13 +27,13 @@ run "catalogue_completeness" {
   assert {
     condition = length(setsubtract(
       toset([
-        # Top-level (26)
+        # Top-level (27)
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
         "log_analytics", "app_insights", "storage", "keyvault",
         "container_registry", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "aifoundry", "language", "doc_intel", "search",
+        "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
         "dns_zone", "private_dns_zone",
         # Children (8)
         "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
@@ -48,7 +48,7 @@ run "catalogue_completeness" {
         "container_registry", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "aifoundry", "language", "doc_intel", "search",
+        "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
         "dns_zone", "private_dns_zone",
         "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
@@ -66,7 +66,7 @@ run "catalogue_completeness" {
         "container_registry", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "aifoundry", "language", "doc_intel", "search",
+        "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
         "dns_zone", "private_dns_zone",
         "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
@@ -80,7 +80,7 @@ run "catalogue_completeness" {
         "container_registry", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "aifoundry", "language", "doc_intel", "search",
+        "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
         "dns_zone", "private_dns_zone",
         "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
