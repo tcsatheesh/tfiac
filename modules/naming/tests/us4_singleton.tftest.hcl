@@ -11,7 +11,7 @@ variables {
     { service_type = "vnet", service_purpose = "net", key = "core" },
   ]
   children = [
-    { service_type = "vnet_bastion",  parent_key = "core", key = "bas" },
+    { service_type = "vnet_bastion", parent_key = "core", key = "bas" },
     { service_type = "vnet_firewall", parent_key = "core", key = "afw" },
   ]
 }

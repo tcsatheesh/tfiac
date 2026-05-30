@@ -14,6 +14,13 @@ variables {
     "pre-production" = "10.240.2.64/26"
   }
   # hub_state_backend intentionally omitted.
+  dns_state_backend = {
+    subscription_id      = "00000000-0000-0000-0000-000000000000"
+    resource_group_name  = "stcwe-rg-tfs-01"
+    storage_account_name = "stcwetfstate01"
+    container_name       = "tfstate"
+    key                  = "hub/prd/dns.tfstate"
+  }
 }
 
 mock_provider "azurerm" {
@@ -25,8 +32,18 @@ mock_provider "azurerm" {
   }
 }
 mock_provider "azurerm" { alias = "hub" }
-mock_provider "azapi" {}
-mock_provider "modtm" {}
+mock_provider "azurerm" { alias = "dns" }
+
+override_data {
+  target = data.terraform_remote_state.dns
+  values = {
+    outputs = {
+      zone_ids = {
+        "blob" = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+      }
+    }
+  }
+}
 mock_provider "random" {}
 mock_provider "time" {}
 

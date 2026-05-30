@@ -14,10 +14,10 @@ variables {
     { service_type = "apim", service_purpose = "api", key = "primary" },
   ]
   children = [
-    { service_type = "subnet",   parent_key = "core", child_purpose = "app",     key = "app" },
-    { service_type = "subnet",   parent_key = "core", child_purpose = "pep",     key = "pep" },
-    { service_type = "nsg_rule", parent_key = "web",  child_purpose = "allow80", key = "http" },
-    { service_type = "route",    parent_key = "main", child_purpose = "default", key = "def" },
+    { service_type = "subnet", parent_key = "core", child_purpose = "app", key = "app" },
+    { service_type = "subnet", parent_key = "core", child_purpose = "pep", key = "pep" },
+    { service_type = "nsg_rule", parent_key = "web", child_purpose = "allow80", key = "http" },
+    { service_type = "route", parent_key = "main", child_purpose = "default", key = "def" },
     { service_type = "apim_api", parent_key = "primary", child_purpose = "users", key = "u" },
   ]
 }

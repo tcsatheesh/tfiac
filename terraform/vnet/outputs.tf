@@ -74,3 +74,13 @@ output "peering_ids" {
     : null
   )
 }
+
+output "dnslinks_link_ids" {
+  description = "Map of {zone_key} => private DNS zone vnet-link resource id (FR-218 visibility)."
+  value       = module.dnslinks.link_ids
+}
+
+output "dnslinks_count" {
+  description = "Count of private DNS zone vnet-links emitted by this stack (FR-218 case a probe)."
+  value       = module.dnslinks.link_count
+}

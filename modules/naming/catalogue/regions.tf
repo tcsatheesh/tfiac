@@ -11,17 +11,17 @@
 locals {
   regions = {
     # Europe
-    uks  = "uksouth"
-    ukw  = "ukwest"
-    weu  = "westeurope"
-    neu  = "northeurope"
-    fc   = "francecentral"
-    fs   = "francesouth"
-    sn   = "switzerlandnorth"
-    sw   = "switzerlandwest"
-    gwc  = "germanywestcentral"
-    nwe  = "norwayeast"
-    swc  = "swedencentral"
+    uks = "uksouth"
+    ukw = "ukwest"
+    weu = "westeurope"
+    neu = "northeurope"
+    fc  = "francecentral"
+    fs  = "francesouth"
+    sn  = "switzerlandnorth"
+    sw  = "switzerlandwest"
+    gwc = "germanywestcentral"
+    nwe = "norwayeast"
+    swc = "swedencentral"
 
     # Americas
     eus  = "eastus"

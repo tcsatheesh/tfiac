@@ -161,3 +161,233 @@ Resolved autonomously per established precedents from features 002/003.
   - **C15.9 — opt-out semantics & idempotency**: when `enable_hub_default_route = false`, the shared hub route table `rt-net-<usecase>-<tenant>-<env>-<region>-001` is still created (preserves the engine catalogue from C12 and FR-202 naming) but its `routes` map is empty — exactly the pre-amendment behaviour. Flipping the toggle on a deployed hub does not replace the route table resource; only the inline `routes` block churns (add/remove the single `to-firewall` entry). Operators can safely toggle false → true → false; the route table's ID, name, and subnet associations are stable across toggles, so dependent stacks (spoke peerings, NSG rules) are not disturbed.
   - **C15.10 — test coverage**: `modules/network/tests/hub_default_route.tftest.hcl` covers both branches under mocked providers: `hub_default_route_enabled_by_default` (no explicit variable — exercises the `default = true` path) and `hub_default_route_disabled_opt_out` (`enable_hub_default_route = false`). Both runs assert plan success and that the route table name remains the engine canonical (`rt-net-shd-hub-npd-swc-001`). No negative-validation test is required because the variable is `bool` (per C15.8). This satisfies the standing autonomy rule "tests added for every new variable/code path (positive + negative)".
   - **C15.11 — route name literal**: the single entry in the inline `routes` map is named `udr-defaultroute` (literal string, identical on hub and spoke per `modules/network/main.tf`). This is **not** a deviation from FR-202 or C12: the naming engine catalogues *resources* (vnet, route_table, subnet, nsg, firewall, bastion, public_ip), not individual *records inside a resource*. Azure scopes route-name uniqueness per route table, so one literal name is sufficient; sharing the same literal between hub and spoke simplifies grepping/diagnostics and matches how `udr-` is the canonical UDR prefix in the existing operational vocabulary.
+
+## Amendment: Hub & Spoke Vnet Links to Private DNS Zones (FR-211..FR-222)
+
+**Status**: Amendment — appended to in-flight feature 004. Code change
+not yet shipped at the time of this spec edit. Per CLAUDE.md amendment
+rule, the new requirements append to existing FR-201..FR-210 and
+C1..C15 numbering without renumbering them.
+
+### User Story (P1) — Private DNS resolution from inside every vnet
+
+**As an** Azure workload owner deploying a private endpoint into the
+hub or any spoke vnet,
+**I want** A-record lookups for `*.blob.core.windows.net`,
+`*.vaultcore.azure.net`, `*.azurewebsites.net`, etc. issued from inside
+the vnet to resolve to the private-link IP,
+**so that** my workloads (build server, function apps, jump hosts,
+future AKS pods, etc.) actually reach storage / KeyVault / web apps
+over the private path instead of falling back to the public endpoint
+(or failing outright when public access is disabled at the data plane).
+
+**Gap today**: the 25 Private DNS Zones provisioned by feature 002
+(`terraform/dns/`, AVM `avm-res-network-privatednszone ~> 0.5`) live in
+the prd-hub DNS RG but no `azurerm_private_dns_zone_virtual_network_link`
+ties them to `vnet-net-shd-hub-npd-swc-001` (or to any spoke vnet).
+Lookups from inside the vnets therefore go to public DNS, returning
+the public IP — defeating the whole private-endpoint model.
+
+### Acceptance Scenarios
+
+1. **Hub vnet link coverage**: after `terraform apply` of
+   `terraform/vnet/` with `role=hub`, the plan creates exactly N
+   `azurerm_private_dns_zone_virtual_network_link` resources, where N
+   equals `length(data.terraform_remote_state.dns.outputs.zone_ids)`
+   (currently 25 with default catalogue, fewer when
+   `disable_catalogue_zones` is set).
+2. **Spoke vnet link coverage**: same assertion holds for
+   `role=spoke` — every spoke vnet (sp01 today, future sp02..spNN)
+   links to the same N zones, sourcing the zone IDs from the SAME
+   `terraform_remote_state.dns` reference.
+3. **Idempotent re-apply**: a second `terraform plan` immediately
+   after a successful apply shows **zero** changes — no churn on link
+   names, no churn on registration_enabled, no churn on the zone-id
+   list.
+4. **Catalogue shrink → link auto-destroy**: when an operator sets
+   `disable_catalogue_zones = ["privatelink.blob.core.windows.net"]`
+   in the DNS stack tfvars, re-applies `terraform/dns/`, then
+   re-applies `terraform/vnet/`, the vnet plan destroys exactly one
+   link (`vnetlink-vnet-net-shd-hub-npd-swc-001` inside
+   `privatelink.blob.core.windows.net`) and leaves the other 24
+   untouched.
+5. **Resolution test from inside the vnet**: `dig +short
+   <storageacct>.blob.core.windows.net` from a VM inside the hub
+   vnet returns the private endpoint IP (10.x.x.x range), not the
+   public Azure storage IP.
+
+### Edge Cases
+
+- **Empty zone_ids map** (DNS stack applied with
+  `disable_catalogue_zones` covering all 25 entries and no
+  `custom_zones`): vnet stack MUST still apply cleanly with zero link
+  resources — `for_each` over the empty map is a no-op.
+- **DNS remote state missing**: if the operator runs
+  `terraform/vnet/` before `terraform/dns/` has ever been applied
+  (state blob absent), the `data.terraform_remote_state.dns` lookup
+  fails fast with a clear backend error — this is acceptable and
+  desired (links cannot exist without zones).
+- **Concurrent zone add in DNS stack**: a new zone added to the
+  catalogue (or via `custom_zones`) in `terraform/dns/` is picked up
+  on the NEXT `terraform/vnet/` apply as a strict ADD (one new link
+  per vnet per new zone). No manual coordination required beyond
+  re-running the vnet stack after the DNS apply.
+- **Future multi-subscription split**: when DNS zones eventually move
+  to a dedicated subscription distinct from the vnet subscription, the
+  link resources MUST continue to be created in the DNS subscription
+  (zones are the parents). Implementation MUST source the target
+  subscription from the DNS remote-state output rather than assume
+  `var.subscription_id`. v1 ships single-subscription but the design
+  comment in code MUST flag this evolution.
+- **AVM submodule absence**: if AVM
+  `avm-res-network-privatednszone ~> 0.5` does not expose a
+  vnet-link submodule that can be consumed externally (the parent zone
+  is created by the DNS stack, not the vnet stack), the vnet stack
+  falls back to the bare `azurerm_private_dns_zone_virtual_network_link`
+  resource per Constitution IX's documented-fallback escape.
+
+### Requirements
+
+- **FR-211 — Universal link coverage**: every vnet provisioned by
+  `terraform/vnet/` (both `role=hub` and `role=spoke`) MUST create one
+  `azurerm_private_dns_zone_virtual_network_link` per zone exposed by
+  `data.terraform_remote_state.dns.outputs.zone_ids`. No per-zone
+  allow-list / opt-out is exposed in v1 (encoded as C16.1).
+- **FR-212 — registration_enabled=false**: every link MUST set
+  `registration_enabled = false`. Private-link zones MUST NOT
+  autoregister vnet VM hostnames (encoded as C16.2).
+- **FR-213 — Link naming**: link resource name MUST be
+  `vnetlink-<vnet-name>` (e.g.
+  `vnetlink-vnet-net-shd-hub-npd-swc-001`). Names are scoped per
+  parent zone, so collisions across vnets are impossible by Azure
+  design (encoded as C16.3).
+- **FR-214 — Provider/subscription locus**: link resources MUST be
+  created against the subscription that owns the parent private DNS
+  zones (the DNS subscription). For v1 this is the same subscription
+  as the vnet (`883c9081-23ed-4674-95c5-45c74834e093`), but the
+  implementation MUST resolve the DNS subscription from the DNS
+  remote-state output (not from `var.subscription_id`) so a future
+  cross-subscription split needs zero code change beyond a tfvars
+  edit (encoded as C16.4).
+- **FR-215 — Zone source-of-truth**: zone IDs MUST come from
+  `data.terraform_remote_state.dns` (state key per
+  `terraform/dns/backend.tf`). No hard-coded zone ID list; no direct
+  `azurerm_private_dns_zone` data-source lookup by name from the vnet
+  stack (encoded as C16.5).
+- **FR-216 — Drift on catalogue shrink**: link `for_each` MUST iterate
+  the live `zone_ids` map from remote state — not a static input list
+  — so that removing a zone from the DNS catalogue automatically
+  destroys the corresponding link on the next vnet apply (encoded as
+  C16.6).
+- **FR-217 — Idempotency**: re-applying `terraform/vnet/` with
+  unchanged inputs and unchanged DNS catalogue MUST produce a zero-change
+  plan for the link resources and the `data.terraform_remote_state.dns`
+  lookup (encoded as C16.7).
+- **FR-218 — Test coverage**: `terraform test` MUST include at minimum
+  four `.tftest.hcl` runs asserting (a) `length(links) ==
+  length(zone_ids)`, (b) `registration_enabled == false` on every
+  link, (c) link names match `vnetlink-<vnet-name>`, (d) empty
+  `zone_ids` map applies cleanly with zero link resources. Tests run
+  under mocked providers per the existing module test pattern (encoded
+  as C16.8).
+- **FR-219 — Reusable submodule**: link resources MUST live in a new
+  thin submodule `modules/dnslinks/` that takes `vnet_id` + `zone_ids`
+  map + (optional) `subscription_id` override. Root stacks consume the
+  submodule; future stacks (AKS-private, AML-private, etc.) can reuse
+  it without copy-paste. The DNS remote-state lookup itself stays at
+  the root-stack layer (not inside the submodule) so the submodule
+  remains pure — input-only, no remote state coupling (encoded as
+  C16.9).
+- **FR-220 — AVM compliance with documented fallback**: the
+  implementation MUST first attempt to use AVM
+  `Azure/avm-res-network-privatednszone/azurerm ~> 0.5`'s vnet-link
+  submodule (if it exposes one consumable from outside the parent
+  module). If no such consumable AVM path exists, the submodule falls
+  back to the bare `azurerm_private_dns_zone_virtual_network_link`
+  resource and documents the fallback decision in
+  `modules/dnslinks/README.md` per Constitution IX (encoded as C16.10).
+- **FR-221 — Tfvars wiring**: every consuming stack's tfvars file
+  (e.g. `variables/hub/npd/vnet.tfvars.json`,
+  `variables/sp01/npd/vnet.tfvars.json`) MUST gain a new
+  `dns_state_backend` block mirroring the shape of the existing
+  `log_state_backend` and `hub_state_backend` blocks:
+  `{ subscription_id, resource_group_name, storage_account_name,
+  container_name, key }`. Root stack declares
+  `var.dns_state_backend` and feeds it into the
+  `data.terraform_remote_state.dns` block (encoded as C16.11).
+- **FR-222 — Backwards-compat (strict-add plan)**: applying the
+  amendment against the already-deployed hub vnet MUST produce a plan
+  that only ADDS resources — specifically the new
+  `data.terraform_remote_state.dns` data source and the N
+  `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[*]`
+  link resources. Zero destroys, zero replaces, zero in-place changes
+  to existing vnet / subnet / NSG / route-table / firewall / bastion
+  resources. The pre-merge `terraform plan` output MUST be inspected
+  to confirm this before any apply (encoded as C16.12).
+
+### Resolved Clarifications (C16.1..C16.12)
+
+Resolved autonomously per CLAUDE.md ("do not ask the user; encode the
+most defensible answers directly into the spec"). All twelve items
+below are verbatim from the amendment requester and are the
+authoritative answers for implementation.
+
+- **C16.1 — Link scope**: Every vnet (hub + every spoke) links to
+  every zone in `terraform_remote_state.dns.outputs.zone_ids`. No
+  allow-list, no opt-out per zone in v1.
+- **C16.2 — registration_enabled**: Always `false`. These are
+  private-link zones; autoregistration is wrong.
+- **C16.3 — Link naming**: `vnetlink-<vnet-name>` (one zone-link
+  resource per zone, keyed by the zone's catalogue key). Names live
+  INSIDE each private DNS zone's namespace so collisions across vnets
+  are impossible.
+- **C16.4 — Provider/subscription**: Vnet-links are child resources of
+  the private DNS zones, so they MUST be created in the DNS
+  subscription (the prd-hub subscription that owns the zones). For now
+  (single subscription `883c9081-23ed-4674-95c5-45c74834e093`) this is
+  the same subscription as the vnet — but the implementation MUST NOT
+  assume that; use the DNS remote-state's `subscription_id` if/when
+  they diverge. v1 ships single-subscription; the design comment in
+  code MUST flag the multi-subscription evolution.
+- **C16.5 — Source of zone IDs**:
+  `data.terraform_remote_state.dns` (state key `prd/hub/dns.tfstate`
+  — verify exact key from `terraform/dns/backend.tf`). The vnet stack
+  ALREADY consumes log remote state; add a parallel
+  `dns_state_backend` tfvars block.
+- **C16.6 — Drift on link removal**: If a zone is removed from the DNS
+  catalogue (`disable_catalogue_zones`), the corresponding vnet link
+  MUST be auto-destroyed on the next vnet apply (i.e. `for_each` over
+  the live `zone_ids` map, not a static list).
+- **C16.7 — Idempotency**: Re-apply with unchanged inputs MUST be a
+  no-op (zero plan changes).
+- **C16.8 — Test coverage**: Add at least 4 `terraform test` runs
+  covering: (a) link count equals catalogue zone count, (b)
+  registration_enabled=false on every link, (c) link names match
+  `vnetlink-<vnet-name>` pattern, (d) when dns remote-state's
+  zone_ids is empty the vnet stack still applies with zero link
+  resources.
+- **C16.9 — Module location**: Add the link resources at the
+  `terraform/vnet/` root stack (not inside `modules/network/`),
+  because the dns remote-state lookup belongs to the stack layer, not
+  the reusable network module. Alternatively, introduce a thin
+  `modules/dnslinks/` wrapper that takes `vnet_id` + `zone_ids` map;
+  PREFERRED — propose `modules/dnslinks/` so future stacks (e.g. AKS,
+  AML private vnets) can reuse.
+- **C16.10 — AVM compliance**: Use AVM
+  `Azure/avm-res-network-privatednszone/azurerm ~> 0.5` submodule for
+  vnet links if it exposes one; otherwise fall back to bare
+  `azurerm_private_dns_zone_virtual_network_link` (constitution IX
+  allows fallback when no suitable AVM module exists — document the
+  decision). VERIFY this by inspecting `modules/dnszones/main.tf` and
+  the AVM module's source.
+- **C16.11 — Tfvars wiring**: Each consuming stack's tfvars (e.g.
+  `variables/hub/npd/vnet.tfvars.json`,
+  `variables/sp01/npd/vnet.tfvars.json`) gets a new `dns_state_backend`
+  block mirroring the existing `log_state_backend` shape
+  (`subscription_id`, `resource_group_name`, `storage_account_name`,
+  `container_name`, `key`).
+- **C16.12 — Backwards compatibility**: Existing apply of
+  `terraform/vnet/` (hub already deployed) MUST be a strict ADD — only
+  `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[*]`
+  resources should appear in the plan, plus the new
+  `data.terraform_remote_state.dns` (no destroys, no replaces).
