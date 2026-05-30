@@ -54,6 +54,7 @@ concatenated services use none.
 | `aml_workspace`          | `mlw`     | hyphenated    | `mlw-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 33 |
 | `openai`                 | `oai`     | hyphenated    | `oai-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `aifoundry`              | `aif`     | hyphenated    | `aif-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
+| `aifoundry_project`      | `aifp`    | hyphenated    | `aifp-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `language`               | `lang`    | hyphenated    | `lang-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `doc_intel`              | `di`      | hyphenated    | `di-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `search`                 | `srch`    | hyphenated    | `srch-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 60 |

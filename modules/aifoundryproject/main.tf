@@ -1,4 +1,7 @@
-# AI Foundry hub: hand-rolled via azapi until a stable AVM module ships.
+# AI Foundry project: hand-rolled via azapi until a stable AVM module ships.
+# A Project is a Microsoft.MachineLearningServices/workspaces with kind=Project
+# whose properties.hubResourceId points at the parent Foundry Hub. Storage and
+# key-vault are inherited from the Hub; we do NOT re-declare them here.
 data "azurerm_subscription" "current" {}
 
 resource "azapi_resource" "this" {
@@ -13,12 +16,11 @@ resource "azapi_resource" "this" {
   }
 
   body = {
-    kind = local.config.kind
-    sku  = { name = local.config.sku_name }
+    kind = "Project"
+    sku  = { name = "Basic" }
     properties = {
       friendlyName        = var.canonical_name
-      storageAccount      = var.storage_account_id
-      keyVault            = var.key_vault_id
+      hubResourceId       = var.hub_resource_id
       publicNetworkAccess = local.config.public_network_access
     }
   }
@@ -27,11 +29,6 @@ resource "azapi_resource" "this" {
 }
 
 # C-014 (Amendment 2026-05-31) — default diagnostic settings to shared hub LA.
-# enabled_log { category_group = "allLogs" } + metric { category = "AllMetrics" }
-# enables the full surface dynamically without enumerating per-RP categories
-# (which would require data.azurerm_monitor_diagnostic_categories and create a
-# first-apply chicken-and-egg cycle). Operators can opt out via
-# var.diagnostic_settings_enabled = false (escape hatch — document in PR body).
 resource "azurerm_monitor_diagnostic_setting" "to_hub_la" {
   count                      = var.diagnostic_settings_enabled ? 1 : 0
   name                       = "to-hub-la"

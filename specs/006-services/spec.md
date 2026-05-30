@@ -558,3 +558,45 @@ wiring is STACK-LEVEL and does NOT enable the per-`services[]`-entry
 still get the A4 "deferred to follow-up" hard-fail; the C-014 default
 gives them the hub-LA wiring they need for v1 without exposing the
 deferred surface.
+
+### C-015 — AI Foundry Hub + Project (extends C-001 v1 selectable list)
+
+**Date:** 2026-05-31. **Status:** Resolved.
+
+Amends C-001 by:
+
+1. **Promoting `aifoundry` to a deployable wrapper.** v1 originally
+   listed `aifoundry` as a selectable type but the wrapper body emitted
+   only `friendlyName`. Azure rejects that for `kind="Hub"`:
+   `Microsoft.MachineLearningServices/workspaces` requires
+   `properties.storageAccount` and `properties.keyVault` (full resource
+   IDs) at create time. The wrapper now accepts two new required
+   variables — `storage_account_id` and `key_vault_id` — sourced via
+   sibling-module composition in `terraform/services/main.tf`.
+2. **Adding `aifoundry_project` to the v1 selectable list** (now 16
+   types). The Project is the same Azure type
+   (`Microsoft.MachineLearningServices/workspaces`) with
+   `kind="Project"` and `properties.hubResourceId` pointing at the
+   parent Hub. v1 enforces a 1:1 Hub→Project ratio per services stack
+   (single-instance Hub + single-instance Project) via root-stack
+   `check` blocks; multi-Project topologies are a follow-up.
+3. **Adding the `aifoundry_project` row to the engine catalogue** and
+   the §3.1 Naming Pattern Table: `abbr=aifp`, `shape=hyphenated`,
+   `azure_max=64`, `level=top`. The us6 catalogue-completeness test and
+   `check-naming-catalogue.sh` CI gate were updated in lockstep (27
+   top-level rows; 35 total `service_type` rows).
+4. **Adding three root-stack `check` blocks** in
+   `terraform/services/check.tf` (defence-in-depth per CA-003):
+   - `aifoundry_requires_hub_deps` — selecting `aifoundry` requires
+     exactly one `storage` AND exactly one `keyvault` selection in the
+     same stack.
+   - `aifoundry_project_requires_hub` — selecting `aifoundry_project`
+     requires exactly one `aifoundry` selection in the same stack.
+
+The Hub bumps the azapi API version from `2024-04-01` to `2024-10-01`
+(the earliest stable version that accepts the `properties.storageAccount`
+/ `properties.keyVault` IDs in the format azurerm wrappers emit).
+
+Out of scope for v1: multi-Hub or multi-Project topologies, Foundry
+connections / deployments, Foundry Agent service, customer-managed-key
+encryption on the Hub or Project. These are tracked as follow-ups.

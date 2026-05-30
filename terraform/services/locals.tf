@@ -13,11 +13,11 @@ locals {
     repo          = var.repo
   }
 
-  # ----- v1 selectable type allowlist (spec.md C-001) -----
+  # ----- v1 selectable type allowlist (spec.md C-001 + C-015) -----
   v1_selectable_types = [
     "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
-    "user_assigned_identity", "search", "openai", "aifoundry", "language",
-    "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
+    "user_assigned_identity", "search", "openai", "aifoundry", "aifoundry_project",
+    "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
   ]
 
   # ----- Deferred / other-stack-owned reasons (CA-003 friendly messages) -----
@@ -49,6 +49,7 @@ locals {
     search                 = "srh"
     openai                 = "oai"
     aifoundry              = "aif"
+    aifoundry_project      = "aifp"
     language               = "lan"
     doc_intel              = "dci"
     function_app           = "fna"

@@ -58,7 +58,7 @@ variable "overrides" {
 
 # ----- C-014 (Amendment 2026-05-31) — Shared hub Log Analytics wiring -----
 variable "shared_log_analytics_workspace_id" {
-  description = "Azure resource ID of the SHARED hub Log Analytics workspace (provisioned by terraform/log/) where this resource emits its diagnostic settings. See spec.md C-014."
+  description = "Azure resource ID of the SHARED hub Log Analytics workspace where this resource emits its diagnostic settings. See specs/006-services/spec.md C-014."
   type        = string
 
   validation {
@@ -68,28 +68,18 @@ variable "shared_log_analytics_workspace_id" {
 }
 
 variable "diagnostic_settings_enabled" {
-  description = "Operator escape hatch: set to false to skip the default azurerm_monitor_diagnostic_setting wiring to the shared hub LA. Default true preserves the C-014 contract. Document the opt-out reason in the PR body."
+  description = "Operator escape hatch: set to false to skip the default azurerm_monitor_diagnostic_setting wiring to the shared hub LA. Default true preserves the C-014 contract."
   type        = bool
   default     = true
 }
 
-# ----- C-015 (Amendment 2026-05-31) — AI Foundry Hub dependencies -----
-variable "storage_account_id" {
-  description = "Azure resource ID of the storage account the Foundry Hub will use for asset storage. Required by Microsoft.MachineLearningServices/workspaces (kind=Hub)."
+# ----- C-015 (Amendment 2026-05-31) — Project must point at its parent Hub -----
+variable "hub_resource_id" {
+  description = "Azure resource ID of the parent AI Foundry Hub (Microsoft.MachineLearningServices/workspaces with kind=Hub). The Project workspace declares this as hubResourceId."
   type        = string
 
   validation {
-    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.Storage/storageAccounts/.+$", var.storage_account_id))
-    error_message = "storage_account_id must be a full Microsoft.Storage/storageAccounts resource ID (spec.md C-015)."
-  }
-}
-
-variable "key_vault_id" {
-  description = "Azure resource ID of the key vault the Foundry Hub will use to store connection secrets. Required by Microsoft.MachineLearningServices/workspaces (kind=Hub)."
-  type        = string
-
-  validation {
-    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.KeyVault/vaults/.+$", var.key_vault_id))
-    error_message = "key_vault_id must be a full Microsoft.KeyVault/vaults resource ID (spec.md C-015)."
+    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.MachineLearningServices/workspaces/.+$", var.hub_resource_id))
+    error_message = "hub_resource_id must be a full Microsoft.MachineLearningServices/workspaces resource ID (spec.md C-015)."
   }
 }

@@ -74,3 +74,36 @@ check "apim_hub_only" {
     )
   }
 }
+
+# aifoundry_requires_hub_deps (spec.md C-015): selecting aifoundry requires
+# exactly one storage + one keyvault in the SAME services stack. The Hub
+# wrapper takes their resource IDs via sibling-module composition.
+check "aifoundry_requires_hub_deps" {
+  assert {
+    condition = !(
+      length([for s in var.services : s if s.type == "aifoundry"]) > 0 &&
+      length([for s in var.services : s if s.type == "storage"]) != 1
+    )
+    error_message = "C-015 — aifoundry requires exactly one 'storage' selection in the same services stack."
+  }
+  assert {
+    condition = !(
+      length([for s in var.services : s if s.type == "aifoundry"]) > 0 &&
+      length([for s in var.services : s if s.type == "keyvault"]) != 1
+    )
+    error_message = "C-015 — aifoundry requires exactly one 'keyvault' selection in the same services stack."
+  }
+}
+
+# aifoundry_project_requires_hub (spec.md C-015): selecting aifoundry_project
+# requires exactly one aifoundry Hub in the SAME services stack so the Project
+# wrapper can wire properties.hubResourceId.
+check "aifoundry_project_requires_hub" {
+  assert {
+    condition = !(
+      length([for s in var.services : s if s.type == "aifoundry_project"]) > 0 &&
+      length([for s in var.services : s if s.type == "aifoundry"]) != 1
+    )
+    error_message = "C-015 — aifoundry_project requires exactly one 'aifoundry' selection in the same services stack."
+  }
+}

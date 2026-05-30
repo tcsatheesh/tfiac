@@ -204,6 +204,31 @@ module "aifoundry" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
+  # C-015 (Amendment 2026-05-31) — Hub dependencies sourced from sibling
+  # modules. v1 enforces exactly one storage + one keyvault per services
+  # stack when aifoundry is selected (root-stack precondition in check.tf).
+  storage_account_id = one([for k, v in module.storage : v.resource_id])
+  key_vault_id       = one([for k, v in module.keyvault : v.resource_id])
+}
+
+module "aifoundry_project" {
+  source = "../../modules/aifoundryproject"
+  for_each = {
+    for n, e in module.naming.names : n => e if e.service_type == "aifoundry_project"
+  }
+
+  canonical_name      = each.key
+  resource_group_name = azurerm_resource_group.svc.name
+  location            = azurerm_resource_group.svc.location
+  tags                = each.value.tags
+  engine_record       = each.value
+  overrides           = lookup(var.overrides, each.key, {})
+  # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
+  shared_log_analytics_workspace_id = local.shared_la_workspace_id
+  # C-015 (Amendment 2026-05-31) — Project must point at its parent Hub.
+  # v1 enforces exactly one aifoundry Hub per services stack when
+  # aifoundry_project is selected (root-stack precondition in check.tf).
+  hub_resource_id = one([for k, v in module.aifoundry : v.resource_id])
 }
 
 module "language" {
