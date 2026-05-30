@@ -391,3 +391,114 @@ authoritative answers for implementation.
   `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[*]`
   resources should appear in the plan, plus the new
   `data.terraform_remote_state.dns` (no destroys, no replaces).
+
+---
+
+## Amendment 2 — Drift Reconciliation (2026-05-30)
+
+### Context
+
+During Phase 8 live rollout (T113) on 2026-05-30 the hub vnet plan
+gated at FR-222 with `Plan: 28 to add, 4 to change, 3 to destroy`.
+Investigation (evidence in
+`temp/scratchpad/hub-drift-2026-05-30.txt`) attributed the unexpected
+non-add changes to two classes of Azure-side normalisation that the
+original module configuration did not anticipate:
+
+1. **PIP `ip_tags` first-party normalisation** — Azure auto-applies
+   `ip_tags = { FirstPartyUsage = "/Unprivileged" }` to Standard SKU
+   public IP addresses backing first-party Microsoft services
+   (`AzureBastion`, `AzureFirewall`). Because the AVM
+   publicipaddress module is silent on `ip_tags`, Terraform sees this
+   tag as out-of-band drift on next refresh and treats its removal
+   as a `ForceNew` change — destroying and recreating the PIP, which
+   in turn forces in-place updates on the bastion host and firewall
+   that reference it.
+2. **Subnet `serviceEndpoints[].locations` regional expansion** —
+   For `Microsoft.Storage` (but not `Microsoft.KeyVault`), Azure
+   normalises `locations = ["*"]` to the explicit regional pair (for
+   Sweden Central: `["swedencentral", "swedensouth"]`) on the server
+   side. The AVM virtualnetwork/subnet submodule round-trips the
+   stored value, so every subsequent plan reports a flapping
+   in-place update.
+
+The route-table refresh diff (`udr-defaultroute` reappearing as a
+`+` route) is **not** drift — it is the legitimate output of
+`enable_hub_default_route = true` (FR-210) being applied for the
+first time and refresh catching up. No remediation needed; just
+documented here for audit.
+
+### Functional Requirements
+
+- **FR-223 — PIP first-party tag explicit declaration.** Every
+  Standard SKU `azurerm_public_ip` created by the network stack
+  that backs a first-party Microsoft service (firewall data,
+  firewall management, bastion) MUST declare
+  `ip_tags = { FirstPartyUsage = "/Unprivileged" }` in its
+  Terraform configuration so that Azure's auto-applied value is a
+  no-op on refresh.
+- **FR-224 — Bring-your-own bastion PIP.** Because the AVM bastion
+  module (`Azure/avm-res-network-bastionhost/azurerm`) does not
+  expose `ip_tags` on its embedded public IP, the bastion submodule
+  in `modules/network/bastion/` MUST create the bastion PIP itself
+  (using `Azure/avm-res-network-publicipaddress/azurerm`) and pass
+  it to the bastion AVM via `create_public_ip = false` +
+  `public_ip_address_id`. The externally-managed PIP MUST satisfy
+  FR-223 and MUST be named per the existing engine output
+  (`local.pip_canonical_names.bas`) — no naming change.
+- **FR-225 — Subnet serviceEndpoint locations explicit declaration.**
+  For service endpoints that Azure expands `["*"]` into a regional
+  list (currently only `Microsoft.Storage`), the wrapper module MUST
+  emit the explicit regional list matching the deployment region so
+  that refresh is idempotent. The mapping MUST be derived from a
+  per-region table keyed by long-form region name and MUST default
+  to `["*"]` for any service not in the table (preserving today's
+  behaviour for `Microsoft.KeyVault` and any future endpoints that
+  Azure does not normalise).
+
+### Clarifications (resolved)
+
+- **C16.13 — Detection strategy**: Drift was detected at the FR-222
+  gate (Phase 8 T114). No automated drift watcher is added in this
+  amendment — the gate is sufficient. Future work may add a nightly
+  CI plan-diff job.
+- **C16.14 — `ip_tags` constant value**: The value
+  `{ FirstPartyUsage = "/Unprivileged" }` is hard-coded inside the
+  bastion + firewall submodules (NOT a tfvars input) because it is a
+  property of the consumed first-party service, not of the deployment
+  environment. Callers SHALL NOT override.
+- **C16.15 — BYO-PIP module location**: The bastion PIP submodule
+  call lives **inside** `modules/network/bastion/main.tf` (alongside
+  the bastion AVM call) and is wired by the existing
+  `public_ip_name` input. The bastion submodule's public interface
+  (variables/outputs) is unchanged — only its internal implementation
+  is refactored.
+- **C16.16 — serviceEndpoint locations table**: Stored as a local
+  named `storage_se_locations` in `modules/network/locals.tf`, keyed
+  by long-form region name. Initial entries: `swedencentral =
+  ["swedencentral", "swedensouth"]`. A `lookup(..., ["*"])` fallback
+  guarantees graceful behaviour for regions not yet in the table —
+  unknown regions silently fall back to today's `["*"]` behaviour
+  and the resulting drift, if any, will be re-detected at the next
+  Phase-N gate. No catalogue schema change.
+- **C16.17 — Tests required**: At least 3 new tests:
+  1. `pip_ip_tags_present` — root-stack plan asserts every
+     `azurerm_public_ip.this` resource emitted by the network module
+     has `ip_tags = { FirstPartyUsage = "/Unprivileged" }`.
+  2. `bastion_byo_pip_wired` — root-stack plan asserts the bastion
+     AVM is configured with `create_public_ip = false` and a
+     non-null `public_ip_address_id` referencing the in-module PIP.
+  3. `subnet_storage_endpoint_regional` — root-stack plan asserts
+     that any subnet whose role_catalogue lists `Microsoft.Storage`
+     emits `locations = ["swedencentral", "swedensouth"]` for that
+     endpoint (and still emits `locations = ["*"]` for
+     `Microsoft.KeyVault`).
+- **C16.18 — Backwards compatibility**: This amendment MUST be a
+  strict zero-diff change for the bastion + firewall resource IDs.
+  The refactor in FR-224 changes the Terraform address of the
+  bastion PIP from
+  `module.network.module.bastion[0].module.bastion.module.public_ip_address[0].azurerm_public_ip.this`
+  to
+  `module.network.module.bastion[0].module.pip.azurerm_public_ip.this`.
+  Phase 9 MUST include a `terraform state mv` step prior to plan so
+  the existing Azure resource is preserved (no destroy/recreate).

@@ -271,3 +271,36 @@ in [plan.md](plan.md).
 - [ ] T118 Report plan summary (N adds), apply duration, and SOA query output back to user; mark Phase 8 complete
 
 > Phase 8 tasks track spec FR-211..FR-222 and clarifications C16.1..C16.12, and execute plan amendment §1–§9. Dependency chain: T080–T082 (verify) → T083–T089 (submodule scaffold, parallel) → T090–T093 (submodule tests, parallel) → T094 → T095 → T096 → T097 (root wiring, sequential) → T098 → T099/T100/T101/T102 (root tests, T100/T101 parallel) → T103/T104 (tfvars, parallel) → T105 → T106 → T107 → T108 → T109 → T110 (gate + merge) → T111…T116 (rollout, sequential) → T117 → T118 (verify + report).
+
+## Phase 9 — Amendment 2 — Drift reconciliation (FR-223..FR-225)
+
+- [x] T119 `modules/network/firewall/main.tf` — add `ip_tags = { FirstPartyUsage = "/Unprivileged" }` to BOTH `module "pip_data"` and `module "pip_mgmt"` (FR-223). *Done — sourced from local `first_party_pip_ip_tags`.*
+- [x] T120 [P] `modules/network/bastion/variables.tf` — add optional input `public_ip_tags` (`map(string)`, default `{}`).
+- [x] T121 [P] `modules/network/bastion/outputs.tf` — add output `public_ip_id` exposing the new in-module PIP id (informational).
+- [x] T122 `modules/network/bastion/main.tf` — add `module "pip"` (AVM publicipaddress) with `ip_tags = { FirstPartyUsage = "/Unprivileged" }`; switch the existing `module "bastion"` `ip_configuration` to `create_public_ip = false` + `public_ip_address_id = module.pip.public_ip_id` (FR-224).
+- [x] T123 `modules/network/main.tf` — in the wrapper's `module "bastion"` block, add `public_ip_tags = module.naming.names[local.pip_canonical_names.bas].tags` so the new PIP keeps engine-derived tags.
+- [x] T124 `modules/network/locals.tf` — add `storage_se_locations = { swedencentral = ["swedencentral", "swedensouth"] }` (FR-225 / C16.16).
+- [x] T125 `modules/network/main.tf` — rewrite the `service_endpoints_with_location` for-expression to emit `lookup(local.storage_se_locations, local.region_full, ["*"])` for `Microsoft.Storage` and `["*"]` otherwise.
+- [x] T126 `terraform fmt -recursive` — clean.
+- [x] T127 `cd modules/network && terraform init -backend=false && terraform validate` — green.
+- [x] T128 `cd terraform/vnet && rm -rf .terraform && terraform init -backend=false && terraform validate` — green.
+- [x] T129 [P] Add `terraform/vnet/tests/pip_ip_tags_present.tftest.hcl` — asserts `module.network.firewall_pip_ip_tags["FirstPartyUsage"] == "/Unprivileged"` and same for `bastion_pip_ip_tags` (new wrapper outputs back-sourced from each submodule's `local.first_party_pip_ip_tags`, which is the single source of truth wired into the PIP modules).
+- [x] T130 [P] Add `terraform/vnet/tests/subnet_storage_endpoint_regional.tftest.hcl` — asserts the `dev` and `pre-production` subnets emit `Microsoft.Storage` with locations `["swedencentral","swedensouth"]` via new wrapper output `subnet_service_endpoints`, and `Microsoft.KeyVault` with `["*"]`; asserts `buildsvr` emits zero endpoints. Uses length-of-filtered-list pattern for terraform 1.9.8 short-circuit-free `for` parity.
+- [x] T131 `cd terraform/vnet && terraform test` — all green (17/17 on both terraform 1.9.8 and 1.13.4).
+- [x] T132 `cd modules/network && terraform test` — all green (11/11 on both terraform 1.9.8 and 1.13.4).
+- [ ] T133 Commit on branch `004-vnet-drift-reconcile`, push, open PR against master. CI MUST be fully green.
+- [ ] T134 Squash-merge PR; delete remote+local branch; checkout master + pull.
+
+### Phase 9 live rollout (post-merge)
+
+- [ ] T135 Open SA firewall on `stcwetfstate01` to operator IP (mirror T111).
+- [ ] T136 `cd terraform/vnet && rm -rf .terraform && terraform init -reconfigure -backend-config=../../variables/backend.hcl -backend-config="key=hub/npd/vnet.tfstate"`.
+- [ ] T137 **State migration (C16.18)**: `terraform state mv 'module.network.module.bastion[0].module.bastion.module.public_ip_address[0].azurerm_public_ip.this' 'module.network.module.bastion[0].module.pip.azurerm_public_ip.this'`.
+- [ ] T138 `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=883c9081-23ed-4674-95c5-45c74834e093 -out=hub.npd.tfplan`.
+- [ ] T139 **GATE per FR-222**: plan summary MUST be `No changes. Your infrastructure matches the configuration.` OR `Plan: 25 to add, 0 to change, 0 to destroy.` where the 25 adds are exclusively `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[*]` carried over from Phase 8. ABORT and `terraform state mv` BACK if any other change appears.
+- [ ] T140 If gate passes AND adds == 25 dnslinks (Phase 8 not yet applied), `terraform apply hub.npd.tfplan` — this completes Phase 8's apply with drift fixed; otherwise (gate green with zero adds), skip apply.
+- [ ] T141 Restore SA firewall lock (mirror T116).
+- [ ] T142 If T140 applied: validate per Phase 8 T117 (build VM nslookup SOA); otherwise skip.
+- [ ] T143 Report plan summary and Phase 9 complete.
+
+> Phase 9 tasks track spec FR-223..FR-225 and clarifications C16.13..C16.18, and execute plan amendment §10–§14. Dependency chain: T119 (firewall) → T120/T121 (bastion vars+outputs, parallel) → T122 → T123 → T124 → T125 → T126 → T127 → T128 → T129/T130 (tests, parallel) → T131 → T132 → T133 → T134 → T135 → T136 → T137 → T138 → T139 → T140 → T141 → T142 → T143.

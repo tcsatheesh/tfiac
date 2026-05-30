@@ -185,4 +185,14 @@ locals {
 
   # Azure long-form region.
   region_full = module.naming.names[local.rg_canonical_name].tags.region
+
+  # ----- Service-endpoint per-region location tables (FR-225 / C16.16) -----
+  # Azure normalises `locations = ["*"]` to the regional pair for some
+  # endpoints (e.g. Microsoft.Storage). To keep `terraform plan` idempotent
+  # we declare the explicit list per region. Unmapped regions fall back to
+  # ["*"] via lookup(..., ["*"]) in main.tf — that preserves today's
+  # behaviour and any resulting drift will surface at the next Phase gate.
+  storage_se_locations = {
+    swedencentral = ["swedencentral", "swedensouth"]
+  }
 }
