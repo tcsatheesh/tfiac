@@ -9,6 +9,7 @@ package_upgrade: false
 packages:
   - curl
   - jq
+  - unzip
   - ca-certificates
   - apt-transport-https
   - lsb-release
