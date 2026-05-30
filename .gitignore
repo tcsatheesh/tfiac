@@ -189,7 +189,9 @@ tfplan
 # Track the *.example template instead.
 variables/backend.hcl
 variables/*.hcl
+variables/**/backend.hcl
 !variables/*.hcl.example
+!variables/**/backend.hcl.example
 
 # Per-stack reference inputs ARE committed (no secrets - just topology/region/etc).
 !variables/**/*.tfvars.json
