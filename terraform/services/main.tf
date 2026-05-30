@@ -230,6 +230,7 @@ module "aifoundry_project" {
 
   canonical_name      = each.key
   resource_group_name = azurerm_resource_group.svc.name
+  location            = azurerm_resource_group.svc.location
   engine_record       = each.value
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
@@ -238,7 +239,9 @@ module "aifoundry_project" {
   # account (Microsoft.CognitiveServices/accounts). v1 enforces exactly one
   # aifoundry account per stack when aifoundry_project is selected
   # (root-stack precondition aifoundry_project_requires_account in check.tf).
-  # location and tags are inherited from the parent account.
+  # Tags are inherited from the parent account; `location` is re-declared
+  # on the child only because the RP returns 400 LocationRequired without it
+  # (confirmed live 2026-05-30).
   parent_account_id = one([for k, v in module.aifoundry : v.resource_id])
 }
 

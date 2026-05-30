@@ -59,6 +59,19 @@ variable "diagnostic_settings_enabled" {
 }
 
 # ----- C-017 (Amendment 2026-05-30) — Project parented by Foundry account -----
+# Note: the Cognitive Services accounts/projects RP requires `location` on the
+# child even though it logically inherits from the parent account; omitting it
+# returns RESPONSE 400 LocationRequired (confirmed live 2026-05-30).
+variable "location" {
+  description = "Azure region for the Foundry project child. MUST match the parent account region."
+  type        = string
+
+  validation {
+    condition     = length(var.location) > 0
+    error_message = "location must be non-empty."
+  }
+}
+
 variable "parent_account_id" {
   description = "Azure resource ID of the parent Foundry account (Microsoft.CognitiveServices/accounts with kind=AIServices and allowProjectManagement=true). The Project child declares this as parent_id."
   type        = string

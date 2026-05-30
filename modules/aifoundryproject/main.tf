@@ -10,6 +10,7 @@ resource "azapi_resource" "this" {
   type      = "Microsoft.CognitiveServices/accounts/projects@2025-09-01"
   name      = var.canonical_name
   parent_id = var.parent_account_id
+  location  = var.location
 
   identity {
     type = "SystemAssigned"

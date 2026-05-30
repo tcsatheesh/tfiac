@@ -3,6 +3,7 @@
 variables {
   canonical_name      = ""
   resource_group_name = "rg-svc-shd-sp01-dev-uks-001"
+  location            = "uksouth"
   engine_record = {
     service_type    = "aifoundry_project"
     service_purpose = null
