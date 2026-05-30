@@ -28,7 +28,7 @@ run "order_a" {
   }
 
   assert {
-    condition = length(output.names) == 5
+    condition     = length(output.names) == 5
     error_message = "Expected 5 entries in order_a; got ${length(output.names)}."
   }
 }

@@ -47,7 +47,7 @@ locals {
   # INV-4: RG shape - rg entries forbid service_purpose; non-RG, non-FQDN entries require it.
   services_rg_shape_violations = [
     for s in var.services : s.key
-    if (
+    if(
       s.service_type == "resource_group"
       ? s.service_purpose != null
       : (

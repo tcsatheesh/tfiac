@@ -142,3 +142,25 @@ variable "hub_state_override" {
   })
   default = null
 }
+
+variable "dns_state_backend" {
+  description = "Remote-state backend descriptor for the DNS stack (terraform/dns/, state key hub/prd/dns.tfstate). REQUIRED for both hub and spoke roles per C16.1 — vnet-links to the private DNS catalogue apply to every consumer. The subscription_id field scopes the azurerm.dns provider (FR-214, FR-221, C16.4, C16.11)."
+  type = object({
+    subscription_id      = string
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+    key                  = string
+  })
+
+  # Defence-in-depth (plan §4): catch obvious typos in the state-blob key.
+  validation {
+    condition     = endswith(var.dns_state_backend.key, ".tfstate")
+    error_message = "dns_state_backend.key must end with \".tfstate\"."
+  }
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.dns_state_backend.subscription_id))
+    error_message = "dns_state_backend.subscription_id must be a lowercase Azure subscription GUID."
+  }
+}

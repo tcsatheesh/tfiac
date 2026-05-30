@@ -11,10 +11,10 @@ variables {
     { service_type = "storage", service_purpose = "lgs", key = "audit" },
   ]
   children = [
-    { service_type = "private_endpoint",   parent_key = "audit", key = "blob"  },
-    { service_type = "private_endpoint",   parent_key = "audit", key = "queue" },
-    { service_type = "private_endpoint",   parent_key = "audit", key = "table" },
-    { service_type = "diagnostic_setting", parent_key = "audit", key = "law"   },
+    { service_type = "private_endpoint", parent_key = "audit", key = "blob" },
+    { service_type = "private_endpoint", parent_key = "audit", key = "queue" },
+    { service_type = "private_endpoint", parent_key = "audit", key = "table" },
+    { service_type = "diagnostic_setting", parent_key = "audit", key = "law" },
   ]
 }
 

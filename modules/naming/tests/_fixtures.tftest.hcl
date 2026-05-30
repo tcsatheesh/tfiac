@@ -12,7 +12,7 @@ variables {
     stack_purpose = "svc"
     repo          = "tcsatheesh/tfiac"
   }
-  services = []
-  children = []
+  services   = []
+  children   = []
   extra_tags = {}
 }

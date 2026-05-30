@@ -27,10 +27,10 @@ run "storage_overflow_via_region_width" {
 
   variables {
     input = {
-      tenant        = "sp42"  # 4 chars
+      tenant        = "sp42" # 4 chars
       environment   = "prd"
-      region        = "eus2"  # 4 chars (must also be in catalogue)
-      usecase       = "uc99"  # 4 chars
+      region        = "eus2" # 4 chars (must also be in catalogue)
+      usecase       = "uc99" # 4 chars
       stack_purpose = "svc"
       repo          = "tcsatheesh/tfiac"
     }

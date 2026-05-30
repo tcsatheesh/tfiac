@@ -19,12 +19,12 @@ run "rg_service_purpose_tag_uses_stack_purpose" {
   command = plan
 
   assert {
-    condition = output.names["rg-net-shd-hub-prd-uks-001"].tags["service_purpose"] == "net"
+    condition     = output.names["rg-net-shd-hub-prd-uks-001"].tags["service_purpose"] == "net"
     error_message = "RG service_purpose tag must equal the stack_purpose ('net')."
   }
 
   assert {
-    condition = output.names["rg-net-shd-hub-prd-uks-001"].tags["stack_purpose"] == "net"
+    condition     = output.names["rg-net-shd-hub-prd-uks-001"].tags["stack_purpose"] == "net"
     error_message = "RG stack_purpose tag must be set to the resolved stack_purpose."
   }
 }

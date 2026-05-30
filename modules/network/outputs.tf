@@ -8,6 +8,11 @@ output "vnet_name" {
   value       = local.vnet_canonical_name
 }
 
+output "vnet_tags" {
+  description = "Tags applied to the vnet by the naming engine. Re-exported so cross-stack consumers (e.g. modules/dnslinks/) tag derived resources consistently with their consuming vnet (FR-219, C16.9, plan §5)."
+  value       = module.naming.names[local.vnet_canonical_name].tags
+}
+
 output "vnet_address_space" {
   description = "Address space as deployed."
   value       = var.address_space
