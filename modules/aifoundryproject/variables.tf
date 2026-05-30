@@ -23,21 +23,6 @@ variable "resource_group_name" {
   }
 }
 
-variable "location" {
-  description = "Full Azure region name (e.g. uksouth)."
-  type        = string
-
-  validation {
-    condition     = length(var.location) > 0
-    error_message = "location must be non-empty."
-  }
-}
-
-variable "tags" {
-  description = "Engine-emitted tag map."
-  type        = map(string)
-}
-
 variable "engine_record" {
   description = "Full engine record from module.naming.names[canonical_name]."
   type = object({
@@ -73,13 +58,13 @@ variable "diagnostic_settings_enabled" {
   default     = true
 }
 
-# ----- C-015 (Amendment 2026-05-31) — Project must point at its parent Hub -----
-variable "hub_resource_id" {
-  description = "Azure resource ID of the parent AI Foundry Hub (Microsoft.MachineLearningServices/workspaces with kind=Hub). The Project workspace declares this as hubResourceId."
+# ----- C-017 (Amendment 2026-05-30) — Project parented by Foundry account -----
+variable "parent_account_id" {
+  description = "Azure resource ID of the parent Foundry account (Microsoft.CognitiveServices/accounts with kind=AIServices and allowProjectManagement=true). The Project child declares this as parent_id."
   type        = string
 
   validation {
-    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.MachineLearningServices/workspaces/.+$", var.hub_resource_id))
-    error_message = "hub_resource_id must be a full Microsoft.MachineLearningServices/workspaces resource ID (spec.md C-015)."
+    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.CognitiveServices/accounts/[^/]+$", var.parent_account_id))
+    error_message = "parent_account_id must be a full Microsoft.CognitiveServices/accounts resource ID (spec.md C-017 / FR-026)."
   }
 }

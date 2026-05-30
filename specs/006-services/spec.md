@@ -248,6 +248,7 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 #### Environment allowlist (services stack)
 
 - **FR-025**: The services stack rejects `environment ∈ {npd}` and accepts only `{dev, pre, prd}`; hub stacks (`terraform/log/`, `terraform/vnet/`, `terraform/dns/`) are unaffected and retain their `{npd, prd}` allowlist. Enforcement is defence-in-depth: (i) `terraform/services/variables.tf` `validation` block on `var.environment`; (ii) root-stack `check "environment_workload_only"` in `terraform/services/check.tf`; (iii) negative test `terraform/services/tests/reject_npd_environment.tftest.hcl`. See C-016 for rationale and full rollout decisions.
+- **FR-026**: Foundry account+project replaces ML Workspace Hub+Project pair. The `aifoundry` wrapper MUST emit `Microsoft.CognitiveServices/accounts` (kind=`AIServices`, `properties.allowProjectManagement=true`, `properties.customSubDomainName = var.canonical_name`, `properties.publicNetworkAccess="Enabled"`, `sku.name="S0"`, system-assigned identity) and MUST NOT require sibling `storage` or `keyvault` selections. The `aifoundry_project` wrapper MUST emit `Microsoft.CognitiveServices/accounts/projects` as a child of the parent account, taking `var.parent_account_id` in place of the legacy `var.hub_resource_id`. Both wrappers preserve the existing `var.canonical_name` / `var.engine_record` / diagnostic-settings contract. Pinned API versions: `Microsoft.CognitiveServices/accounts@2025-09-01`, `Microsoft.CognitiveServices/accounts/projects@2025-09-01`. The `aifoundry_project_requires_account` check (renamed from `aifoundry_project_requires_hub` per C-015 §4) enforces 1:1 project→account in the same stack; the `aifoundry_requires_hub_deps` check is REMOVED. The `aifp` catalogue row `azure_max` drops from 64 to 32 to match the Foundry projects RP hard limit. See C-017 for full rationale, migration, and out-of-scope items.
 
 ### Key Entities
 
@@ -683,3 +684,125 @@ allowlist on the hub stacks; changing the workflow enum to be
 stack-aware (the union enum + per-stack validators is the chosen
 pattern); migrating any in-place `sp01/npd/services.*` state (none
 exists — the prior deploy was destroyed).
+
+### C-017 — Cognitive Services Foundry account + project replaces ML Workspace Hub+Project (replaces C-015 wrapper implementations)
+
+**Date:** 2026-05-30. **Status:** Resolved.
+
+Operator intent: the deployed `aif-uc1-uc1-sp01-dev-swc-001` and
+`aifp-uc1-uc1-sp01-dev-swc-001` resources (legacy Azure ML
+`Microsoft.MachineLearningServices/workspaces` Hub + Project) are the
+WRONG resource type. The intended Foundry pair is the Cognitive
+Services Foundry account/project shape used by the
+`admin-1364-resource` / `admin-1364` reference, i.e.
+`Microsoft.CognitiveServices/accounts` (kind=`AIServices`,
+`properties.allowProjectManagement=true`) plus its
+`Microsoft.CognitiveServices/accounts/projects` child.
+
+This amendment supersedes the wrapper implementations promised by
+C-015 §1 and §2; the C-015 §3 catalogue rows and §4 root-stack
+`check` blocks are retained (§4 with one rename and one removal as
+detailed below). The C-015 narrative remains historically accurate
+and is left untouched.
+
+Resolutions (encoded directly per CLAUDE.md autonomy rules; no
+operator interview):
+
+1. **`modules/aifoundry/` repurposed to Foundry account.** The
+   wrapper now emits a single `azapi_resource` of type
+   `Microsoft.CognitiveServices/accounts@2025-09-01` with:
+   - `kind = "AIServices"`.
+   - `sku.name = "S0"`.
+   - `identity.type = "SystemAssigned"`.
+   - `properties.allowProjectManagement = true` (this is what marks
+     the account as Foundry-capable).
+   - `properties.customSubDomainName = var.canonical_name` (required
+     for AAD token issuance and PE wiring).
+   - `properties.publicNetworkAccess = "Enabled"` (day-one default;
+     PE flips this to `"Disabled"` in a follow-up).
+   The wrapper's input contract is reduced: `var.storage_account_id`
+   and `var.key_vault_id` (introduced by C-015 §1) are REMOVED.
+   Foundry accounts manage their own underlying storage and secrets;
+   they are not subject to the legacy Hub-workspace prerequisite.
+   `var.canonical_name`, `var.engine_record`, and the diagnostic-
+   settings contract are unchanged.
+2. **`modules/aifoundryproject/` repurposed to Foundry project.** The
+   wrapper now emits a single `azapi_resource` of type
+   `Microsoft.CognitiveServices/accounts/projects@2025-09-01` as a
+   child of the parent Foundry account (parent_id =
+   `var.parent_account_id`). The legacy `var.hub_resource_id` input
+   (C-015 §2) is REPLACED by `var.parent_account_id` (the parent
+   Cognitive Services account resource ID). System-assigned identity
+   is retained. `var.canonical_name`, `var.engine_record`, and the
+   diagnostic-settings contract are unchanged. The
+   `customSubDomainName` field does NOT apply to projects (projects
+   inherit the parent account's endpoint).
+3. **API versions pinned.**
+   `Microsoft.CognitiveServices/accounts@2025-09-01` (stable) and
+   `Microsoft.CognitiveServices/accounts/projects@2025-09-01`
+   (stable, confirmed available in subscription
+   `883c9081-23ed-4674-95c5-45c74834e093` via `az rest` probe). Both
+   pinned in their respective azapi calls. The azapi provider stays
+   at `2.10.0`; azurerm stays at `4.74.0`; no provider bump.
+4. **C-015 §4 dependency rules update.** In
+   `terraform/services/check.tf`:
+   - `aifoundry_requires_hub_deps` is REMOVED. Foundry accounts no
+     longer require sibling `keyvault` / `storage` selections.
+   - `aifoundry_project_requires_hub` is RENAMED to
+     `aifoundry_project_requires_account` — the semantics
+     (exactly-one `aifoundry_project` requires exactly-one
+     `aifoundry` in the same stack) are unchanged; only the
+     condition message is reworded to "Foundry project requires a
+     Foundry account in the same stack". The defence-in-depth
+     pattern from C-016 §5 is preserved: variable validator on the
+     project wrapper + root-stack `check` block + negative test
+     `terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl`.
+5. **Naming engine catalogue retained, one `azure_max` change.**
+   C-015 §3 catalogue rows (`aifoundry` → abbr `aif`,
+   `aifoundry_project` → abbr `aifp`, both `level=top`,
+   `shape=hyphenated`) STAY. The `aifp` row's `azure_max` is dropped
+   from **64 → 32** to match the Foundry projects RP hard limit
+   (per `Microsoft.CognitiveServices/accounts/projects` schema); the
+   day-one canonical project name `aifp-uc1-uc1-sp01-dev-swc-001`
+   (31 chars) fits inside the new cap. The `aif` row stays at
+   `azure_max=64` (CAF cap for Cognitive Services accounts). The
+   us6 catalogue-completeness test and `check-naming-catalogue.sh`
+   CI gate are re-asserted (row count unchanged; only the `aifp`
+   `azure_max` value changes).
+6. **Day-one tfvars rewrite (sp01/dev).**
+   `variables/sp01/dev/services.tfvars.json` `services` array
+   becomes `[{type: "aifoundry"}, {type: "aifoundry_project"}]` only
+   — the `keyvault` and `storage` selections from C-016 §7 are
+   DROPPED because they were only present to satisfy the now-removed
+   `aifoundry_requires_hub_deps` check. Nothing in the catalogue is
+   removed; operators may add `keyvault` / `storage` back as
+   standalone selections at any time.
+7. **Pre-merge destroy gate (state / resource migration).** The
+   existing deployed pair `aif-uc1-uc1-sp01-dev-swc-001` (Hub
+   workspace, `Microsoft.MachineLearningServices/workspaces` kind
+   Hub) and `aifp-uc1-uc1-sp01-dev-swc-001` (Project workspace,
+   same RP kind Project), plus `kvuc1uc1sp01devswc001` and
+   `stuc1uc1sp01devswc001`, MUST be destroyed before this amendment
+   merges. They are different Azure resource types from the new
+   Foundry pair (cross-RP); `terraform plan` would force-replace
+   into the wrong RP otherwise. No `moved {}` block is possible
+   (cross-RP moves are not supported). The state blob
+   `sp01/dev/services.tfstate` is removed and recreated post-merge.
+   This mirrors the C-016 pre-merge destroy gate for the prior
+   `sp01/npd` deploy.
+8. **Defence-in-depth pattern preserved.** Per CA-003 and the
+   C-016 §5 precedent, the renamed `aifoundry_project_requires_account`
+   rule is enforced in three places: (i) variable validator on the
+   project wrapper's `parent_account_id` input (regex on the
+   Cognitive Services account resource-id shape); (ii) root-stack
+   `check "aifoundry_project_requires_account"`; (iii) negative
+   test asserting that selecting `aifoundry_project` without
+   `aifoundry` hard-fails at plan time with a message naming both
+   selections.
+
+Out of scope for this amendment: Foundry connections (model /
+search / storage connections inside the account), model deployments
+inside the Foundry account, Foundry Agent service, customer-managed-
+key encryption, private-endpoint wiring (including flipping
+`publicNetworkAccess` to `"Disabled"`), multi-project topologies
+within a single account. All tracked as follow-ups.

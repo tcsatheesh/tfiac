@@ -1,8 +1,14 @@
-# AI Foundry hub: hand-rolled via azapi until a stable AVM module ships.
+# AI Foundry account: hand-rolled via azapi until a stable AVM module ships.
+# C-017 (Amendment 2026-05-30) — rebased from the legacy
+# Microsoft.MachineLearningServices/workspaces (kind=Hub) RP onto
+# Microsoft.CognitiveServices/accounts (kind=AIServices,
+# allowProjectManagement=true) to match the admin-1364-resource shape.
+# Foundry accounts manage their own underlying storage and secrets; no
+# sibling Key Vault / Storage Account inputs are required.
 data "azurerm_subscription" "current" {}
 
 resource "azapi_resource" "this" {
-  type      = "Microsoft.MachineLearningServices/workspaces@2024-10-01"
+  type      = "Microsoft.CognitiveServices/accounts@2025-09-01"
   name      = var.canonical_name
   location  = var.location
   parent_id = "${data.azurerm_subscription.current.id}/resourceGroups/${var.resource_group_name}"
@@ -13,17 +19,16 @@ resource "azapi_resource" "this" {
   }
 
   body = {
-    kind = local.config.kind
-    sku  = { name = local.config.sku_name }
+    kind = "AIServices"
+    sku  = { name = "S0" }
     properties = {
-      friendlyName        = var.canonical_name
-      storageAccount      = var.storage_account_id
-      keyVault            = var.key_vault_id
-      publicNetworkAccess = local.config.public_network_access
+      allowProjectManagement = true
+      customSubDomainName    = var.canonical_name
+      publicNetworkAccess    = local.config.public_network_access
     }
   }
 
-  response_export_values = ["id", "properties.discoveryUrl"]
+  response_export_values = ["id", "properties.endpoints"]
 }
 
 # C-014 (Amendment 2026-05-31) — default diagnostic settings to shared hub LA.

@@ -1,31 +1,28 @@
 # AI Foundry project: hand-rolled via azapi until a stable AVM module ships.
-# A Project is a Microsoft.MachineLearningServices/workspaces with kind=Project
-# whose properties.hubResourceId points at the parent Foundry Hub. Storage and
-# key-vault are inherited from the Hub; we do NOT re-declare them here.
-data "azurerm_subscription" "current" {}
+# C-017 (Amendment 2026-05-30) — rebased from the legacy
+# Microsoft.MachineLearningServices/workspaces (kind=Project) RP onto
+# Microsoft.CognitiveServices/accounts/projects, parented directly by the
+# Cognitive Services Foundry account (var.parent_account_id). The project
+# inherits location, tags, and public-access from the parent account; those
+# fields are NOT re-declared at the child level.
 
 resource "azapi_resource" "this" {
-  type      = "Microsoft.MachineLearningServices/workspaces@2024-10-01"
+  type      = "Microsoft.CognitiveServices/accounts/projects@2025-09-01"
   name      = var.canonical_name
-  location  = var.location
-  parent_id = "${data.azurerm_subscription.current.id}/resourceGroups/${var.resource_group_name}"
-  tags      = var.tags
+  parent_id = var.parent_account_id
 
   identity {
     type = "SystemAssigned"
   }
 
   body = {
-    kind = "Project"
-    sku  = { name = "Basic" }
     properties = {
-      friendlyName        = var.canonical_name
-      hubResourceId       = var.hub_resource_id
-      publicNetworkAccess = local.config.public_network_access
+      displayName = var.canonical_name
+      description = "Foundry project ${var.canonical_name}"
     }
   }
 
-  response_export_values = ["id", "properties.discoveryUrl"]
+  response_export_values = ["id"]
 }
 
 # C-014 (Amendment 2026-05-31) — default diagnostic settings to shared hub LA.

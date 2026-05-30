@@ -72,24 +72,3 @@ variable "diagnostic_settings_enabled" {
   type        = bool
   default     = true
 }
-
-# ----- C-015 (Amendment 2026-05-31) — AI Foundry Hub dependencies -----
-variable "storage_account_id" {
-  description = "Azure resource ID of the storage account the Foundry Hub will use for asset storage. Required by Microsoft.MachineLearningServices/workspaces (kind=Hub)."
-  type        = string
-
-  validation {
-    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.Storage/storageAccounts/.+$", var.storage_account_id))
-    error_message = "storage_account_id must be a full Microsoft.Storage/storageAccounts resource ID (spec.md C-015)."
-  }
-}
-
-variable "key_vault_id" {
-  description = "Azure resource ID of the key vault the Foundry Hub will use to store connection secrets. Required by Microsoft.MachineLearningServices/workspaces (kind=Hub)."
-  type        = string
-
-  validation {
-    condition     = can(regex("^/subscriptions/.+/providers/Microsoft\\.KeyVault/vaults/.+$", var.key_vault_id))
-    error_message = "key_vault_id must be a full Microsoft.KeyVault/vaults resource ID (spec.md C-015)."
-  }
-}
