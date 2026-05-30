@@ -69,7 +69,7 @@ jobs:
         working-directory: terraform/${{ inputs.service }}
         run: |
           terraform init -reconfigure -no-color \
-            -backend-config=../../variables/backend.hcl \
+            -backend-config=../../variables/hub/npd/backend.hcl \
             -backend-config="key=${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}.tfstate"
 
       - id: tfplan
@@ -131,7 +131,7 @@ jobs:
         working-directory: terraform/${{ inputs.service }}
         run: |
           terraform init -reconfigure -no-color \
-            -backend-config=../../variables/backend.hcl \
+            -backend-config=../../variables/hub/npd/backend.hcl \
             -backend-config="key=${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}.tfstate"
 
       - name: terraform apply
