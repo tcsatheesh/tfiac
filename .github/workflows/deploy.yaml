@@ -1,0 +1,144 @@
+name: deploy
+
+# Feature 000-bootstrap (FR-012). Replaces the legacy deploy_all.yaml.
+# Generic plan + gated apply pipeline for any stack under terraform/<service>/
+# using OIDC against the hub-internal state SA.
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Stack name under terraform/<service>/."
+        required: true
+        type: choice
+        options: [vnet, dns, log, buildsvr]
+      tenant:
+        description: "Tenancy (hub|sp01|sp02)."
+        required: true
+        type: choice
+        options: [hub, sp01, sp02]
+        default: sp01
+      environment:
+        description: "Environment short code."
+        required: true
+        type: choice
+        options: [npd, prd]
+        default: npd
+      action:
+        description: "apply | destroy."
+        required: true
+        type: choice
+        options: [apply, destroy]
+        default: apply
+      apply:
+        description: "Run the apply job (else plan-only)."
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.9.8"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  plan:
+    name: plan ${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}
+    runs-on: [self-hosted, hub-npd]
+    environment: hub-npd
+    outputs:
+      exitcode: ${{ steps.tfplan.outputs.exitcode }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform init
+        working-directory: terraform/${{ inputs.service }}
+        run: |
+          terraform init -reconfigure -no-color \
+            -backend-config=../../variables/backend.hcl \
+            -backend-config="key=${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}.tfstate"
+
+      - id: tfplan
+        name: terraform plan
+        working-directory: terraform/${{ inputs.service }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set +e
+          extra_args=()
+          if [[ "${{ inputs.action }}" == "destroy" ]]; then
+            extra_args+=("-destroy")
+          fi
+          terraform plan -no-color -input=false -detailed-exitcode -out tfplan \
+            -var-file="../../variables/${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}.tfvars.json" \
+            -var "subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            "${extra_args[@]}"
+          rc=$?
+          echo "exitcode=$rc" >> "$GITHUB_OUTPUT"
+          # 0 = no changes, 1 = error, 2 = changes present
+          if [[ $rc -eq 1 ]]; then exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.tenant }}-${{ inputs.environment }}-${{ inputs.service }}
+          path: terraform/${{ inputs.service }}/tfplan
+          retention-days: 7
+          if-no-files-found: error
+
+  apply:
+    name: apply ${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}
+    needs: plan
+    if: ${{ inputs.apply && needs.plan.outputs.exitcode == '2' }}
+    runs-on: [self-hosted, hub-npd]
+    environment: hub-npd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ inputs.tenant }}-${{ inputs.environment }}-${{ inputs.service }}
+          path: terraform/${{ inputs.service }}/
+
+      - name: terraform init
+        working-directory: terraform/${{ inputs.service }}
+        run: |
+          terraform init -reconfigure -no-color \
+            -backend-config=../../variables/backend.hcl \
+            -backend-config="key=${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}.tfstate"
+
+      - name: terraform apply
+        working-directory: terraform/${{ inputs.service }}
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: terraform apply -no-color -input=false tfplan

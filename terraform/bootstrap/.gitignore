@@ -1,0 +1,12 @@
+# Feature 000-bootstrap - this stack uses LOCAL state by design (FR-009).
+# State files MUST never be committed.
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.*.backup
+.terraform/
+crash.log
+crash.*.log
+*.tfplan
+# Operator-supplied tfvars (contains object ids).
+terraform.tfvars
+*.auto.tfvars
