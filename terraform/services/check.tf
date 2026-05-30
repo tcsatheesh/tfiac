@@ -107,3 +107,14 @@ check "aifoundry_project_requires_hub" {
     error_message = "C-015 — aifoundry_project requires exactly one 'aifoundry' selection in the same services stack."
   }
 }
+
+# environment_workload_only (spec.md C-016 / FR-025): the services stack is
+# workload-only — `npd` is reserved for shared/hub stacks (terraform/log/,
+# terraform/vnet/, terraform/dns/). This is the defence-in-depth pair for
+# the variable validation on var.environment in variables.tf.
+check "environment_workload_only" {
+  assert {
+    condition     = contains(["dev", "pre", "prd"], var.environment)
+    error_message = "C-016 / FR-025 — environment must be one of dev|pre|prd for the services stack; 'npd' is reserved for shared/hub stacks."
+  }
+}

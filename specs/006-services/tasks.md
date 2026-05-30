@@ -406,3 +406,56 @@ amends them).
 - [X] T104 SC-007 grep (CA-009 regex) zero matches outside tests/ + README — no new violations introduced by this amendment.
 - [X] T105 No fictional engine FR-NNN citations added.
 - [X] T106 Append "Amendment 2026-05-31" section to `temp/scratchpad/006-services-pr-body.md` summarising operator-approval items.
+
+## Phase C-016 — services environment allowlist (dev/pre/prd)
+
+Implements [spec.md C-016](spec.md#c-016) / FR-025 on the shipped
+006-services stack. Narrows `var.environment` to `{dev, pre, prd}`,
+widens `var.usecase` to allow 3–4 chars, and relocates the sp01 fixture
+from the legacy `npd` slot to `dev`. All tasks are post-implement.
+
+### Phase C-016.A — Schema + validation (terraform/services/)
+
+- [X] T-C016-001 Narrow `var.environment` in [terraform/services/variables.tf](../../terraform/services/variables.tf) to allowlist `["dev","pre","prd"]` with a `validation` block whose `error_message` cites FR-025 / C-016 (e.g. `environment must be one of dev|pre|prd (C-016 / FR-025); 'npd' is reserved for shared/hub stacks`). (FR-025 / C-016)
+- [X] T-C016-002 Widen `var.usecase` regex in [terraform/services/variables.tf](../../terraform/services/variables.tf) from `^[a-z0-9]{3}$` to `^[a-z0-9]{3,4}$` and update the `error_message` to read `usecase must be 3–4 lowercase alphanumerics (C-016 / FR-025)`. (FR-025 / C-016)
+- [X] T-C016-003 Add a `check "environment_workload_only"` block in [terraform/services/check.tf](../../terraform/services/check.tf) asserting `contains(["dev","pre","prd"], var.environment)` with a C-016 / FR-025 error message (defence-in-depth alongside the variable validation). (FR-025 / C-016)
+
+### Phase C-016.B — Tests (terraform/services/tests/)
+
+- [X] T-C016-004 Create [terraform/services/tests/reject_npd_environment.tftest.hcl](../../terraform/services/tests/reject_npd_environment.tftest.hcl) modelled on [terraform/services/tests/reject_apim_spoke.tftest.hcl](../../terraform/services/tests/reject_apim_spoke.tftest.hcl): a `plan` run with `environment = "npd"` (everything else valid) that `expect_failures = [var.environment]` and asserts the C-016 / FR-025 message is surfaced. (FR-025 / C-016)
+- [X] T-C016-005 [P] Edit [terraform/services/tests/_fixtures.tftest.hcl](../../terraform/services/tests/_fixtures.tftest.hcl): replace every `environment = "npd"` with `environment = "dev"` so the shared fixture matches the new allowlist. (FR-025 / C-016)
+- [X] T-C016-006 [P] Edit [terraform/services/tests/diag_wired_to_hub_la.tftest.hcl](../../terraform/services/tests/diag_wired_to_hub_la.tftest.hcl): replace `environment = "npd"` with `environment = "dev"`. (FR-025 / C-016)
+- [X] T-C016-007 [P] Edit [terraform/services/tests/happy_apim_hub.tftest.hcl](../../terraform/services/tests/happy_apim_hub.tftest.hcl): replace `environment = "npd"` with `environment = "dev"` (apim topology assertion is environment-agnostic). (FR-025 / C-016)
+- [X] T-C016-008 [P] Edit [terraform/services/tests/reject_apim_spoke.tftest.hcl](../../terraform/services/tests/reject_apim_spoke.tftest.hcl): replace `environment = "npd"` with `environment = "dev"` (the assertion is on `topology`, not environment). (FR-025 / C-016)
+
+### Phase C-016.C — tfvars relocation (variables/sp01/)
+
+- [X] T-C016-009 `git mv variables/sp01/npd/services.tfvars.json variables/sp01/dev/services.tfvars.json` (create `variables/sp01/dev/` first if it does not exist). (FR-025 / C-016)
+- [X] T-C016-010 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json): set `"environment": "dev"` (was `"npd"`) and `"usecase": "uc1"` (was `"shd"`). Leave the services array (KV, SA, aifoundry, aifoundry_project) unchanged. (FR-025 / C-016)
+- [X] T-C016-011 Run `rmdir variables/sp01/npd 2>/dev/null || true` — removes the now-empty legacy directory; no-op if other files remain. (FR-025 / C-016)
+
+### Phase C-016.D — CI pipeline (.github/workflows/)
+
+- [X] T-C016-012 Widen `inputs.environment.options` in [.github/workflows/deploy.yaml](../../.github/workflows/deploy.yaml) from `[npd, prd]` to `[npd, prd, dev, pre]` (npd retained for the hub/shared stacks). (FR-025 / C-016)
+
+### Phase C-016.E — Verification gates (HARD)
+
+- [X] T-C016-013 `terraform fmt -recursive` from repo root → no changes. (FR-025 / C-016)
+- [X] T-C016-014 [P] `terraform -chdir=modules/naming test` → 100% pass (allowlist change should not regress naming). (FR-025 / C-016)
+- [X] T-C016-015 [P] `terraform -chdir=modules/aifoundry test` → 100% pass. (FR-025 / C-016)
+- [X] T-C016-016 [P] `terraform -chdir=modules/aifoundryproject test` → 100% pass. (FR-025 / C-016)
+- [X] T-C016-017 `terraform -chdir=terraform/services test` → 100% pass (new `reject_npd_environment` test green; relocated positive fixtures green). (FR-025 / C-016)
+
+### Phase C-016.F — Rollout
+
+- [ ] T-C016-018 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-025 / C-016)
+- [ ] T-C016-019 Trigger `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true` (or equivalent dispatch) on `master`. (FR-025 / C-016)
+- [ ] T-C016-020 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 4 resources are present (KV, SA, aifoundry, aifoundry_project). (FR-025 / C-016)
+
+### Phase C-016.G — Analyze remediation (BLOCKER + MAJOR findings)
+
+- [X] T-C016-021 [P] Edit `.github/workflows/services.yml`: replace `variables/sp01/npd/services.tfvars.json` with `variables/sp01/dev/services.tfvars.json` on BOTH the `pull_request.paths` (~line 24) and `push.paths` (~line 48) lists. Keep `hub/npd`, `hub/prd`, and any other tenant/env entries intact. (Satisfies analyze BLOCKER B1 / FR-025.)
+- [X] T-C016-022 [P] Edit `terraform/services/README.md`: replace `variables/sp01/npd/services.tfvars.json` with `variables/sp01/dev/services.tfvars.json` at ~lines 66 and 71 (operator quick-start commands). (Satisfies analyze MAJOR M1 / C-016.)
+- [X] T-C016-023 [P] Edit `specs/006-services/quickstart.md`: replace `sp01/npd` references at ~lines 94, 113, 125, 161 with `sp01/dev` (both tfvars path AND backend state-key). (Satisfies analyze MAJOR M2 / C-016.)
+- [X] T-C016-024 [P] Edit `specs/006-services/contracts/cross-stack-outputs.md` ~line 201: refresh the `terraform_remote_state` example from `key = "sp01/npd/services.tfstate"` to `key = "sp01/dev/services.tfstate"`. (Satisfies analyze MINOR m1.)
+- [X] T-C016-025 Clarification for T-C016-012: when widening `.github/workflows/deploy.yaml` `inputs.environment.options`, preserve `default: npd` verbatim — do NOT change the default. Only the `options` list is widened. (Plan §5 sub-note.)

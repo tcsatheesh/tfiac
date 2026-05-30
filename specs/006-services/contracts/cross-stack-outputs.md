@@ -198,7 +198,7 @@ data "terraform_remote_state" "services" {
     resource_group_name  = var.state_backend.resource_group_name
     storage_account_name = var.state_backend.storage_account_name
     container_name       = var.state_backend.container_name
-    key                  = "sp01/npd/services.tfstate"
+    key                  = "sp01/dev/services.tfstate"
     use_azuread_auth     = true
     subscription_id      = var.state_backend.subscription_id
   }

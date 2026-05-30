@@ -295,3 +295,119 @@ done.
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|--------------------------------------|
 | — | — | — |
+
+## Phase C-016 — services environment allowlist (dev/pre/prd)
+
+This phase is an **amendment** to feature 006-services delivering
+[spec.md C-016 / FR-025](spec.md#clarifications): narrow the services-stack
+environment allowlist from `{npd, prd}` to `{dev, pre, prd}`, widen the
+usecase token to 3–4 chars, and relocate the day-one sp01 tfvars from
+`npd` → `dev`. Hub stacks (`log/`, `vnet/`, `dns/`) are **untouched** —
+the workflow enum becomes the union of both allowlists, with per-stack
+validators enforcing the split.
+
+**Pre-condition (must complete before this branch merges).** The legacy
+RG `rg-svc-shd-sp01-npd-swc-001` provisioned by the prior
+`variables/sp01/npd/services.tfvars.json` deploy MUST be destroyed first
+(a `destroy` action is already running on master against the old tfvars).
+The amendment's `git mv` of that tfvars file would otherwise leave the
+real resources unreferenced. Merge order: (1) wait for destroy run to go
+green on master, (2) squash-merge this amendment branch, (3) dispatch the
+new `sp01/dev` apply.
+
+### File-level edits
+
+1. **`terraform/services/variables.tf` — validator narrowing.**
+   - `var.environment` validation: `contains(["npd","prd"], var.environment)`
+     → `contains(["dev","pre","prd"], var.environment)`; update
+     `error_message` to name the new allowlist verbatim
+     (`"environment must be one of [\"dev\", \"pre\", \"prd\"]."`).
+     Rationale: services stack is workload-only; `npd` is reserved for
+     hub plumbing per C-016 resolution 1.
+   - `var.usecase` validation: regex `^[a-z0-9]{3}$` → `^[a-z0-9]{3,4}$`;
+     update `error_message` to read "3–4 lowercase alphanumerics".
+     Rationale: aligns the stack validator with the engine regex
+     (already 3–4) so operators may pick `uc1` or `uc01` per C-016
+     resolution 6.
+
+2. **`terraform/services/check.tf` — new defence-in-depth `check` block.**
+   Append a new `check "environment_workload_only"` block modelled on the
+   existing `check "apim_hub_only"` block in the same file (assertion
+   form: `contains(["dev","pre","prd"], var.environment)`, error message
+   pointing operators at the workload-only allowlist and the matching
+   `var.environment` validator). Rationale: matches the C-016
+   resolution-5 three-layer pattern (validator + check + negative test)
+   already used for APIM-hub-only enforcement.
+
+3. **`terraform/services/tests/reject_npd_environment.tftest.hcl` — new
+   negative test (NEW FILE).**
+   Modelled on `terraform/services/tests/reject_apim_spoke.tftest.hcl`:
+   a single `run "reject_npd"` block that loads `_fixtures.tftest.hcl`
+   defaults, overrides `environment = "npd"`, and declares
+   `expect_failures = [var.environment]`. Rationale: pinning the
+   negative path in CI guarantees the allowlist narrowing cannot
+   silently regress.
+
+4. **Tfvars relocation (`git mv` + body edit).**
+   - `git mv variables/sp01/npd/services.tfvars.json
+     variables/sp01/dev/services.tfvars.json`.
+   - Body changes inside the moved file: `environment` `"npd"` → `"dev"`,
+     `usecase` `"shd"` → `"uc1"`. Unchanged keys: `region = "swc"`,
+     `tenant = "sp01"`, `topology = "spoke"`, `services` = the C-015 v1
+     list `[keyvault, storage, aifoundry, aifoundry_project]`.
+   - Emitted RG name therefore becomes `rg-svc-uc1-sp01-dev-swc-001`
+     (per C-016 resolution 7).
+   - **No other tenant folder is touched.** `ls variables/sp01/npd/`
+     confirms `vnet.tfvars.json` also lives there, so the directory
+     stays (no `rmdir`). `variables/sp01/dev/` may need to be created
+     by the `git mv`; that is the only directory side-effect. No other
+     `*/npd/services.tfvars.json` exists on master HEAD.
+
+5. **`.github/workflows/deploy.yaml` — env enum becomes the union.**
+   `workflow_dispatch.inputs.environment.options` changes from
+   `[npd, prd]` to `[npd, prd, dev, pre]` (union of hub allowlist
+   `{npd,prd}` and services allowlist `{dev,pre,prd}`).
+   `inputs.environment.default` stays `npd` because hub-stack dispatches
+   (log/vnet/dns) are more common day-to-day; operators explicitly pick
+   `dev` when dispatching `service=services`. Per-stack validators
+   reject invalid combinations at plan time (C-016 resolution 4) — the
+   workflow does no per-stack gating.
+
+6. **No-touch list (explicit, to short-circuit accidental edits).**
+   - `terraform/log/variables.tf`, `terraform/vnet/variables.tf`,
+     `terraform/dns/variables.tf` — hub `environment` allowlists keep
+     `["npd","prd"]`.
+   - `modules/naming/` — engine `environment` regex `^[a-z]{3}$`
+     already accepts `dev`, `pre`, `prd`; no change.
+   - State backend — `key = "${tenant}/${environment}/${service}.tfstate"`
+     accepts the new environment value verbatim; the shared state SA
+     `sttfsshdhubnpdswc001` is environment-agnostic (C-016 resolution 8).
+     No backend / `providers.tf` / `versions.tf` edits required.
+
+7. **Test impact — bulk fixture rewrite + module sweep.**
+   - `terraform/services/tests/_fixtures.tftest.hcl` and **every other
+     existing positive test under `terraform/services/tests/`** currently
+     sets `environment = "npd"`. Bulk-update each such occurrence to
+     `environment = "dev"`. The new negative test
+     (`reject_npd_environment.tftest.hcl`) is the sole remaining
+     consumer of `"npd"` in the services stack and exists to guard the
+     rejection.
+   - Verification commands (run after edits, all must be green):
+     `terraform -chdir=modules/naming test`,
+     `terraform -chdir=modules/aifoundry test`,
+     `terraform -chdir=modules/aifoundryproject test`,
+     `terraform -chdir=terraform/services test`,
+     plus `terraform fmt -recursive` across the repo.
+
+### Rollout (CLAUDE.md step 4)
+
+After squash-merge:
+
+1. `git checkout master && git pull --ff-only`.
+2. Dispatch
+   `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`.
+3. Verify the new RG `rg-svc-uc1-sp01-dev-swc-001` exists and contains
+   the four C-015 services (Key Vault, Storage Account, AI Foundry Hub,
+   AI Foundry Project). Restore the state-SA firewall
+   (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove any
+   temp IPs) once the apply settles.

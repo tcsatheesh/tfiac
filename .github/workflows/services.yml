@@ -21,7 +21,7 @@ on:
       - terraform/services/**
       - variables/hub/npd/services.tfvars.json
       - variables/hub/prd/services.tfvars.json
-      - variables/sp01/npd/services.tfvars.json
+      - variables/sp01/dev/services.tfvars.json
       - variables/sp01/prd/services.tfvars.json
       - .github/workflows/services.yml
   push:
@@ -45,7 +45,7 @@ on:
       - terraform/services/**
       - variables/hub/npd/services.tfvars.json
       - variables/hub/prd/services.tfvars.json
-      - variables/sp01/npd/services.tfvars.json
+      - variables/sp01/dev/services.tfvars.json
       - variables/sp01/prd/services.tfvars.json
       - .github/workflows/services.yml
 

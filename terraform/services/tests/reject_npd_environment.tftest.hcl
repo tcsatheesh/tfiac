@@ -1,20 +1,18 @@
-# C-013 + C-014 (Amendment 2026-05-31) — shared test scaffolding for the
-# services root stack.
+# C-016 / FR-025 — the services stack is workload-only.
+# Asserts that environment = "npd" hard-fails at plan time. 'npd' is
+# reserved for the shared/hub stacks (terraform/log/, terraform/vnet/,
+# terraform/dns/) and must not be accepted by the services stack.
 #
-# NOTE (per spec.md C-014): the root stack reads the shared hub LA workspace
-# id via `data "terraform_remote_state" "hub_log"` (terraform/services/data.log.tf).
-# That backend is not reachable inside terraform_test, so every test file in
-# this directory MUST `override_data` the remote_state lookup with a stub
-# workspace id. Terraform 1.13 does not auto-share blocks across .tftest.hcl
-# files, so the override is repeated inline in each test rather than imported
-# from here. This file documents the canonical fixture values and runs a
-# baseline `plan` to catch wiring regressions early.
+# The failure surfaces from var.environment's validation block in
+# terraform/services/variables.tf; the defence-in-depth pair in
+# terraform/services/check.tf::environment_workload_only never fires
+# because validation runs first.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
-  topology        = "hub"
-  tenant          = "hub"
-  environment     = "dev"
+  topology        = "spoke"
+  tenant          = "sp01"
+  environment     = "npd"
   region          = "uks"
   usecase         = "shd"
   repo            = "tcsatheesh/tfiac"
@@ -59,6 +57,7 @@ override_data {
   }
 }
 
-run "baseline_plan_succeeds" {
-  command = plan
+run "rejects_npd_environment" {
+  command         = plan
+  expect_failures = [var.environment]
 }
