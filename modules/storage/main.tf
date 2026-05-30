@@ -20,10 +20,11 @@ resource "azurerm_monitor_diagnostic_setting" "to_hub_la" {
   target_resource_id         = azurerm_storage_account.this.id
   log_analytics_workspace_id = var.shared_log_analytics_workspace_id
 
-  enabled_log {
-    category_group = "allLogs"
-  }
-
+  # The storage *account* resource itself exposes only metrics — per-service
+  # logs (blob/file/queue/table) live on sub-resources like
+  # ${id}/blobServices/default. category_group = "allLogs" returns BadRequest
+  # here ("supported ones are: ''"). Operators that need data-plane logs
+  # should add a separate diagnostic setting against the sub-resource.
   enabled_metric {
     category = "AllMetrics"
   }
