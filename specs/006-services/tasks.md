@@ -471,9 +471,9 @@ drops the legacy KV + SA fixtures. All tasks are post-implement.
 
 ### Phase C-017.A — Pre-merge cleanup (HARD pre-condition)
 
-- [ ] T-C017-001 Trigger `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true` on `master` to destroy the currently-deployed legacy resources (KV, SA, aifoundry Hub workspace, aifoundry project workspace) in `rg-svc-uc1-sp01-dev-swc-001`. Wait for the run to complete green before proceeding. (FR-026 / C-017)
-- [ ] T-C017-002 If Key Vault soft-delete leaves a tombstone after T-C017-001, run `az keyvault purge --name kvuc1uc1sp01devswc001 --location swedencentral` to free the name for any (unlikely) future re-use. (FR-026 / C-017)
-- [ ] T-C017-003 Temp-open the state SA firewall (`sttfsshdhubnpdswc001`) for the current egress IP, run `az storage blob delete --account-name sttfsshdhubnpdswc001 --container-name tfstate --name sp01/dev/services.tfstate --auth-mode login`, then restore the firewall (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove the temp IP) per CLAUDE.md rollout discipline. (FR-026 / C-017)
+- [X] T-C017-001 Trigger `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true` on `master` to destroy the currently-deployed legacy resources (KV, SA, aifoundry Hub workspace, aifoundry project workspace) in `rg-svc-uc1-sp01-dev-swc-001`. Wait for the run to complete green before proceeding. (FR-026 / C-017)
+- [X] T-C017-002 If Key Vault soft-delete leaves a tombstone after T-C017-001, run `az keyvault purge --name kvuc1uc1sp01devswc001 --location swedencentral` to free the name for any (unlikely) future re-use. (FR-026 / C-017)
+- [X] T-C017-003 Temp-open the state SA firewall (`sttfsshdhubnpdswc001`) for the current egress IP, run `az storage blob delete --account-name sttfsshdhubnpdswc001 --container-name tfstate --name sp01/dev/services.tfstate --auth-mode login`, then restore the firewall (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove the temp IP) per CLAUDE.md rollout discipline. (FR-026 / C-017)
 
 ### Phase C-017.B — modules/aifoundry/ refactor (Cognitive Services account)
 
@@ -518,9 +518,9 @@ drops the legacy KV + SA fixtures. All tasks are post-implement.
 
 ### Phase C-017.H — Rollout
 
-- [ ] T-C017-027 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-026 / C-017)
-- [ ] T-C017-028 `git checkout master && git pull --ff-only`; dispatch `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`. (FR-026 / C-017)
-- [ ] T-C017-029 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 2 resources are present: `Microsoft.CognitiveServices/accounts` (kind=AIServices) and `Microsoft.CognitiveServices/accounts/projects`. Confirm the account shows `properties.allowProjectManagement == true`. (FR-026 / C-017)
+- [X] T-C017-027 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-026 / C-017)
+- [X] T-C017-028 `git checkout master && git pull --ff-only`; dispatch `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`. (FR-026 / C-017)
+- [X] T-C017-029 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 2 resources are present: `Microsoft.CognitiveServices/accounts` (kind=AIServices) and `Microsoft.CognitiveServices/accounts/projects`. Confirm the account shows `properties.allowProjectManagement == true`. (FR-026 / C-017)
 
 ### Phase C-017.I — Analyze remediations (folded from /speckit.analyze)
 
