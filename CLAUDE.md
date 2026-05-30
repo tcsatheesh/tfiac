@@ -23,9 +23,19 @@ follow this workflow without asking the user to confirm each step:
 
 ## Autonomy rules
 
+- You are **fully autonomous**. Drive every step (branch creation, speckit
+  pipeline, edits, tests, plans, applies, PR creation, merges, post-merge
+  rollout, firewall restoration) end-to-end without pausing for
+  confirmation. The user is hands-off unless one of the explicit
+  stop-and-ask conditions at the bottom of this file fires.
 - Make smart, defensible decisions yourself. **Do not ask the user**
   clarifying questions unless a step is genuinely blocked by missing
   information that cannot be inferred.
+- **Scratch / temp work belongs in `temp/scratchpad/`** (gitignored), NEVER
+  in `/tmp`. State backups, intermediate plan files, ad-hoc notes,
+  PR-body drafts, throwaway scripts, etc. all live there. Anything in
+  `/tmp` may be lost between sessions; `temp/scratchpad/` persists with
+  the workspace and is excluded from git.
 - When the speckit `clarify` step would normally ask the user questions,
   encode the most defensible answers directly into the spec as resolved
   clarifications instead.

@@ -4,11 +4,85 @@
 
 **Created**: 2026-05-29
 
-**Status**: Draft
+**Status**: Draft — **AMENDED 2026-05-30 (BLOCKER remediation, supersedes prior text)**
 
 **Input**: User description: "Build a deployment system where I can select what Azure services I need to build and they are built and deployed either in the hub or a spoke in a separate resource group (purpose=svc)"
 
-## User Scenarios & Testing *(mandatory)*
+> **AMENDMENT NOTICE (2026-05-30, post `/speckit.analyze` pass 2).** The
+> sections below were authored against an assumed naming-engine surface
+> that does not match the implemented engine
+> ([modules/naming/](../../modules/naming/),
+> [specs/001-naming-convention-engine/](../001-naming-convention-engine/)).
+> The corrections in [§ Clarifications Addendum](#clarifications-addendum-2026-05-30-blocker-remediation)
+> at the **end of this document** are AUTHORITATIVE and override any
+> conflicting text above. Re-run `/speckit.plan` and `/speckit.tasks`
+> before `/speckit.implement` so [data-model.md](data-model.md),
+> [contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md),
+> [quickstart.md](quickstart.md), and [tasks.md](tasks.md) (every
+> canonical-name example and test-fixture expectation) regenerate
+> against the corrected contract.
+
+## Clarifications
+
+### Session 2026-05-30
+
+Resolved per CLAUDE.md standing directive (no operator interview; defensible answers encoded directly).
+
+- **C-001 — v1 selectable inventory scope (narrows A2 / FR-007)**
+  Q: Should v1 ship every service type listed in Assumption A2, or a tighter MVP subset?
+  A: Ship a tight MVP subset limited to service types that already have a wrapper module under `modules/` today AND that operationally belong in a workload `svc` RG. The v1 selectable list is exactly: `keyvault`, `storage`, `log_analytics`, `app_insights`, `container_registry`, `user_assigned_identity`, `search`, `openai`, `aifoundry`, `language`, `doc_intel`, `function_app`, `logic_app`, `aml_workspace`, `apim`. The per-stack `resource_group` is always emitted by the engine (FR-009) and is not operator-selectable. EXPLICITLY DEFERRED to a follow-up: `vnet`, `nsg`, `route_table`, `public_ip` (owned by `terraform/vnet/`, feature 004); `firewall`, `bastion`, `vpn_gateway`, `expressroute_gateway` (hub-only platform primitives); `vm`, `app_service_plan` (pure-compute, no clear MVP consumer). Selecting any deferred-but-catalogued type in v1 MUST hard-fail at plan time with a "deferred to follow-up" message naming the type and pointing at the owning stack (where applicable). The engine's broader catalogue (feature 001 FR-026) is unchanged; the narrowing is a stack-level allowlist on top of FR-007.
+
+- **C-002 — `for_each` key shape and stability (pins FR-011 / FR-015)**
+  Q: What `for_each` key shape satisfies the idempotence and reorder-zero-diff promises?
+  A: The `for_each` key for every emitted Azure resource (and for the per-instance wrapper-module invocation) MUST be the engine-emitted canonical name itself (e.g. `kv-sp01-npd-uks-001`, `st<…>001`). The engine deterministically computes those canonical names from the ordered `(type, instance_index)` pairs derived from a stable sort of the input `services` list (sort key: `type` ASC, then declaration order ASC for repeated types). As a direct consequence: reordering entries in `services` whose `(type, count)` pairs are unchanged produces the same `(type, instance_index)` set and therefore the same canonical-name set, and therefore zero `for_each` churn (FR-015 satisfied without an auxiliary user-supplied key field). The wrapper modules MUST NOT take their own `for_each` over a list; they receive a single engine record per invocation.
+
+- **C-003 — Override map key shape (pins FR-006)**
+  Q: Engine canonical names contain dashes — are they usable as top-level `overrides` map keys?
+  A: Yes. HCL map keys are arbitrary strings; the dash-bearing canonical name (e.g. `"kv-sp01-npd-uks-001"`) is the contract key for the top-level `overrides` variable AND for the per-instance address space. The stack MUST forward `overrides` to the engine verbatim and the engine's unmatched-override hard-fail (feature 001 FR-039) is the sole authority that validates each key resolves to an emitted resource. No quoting, escaping, or normalisation by the stack.
+
+- **C-004 — Migration policy for the existing `terraform/services/` stack (pins FR-023 / FR-024)**
+  Q: Keep the legacy stack in parallel until cutover, or replace in place with `moved {}` blocks?
+  A: Replace in place. The migration PR rewrites `terraform/services/` (`locals.tf`, `main.tf`, `outputs.tf`, `providers.tf`, `variables.tf`, `README.md`) and authors explicit `moved {}` blocks for every resource address that changes between the legacy stack and the engine-driven stack so no destroy/recreate happens in any live environment. Any resource that cannot be `moved {}`-translated without recreation MUST be called out in the PR description under an "Operator approval required" heading (FR-023 promise). The legacy reference content under `temp/_legacy/services/` is read-only and out of scope — not edited, not deleted, not migrated. No parallel-stack period; the cutover is the PR merge.
+
+- **C-005 — Variables / tfvars layout (pins A5 and FR-001)**
+  Q: Where do operator inputs live, and how is `subscription_id` passed?
+  A: Per-stack inputs live at `variables/{tenant}/{environment}/services.tfvars.json` (JSON form, mirroring the vnet stack's convention). The file contains all seven required inputs (`topology`, `tenant`, `environment`, `region`, `repo`, `services`, and the optional `overrides`). `subscription_id` is committed as the literal placeholder `REPLACE-WITH-RUNTIME-SUBSCRIPTION-ID` and MUST be overridden at runtime via the `TF_VAR_subscription_id` environment variable (sourced from a GitHub Actions secret in CI; from the operator's shell locally). The plan-time GUID regex (FR-002) MUST reject the placeholder, ensuring a missing runtime override fails loudly. No subscription IDs are ever committed to the repo.
+
+- **C-006 — Backend wiring and CI integration**
+  Q: Same hub-internal storage account as bootstrap, and same `deploy.yaml` integration as the vnet stack?
+  A: Yes. The remote backend uses the same hub-internal state SA provisioned by `terraform/bootstrap/` with a partial-config key of `"{tenant}/{environment}/services.tfstate"` (mirroring the vnet stack's pattern). The repo's `.github/workflows/deploy.yaml` `service` input MUST be extended to accept `"services"` and dispatch to `terraform/services/` with the same OIDC login, the same `TF_VAR_subscription_id` injection, and the same state-SA firewall handling used for `vnet`. No new workflow file is introduced.
+
+- **C-007 — RBAC contract for the OIDC service principal (pins A2 against the rbac stack)**
+  Q: Does this stack require any new subscription-scope role assignments on the OIDC SP beyond what bootstrap / rbac already grant?
+  A: No new roles required. The deploying SP's existing `Contributor` + `User Access Administrator` at subscription scope (granted by `terraform/rbac/`) covers every operation this stack performs, including the emission of the `svc` RG, every selectable AVM-backed resource, and any tag updates. Per-service data-plane access (e.g. Key Vault Secrets User / Officer, Storage Blob Data Owner for the operator and for the per-stack UAI) is granted by the wrapper modules using the engine's per-service default RBAC bindings (feature 001 `local.defaults[type].rbac`), NOT by adding new subscription-scope role assignments. The `terraform/rbac/` stack remains the sole owner of cross-stack / subscription-scope RBAC.
+
+- **C-008 — Output map key contract (pins FR-019 / FR-020)**
+  Q: Do `resource_ids` and `resource_names` map keys equal canonical names exactly?
+  A: Yes — pinned explicitly. The keys of `resource_ids`, `resource_names`, and any other per-resource map output MUST be the engine-emitted canonical name (e.g. `kv-sp01-npd-uks-001`). List-index keys, raw service-type keys (`keyvault.001`), or composite keys (`keyvault-001`) are forbidden. Downstream stacks contract against canonical names; FR-019 / FR-020 stand.
+
+- **C-009 — Minimum `terraform test` suite (pins FR-016)**
+  Q: What is the minimum test set under `terraform/services/tests/` required for merge?
+  A: The following `*.tftest.hcl` fixtures are mandatory and MUST be green for merge:
+    1. `snapshot.tftest.hcl` (P1) — byte-equal determinism snapshot of `module.naming.names` for the reference input (FR-014).
+    2. `happy_spoke.tftest.hcl` (P1) — US1 reference: `topology=spoke`, `tenant=sp01`, `env=npd`, `region=uksouth`, `services = [{ type = "keyvault" }, { type = "storage", count = 2 }]`; asserts 1 RG + 3 service resources, all in the `svc` RG, canonical names, six baseline tags.
+    3. `happy_hub.tftest.hcl` (P1) — US2 reference: `topology=hub`, `tenant=hub`, `services = [{ type = "keyvault" }, { type = "log_analytics" }]`; asserts hub-shaped canonical RG name `rg-hub-npd-svc-uks-001`.
+    4. `reject_unknown_service.tftest.hcl` (P1) — US5: `services = [{ type = "frobnicate" }]` hard-fails at plan time.
+    5. `reject_prd_hub_only.tftest.hcl` (P1) — FR-007 / Edge Cases: `services = [{ type = "dns_zone" }]` and `services = [{ type = "private_dns_zone" }]` each hard-fail at plan time with a message naming the owning stack (`terraform/dns/`).
+    6. `reject_deferred_v1.tftest.hcl` (P1) — C-001 deferred-type guard: `services = [{ type = "firewall" }]` (and one spoke-only deferred type, e.g. `vm`) each hard-fail at plan time with the "deferred to follow-up" message.
+    7. `idempotent_reorder.tftest.hcl` (P1) — FR-015 / C-002: reordering `services` entries with unchanged `(type, count)` pairs produces zero plan diff and zero `for_each` key churn.
+    8. `deferred_pe_diag_rejected.tftest.hcl` (P1, A4 hard-fail) — populating `private_endpoints` or `diagnostic_settings` on any `services[]` entry hard-fails at plan time with the friendly "deferred to follow-up" message from A4.
+    9. `override_targets_one_instance.tftest.hcl` (P2, US4) — top-level `overrides = { "kv-sp01-npd-uks-001" = { sku_name = "premium" } }` against a 2-instance keyvault selection: instance `001` carries `premium`, instance `002` carries the catalogued default.
+    Additional negative fixtures (unmatched override key, instance count >999, topology↔scope mismatch, subscription_id mismatch, placeholder subscription_id) are RECOMMENDED but not gating for v1 if their behaviour is already covered by feature 001's engine tests AND surfaced unchanged through this stack.
+
+- **C-010 — Wrapper-module modernisation scope (refines A6 / FR-021)**
+  Q: For each C-001 v1 selectable service whose `modules/<service>/` wrapper currently hardcodes names, tags, or SKUs, is the refactor in scope for this feature?
+  A: Yes — in scope for every v1 selectable service. Each wrapper module under `modules/<service>/` for the C-001 list MUST be brought into Constitution Principle V/VI/IX compliance as part of this feature: accept an engine record, delegate to the AVM (or hand-roll once with a follow-up tracker in the wrapper's `README.md` if no AVM exists), strip every hardcoded SKU / region / abbreviation / tag, carry no `providers` block, and emit the resource ID as its primary output. Per-wrapper tests (`modules/<service>/tests/*.tftest.hcl`) MUST cover at minimum: a positive emit against a synthetic engine record, a negative reject of a missing required field, and `terraform fmt -check` + `terraform validate` clean. Wrappers for deferred C-001 types are NOT touched in this feature.
+
+- **C-011 — Standing engineering defaults (encodes CLAUDE.md operating rules into this spec)**
+  Q: What baseline engineering rules apply implicitly to every requirement?
+  A: Per the project's CLAUDE.md standing directive: (i) every variable in this stack and in every wrapper module MUST be runtime-configurable via tfvars; no hardcoded literals beyond catalogued engine constants. (ii) Defaults MUST preserve existing observable behaviour where a legacy stack or wrapper already deploys against live state — any behavioural change MUST be opt-in via an explicit input or surfaced as "Operator approval required" in the migration PR. (iii) Validation MUST live at every input boundary (defence-in-depth): root stack `variable` blocks validate; wrapper-module `variable` blocks re-validate; the engine validates a third time. (iv) Every new variable and every new code path MUST ship with positive AND negative tests in the same PR. (v) `terraform fmt -recursive` and `terraform test` MUST be green locally and in CI before merge.
+
+
 
 ### User Story 1 — Operator selects a set of services for a spoke (Priority: P1) 🎯 MVP
 
@@ -213,3 +287,274 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 - Auto-import of existing resources (the legacy → engine migration uses `moved {}` only; pre-engine resources that were never in a Terraform state are out of scope).
 - A UI / web form for service selection. Selection is done by editing `services.tfvars` only.
 - Multi-region deployment in a single stack invocation. One stack invocation targets one `(tenant, environment, region, topology)` tuple.
+
+---
+
+## Clarifications Addendum 2026-05-30 (BLOCKER remediation)
+
+This addendum was inserted by `/speckit.analyze` (2026-05-30, pass 2)
+after auditing the actual implemented naming engine at
+[modules/naming/](../../modules/naming/) against the original spec
+text. Every numbered item below SUPERSEDES the conflicting earlier
+text. Anything not addressed here stands as previously written.
+
+### CA-001 — Real canonical-name formats (corrects FR-009, FR-010, examples in C-001..C-009, US1, US2, US4)
+
+Canonical names are produced by `module.naming.names` per
+[specs/001-naming-convention-engine/spec.md § Naming Pattern Table](../001-naming-convention-engine/spec.md#naming-pattern-table).
+For this stack's reference invocation
+(`stack_purpose="svc"`, `usecase` operator-supplied, `tenant=sp01`,
+`environment=npd`, `region=uks`, `service_purpose` per CA-004):
+
+| Resource | Real canonical-name shape | Reference example |
+|---|---|---|
+| `resource_group` (rg_hyphenated) | `rg-{stack_purpose}-{usecase}-{tenant}-{env}-{region}-{instance}` | `rg-svc-shd-sp01-npd-uks-001` |
+| `keyvault` (concatenated, no hyphens) | `kv{service_purpose}{usecase}{tenant}{env}{region}{instance}` | `kvshdshdsp01npduks001` |
+| `storage` (concatenated) | `st{service_purpose}{usecase}{tenant}{env}{region}{instance}` | `stshdshdsp01npduks001` |
+| `log_analytics` (hyphenated) | `log-{service_purpose}-{usecase}-{tenant}-{env}-{region}-{instance}` | `log-shd-shd-sp01-npd-uks-001` |
+| Every other v1 hyphenated type | `{abbr}-{service_purpose}-{usecase}-{tenant}-{env}-{region}-{instance}` | per table |
+| `container_registry` (concatenated) | `cr{service_purpose}{usecase}{tenant}{env}{region}{instance}` | per table |
+
+Every prior occurrence of `rg-{tenant}-{env}-svc-{region}-001`,
+`kv-sp01-npd-uks-001`, `stsp01npduks001`, and similar in
+[plan.md](plan.md), [data-model.md](data-model.md),
+[contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md),
+[quickstart.md](quickstart.md), and [tasks.md](tasks.md) is INCORRECT
+and MUST be regenerated by re-running `/speckit.plan` and `/speckit.tasks`.
+
+### CA-002 — `usecase` is the 8th required stack input (corrects FR-001, A2/A5)
+
+The naming engine's `var.input.usecase` (regex `^[a-z0-9]{3,4}$`) is
+REQUIRED. The stack's input contract is therefore EIGHT required
+inputs (`subscription_id`, `topology`, `tenant`, `environment`,
+`region`, `usecase`, `repo`, `services`) plus one optional
+(`overrides`). Reference value for day-one selections: `usecase = "shd"`
+(shared). Per-environment `usecase` allowed (e.g. `uc01`).
+
+### CA-003 — Topology gating is STACK-OWNED (corrects FR-003 cross-check, FR-007, FR-018, Edge Cases)
+
+The naming engine has NO `topology` concept and NO `topology_scope`
+field on catalogue rows. All of the following hard-fails MUST be
+implemented by this stack (in `variables.tf` validations or
+`check.tf` preconditions), NOT delegated to the engine:
+
+- topology↔tenant cross-check (`topology=hub ⟺ tenant=hub`)
+- v1 selectable-inventory allowlist (the C-001 15-type list)
+- "owned by another stack" rejection (`vnet`/`nsg`/`route_table`/`public_ip`, `dns_zone`/`private_dns_zone`)
+- "deferred to follow-up" rejection (`firewall`/`bastion`/`vpn_gateway`/`expressroute_gateway`/`vm`/`app_service_plan`)
+- child-only-at-top-level rejection (`subnet`, `nsg_rule`, `route`, `private_endpoint`, `diagnostic_setting`)
+
+The previous "engine FR-020 / FR-033" citations refer to behaviour
+that does not exist in the engine; treat them as stack-side rules.
+
+### CA-004 — Per-entry `service_purpose` is REQUIRED (corrects FR-005, plan.md R-2)
+
+Engine invariant `INV-4` (see `modules/naming/locals.tf`) hard-fails
+any non-RG, non-FQDN top-level entry whose `service_purpose` is
+`null`. The stack MUST therefore set `service_purpose` on every
+engine entry it synthesises. Two acceptable strategies:
+
+- **A (default)**: derive `service_purpose` from the operator-supplied
+  per-`services[]` `purpose` field (NEW required-per-entry string,
+  regex `^[a-z0-9]{3}$`), reusing `var.usecase` as the day-one fallback
+  default if omitted.
+- **B (fallback for v1)**: pin `service_purpose = var.usecase` (which
+  matches the engine regex `^[a-z0-9]{3}$` for the day-one `shd`
+  usecase) and defer per-entry `purpose` to a follow-up.
+
+The `services[]` element schema therefore gains an optional
+`purpose` field (regex `^[a-z0-9]{3}$`, default `var.usecase`).
+
+### CA-005 — Per-service defaults are WRAPPER-OWNED (corrects FR-013, A9, C-007, data-model § 8)
+
+The engine has NO `local.defaults[type]` map. SKU / tier / retention
+/ data-plane RBAC defaults MUST live in each
+`modules/<service>/locals.tf` and be exposed as merge-able inputs.
+The stack-level `overrides[canonical_name]` map is merged on top of
+the wrapper's defaults inside the wrapper. The root stack does NOT
+own any per-service-type default catalogue.
+
+### CA-006 — Stack OWNS unmatched-overrides hard-fail (corrects FR-006, FR-018, C-003)
+
+The engine has no `overrides` input. The root stack MUST emit a
+`precondition` (or `check` block) over
+`keys(var.overrides) ⊆ keys(module.naming.names)` and hard-fail at
+plan time listing every unmatched key.
+
+### CA-007 — Engine citation fixups (corrects every `feature 001 FR-NNN` reference in spec.md, plan.md, tasks.md, data-model.md, research.md)
+
+[specs/001-naming-convention-engine/spec.md](../001-naming-convention-engine/spec.md)
+contains NO `FR-NNN` requirements; only `SC-001..SC-004` and an
+unnumbered "Rules" bullet list. Engine invariants exist as
+`INV-1..INV-10` inside `modules/naming/locals.tf` and `check.tf`.
+Every prior `engine FR-NNN` citation MUST be re-resolved to one of:
+
+- spec 001 "Naming Pattern Table" rows
+- spec 001 "Rules" bullets (cite by bullet wording, not by FR-NNN)
+- spec 001 `SC-001..SC-004`
+- engine `INV-1..INV-10` (cite the invariant ID and the file path)
+
+### CA-008 — Eight baseline tags, not six (corrects FR-012)
+
+The engine baseline-tag set is EIGHT keys
+(`tenant, environment, region, managed_by, repo, usecase,
+stack_purpose, service_purpose`) — see
+`modules/naming/locals.tf::baseline_tag_keys` and
+[specs/001-naming-convention-engine/spec.md § Baseline Tags](../001-naming-convention-engine/spec.md#baseline-tags).
+Every prior "six baseline tags" reference is incorrect.
+
+### CA-009 — SC-007 grep MUST match real name shapes (corrects SC-007, tasks.md Verification gate #8)
+
+The prior regex `(kv|st|rg|law|cr|...)-(hub|sp[0-9]{2})-(npd|prd)-`
+matches nothing real because (i) `kv` / `st` / `cr` are CONCATENATED
+(no leading hyphen-tenant) and (ii) RG names start
+`rg-{stack_purpose}-{usecase}-...`, not `rg-{tenant}-`. The corrected
+hand-built-name grep is:
+
+```sh
+git grep -nE \
+  '(^|[^a-z])(rg-svc-|kv[a-z0-9]{3,4}[a-z0-9]{3,4}|st[a-z0-9]{3,4}[a-z0-9]{3,4}|cr[a-z0-9]{3,4}[a-z0-9]{3,4}|(log|appi|id|apim|func|logic|mlw|oai|aif|lang|di|srch)-[a-z0-9]{3}-[a-z0-9]{3,4}-(hub|sp[0-9]{2}))-' \
+  terraform/services modules/{keyvault,storage,appinsights,loganalytics,cntreg,uai,search,openai,aifoundry,language,docint,fnapp,lgapp,aml,apim} \
+  -- ':!*/tests/*' ':!*/README.md'
+```
+
+A zero-match result is the SC-007 / gate-#8 pass.
+
+### CA-010 — `naming` output passthrough (corrects contracts/cross-stack-outputs.md "Output: naming")
+
+The engine's exposed output map is `module.naming.names` (verify
+against `modules/naming/outputs.tf` before merge). The contract MUST
+re-derive the field name from the actual file rather than asserting
+`module.naming.names` blindly.
+
+### CA-011 — `subscription_id` runtime injection: CLI or env (corrects C-005, quickstart Troubleshooting)
+
+`.github/workflows/deploy.yaml` injects `subscription_id` via the
+`-var` CLI flag (`-var "subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}"`),
+NOT via `TF_VAR_subscription_id`. Both Terraform-native paths are
+accepted; the quickstart MUST document the CLI form for CI and the
+`TF_VAR_subscription_id` form for local shells.
+
+### CA-012 — Follow-up amendment required before /speckit.implement
+
+These corrections invalidate the canonical-name examples and tags
+asserted in every fixture under [tasks.md Phase 3](tasks.md#phase-3--root-stack-terraform-test-suite-c-009)
+and the snapshot at `tests/snapshots/reference.json`. **`/speckit.implement`
+MUST NOT run until `/speckit.plan` and `/speckit.tasks` are re-run
+against this addendum and the downstream artifacts
+([data-model.md](data-model.md), [contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md),
+[quickstart.md](quickstart.md), and [tasks.md](tasks.md)) are
+regenerated.**
+
+---
+
+## Clarifications Amendment 2026-05-31 (APIM hub-only + shared hub LA)
+
+> Authority order: this amendment overrides any conflicting text above.
+> CA-001..CA-012 (2026-05-30 addendum) remain intact and authoritative
+> for the surface they cover. C-013 and C-014 below are NEW operator
+> constraints derived from the 006-services-impl branch review and
+> apply on top of CA-001..CA-012.
+
+### C-013 — APIM is hub-only (narrows FR-007 / CA-003 / spec.md C-001)
+
+Q: Is `apim` a valid v1 selectable type from a spoke stack invocation?
+
+A: NO. Selecting `services = [{ type = "apim", … }, …]` on a stack where
+`var.topology != "hub"` (equivalently: `var.tenant != "hub"`, per CA-003
+cross-check) MUST hard-fail at `terraform plan` time, BEFORE any
+provider call, with a clear actionable message naming this rule
+("C-013 — apim is hub-only") and instructing the operator to either
+(a) move the apim entry into `variables/hub/<env>/services.tfvars.json`,
+or (b) drop the apim selection from the spoke. The defence-in-depth
+contract from CA-003 (validate at every input boundary) requires the
+check at BOTH layers:
+
+  1. Root-stack precondition (`terraform/services/main.tf` — preferred:
+     a `lifecycle.precondition` on the always-present
+     `azurerm_resource_group.svc` resource so it fires in plan without
+     any data-source call).
+  2. Wrapper-module variable validation OR precondition
+     (`modules/apim/`) — the wrapper takes a new required input
+     `topology` and asserts `topology == "hub"`. This ensures any
+     out-of-tree caller of `modules/apim/` (today: none; tomorrow:
+     potentially a future hub-only stack) also gets the guard for free.
+
+This narrows FR-007 (selectable inventory) and the `services[*].type`
+allowlist in `terraform/services/variables.tf`: `apim` remains in the
+allowlist (because hub callers MUST be able to select it), but the
+type-allowlist alone is insufficient and MUST be paired with the
+topology guard.
+
+### C-014 — All services emit diagnostics to the SHARED hub LA (narrows FR-018, A4)
+
+Q: Where do the services-stack-emitted resources send their Azure
+Monitor diagnostic settings (logs + metrics)?
+
+A: To the SHARED hub Log Analytics workspace provisioned by
+`terraform/log/` (state key `hub/<environment>/log.tfstate`, outputs
+`workspace_resource_id` + `workspace_id`). NOT to per-stack workspaces.
+NOT to an operator-chosen workspace via `overrides`. The wiring is
+default-on for every wrapper whose underlying Azure resource supports
+the `Microsoft.Insights/diagnosticSettings` extension resource
+(keyvault, storage, app_insights, container_registry, search, openai,
+aifoundry, language, doc_intel, function_app, logic_app, aml_workspace,
+apim — i.e. everything except `user_assigned_identity` which has no
+diagnostic categories, and `log_analytics` itself which is the sink).
+
+Concrete contract:
+
+  1. Root stack reads the shared workspace id via a new
+     `data "terraform_remote_state" "hub_log"` block keyed by
+     `hub/${var.environment}/log.tfstate` against the same hub state SA
+     used by `terraform/bootstrap/` (`rg-tfs-shd-hub-npd-swc-001` /
+     `sttfsshdhubnpdswc001` / `tfstate`).
+  2. Three new optional root-stack inputs surface the state-SA
+     coordinates (`tfstate_resource_group`, `tfstate_storage_account`,
+     `tfstate_container`) with defaults matching the bootstrap SA so
+     the day-one operator experience is zero-config. Each carries a
+     regex validation matching the bootstrap naming convention.
+  3. Every wrapper module invocation in `terraform/services/main.tf`
+     receives `shared_log_analytics_workspace_id =
+     data.terraform_remote_state.hub_log.outputs.workspace_resource_id`
+     (except `modules/loganalytics/` — exempt by symmetry with the
+     "sink cannot diagnose itself" rule; documented inline in
+     `terraform/services/main.tf` with a "C-014 exemption" comment).
+  4. Every diagnostic-capable wrapper carries a default
+     `azurerm_monitor_diagnostic_setting "to_hub_la"` resource that
+     enables ALL log categories via `enabled_log { category_group =
+     "allLogs" }` and ALL metric categories via `metric { category =
+     "AllMetrics" }`. The `category_group = "allLogs"` form is used in
+     preference to enumerating categories via
+     `data.azurerm_monitor_diagnostic_categories` because the data
+     source requires the target resource to already exist (creating a
+     plan-time chicken-and-egg cycle on first apply) — `allLogs` is
+     the operationally equivalent, AVM-compliant alternative.
+  5. The `appinsights` wrapper additionally sets `workspace_id =
+     var.shared_log_analytics_workspace_id` on the underlying
+     `azurerm_application_insights` resource so the workspace-based AI
+     resource itself is anchored at the shared hub LA (in addition to
+     emitting its diag settings there).
+  6. Operator override hook: every diagnostic-capable wrapper accepts
+     `diagnostic_settings_enabled` (default `true`) so an exceptional
+     workload (air-gapped, throwaway test, etc.) can opt out by
+     setting the flag to `false` in `overrides.<canonical-name>`. The
+     default behaviour wires shared-LA diagnostics everywhere.
+  7. The `shared_log_analytics_workspace_id` variable on every wrapper
+     carries a regex validation
+     (`^/subscriptions/.+/providers/Microsoft.OperationalInsights/workspaces/.+$`)
+     so a malformed value is rejected at the wrapper boundary
+     (defence-in-depth per CA-003).
+
+Operationally: the `terraform/log/` stack for the target environment
+MUST be applied BEFORE `terraform/services/` for that environment, or
+the remote_state lookup fails with a clear "shared LA state lookup
+failed" message — see [quickstart.md § Troubleshooting](quickstart.md).
+
+This amendment leaves FR-018 (hard-fail list) and A4 (per-instance
+`diagnostic_settings` deferred to follow-up) intact: the C-014 default
+wiring is STACK-LEVEL and does NOT enable the per-`services[]`-entry
+`diagnostic_settings` field. Operators who try to populate that field
+still get the A4 "deferred to follow-up" hard-fail; the C-014 default
+gives them the hub-LA wiring they need for v1 without exposing the
+deferred surface.

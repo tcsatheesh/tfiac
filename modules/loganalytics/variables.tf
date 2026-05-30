@@ -15,6 +15,16 @@ variable "input" {
     stack_purpose = string
     repo          = string
   })
+
+  # Defence-in-depth: mirror the engine's stack_purpose regex
+  # (modules/naming/variables.tf, INV-* / catalogue rule) at the wrapper
+  # boundary so tests/services_negative.tftest.hcl can attribute the
+  # failure to var.input on this module instead of the deeper engine
+  # module.
+  validation {
+    condition     = can(regex("^[a-z0-9]{3}$", var.input.stack_purpose))
+    error_message = "input.stack_purpose must match ^[a-z0-9]{3}$ (e.g. \"log\", \"svc\", \"net\")."
+  }
 }
 
 variable "workspace_key" {
