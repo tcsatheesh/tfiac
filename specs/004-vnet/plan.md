@@ -651,3 +651,157 @@ floor with margin.
   prevent foot-guns. This is captured by FR-212 / C16.2 — design the
   module to NOT expose `registration_enabled` as an input at all.
 
+
+---
+
+## Amendment 2 Plan — Drift Reconciliation (FR-223..FR-225)
+
+### §10. Scope
+
+Two surgical config fixes plus one bastion-PIP refactor inside the
+network wrapper module, executed under the existing constitution and
+without changing the public interface of `modules/network/`,
+`modules/network/bastion/`, or `modules/network/firewall/`. Root
+stack `terraform/vnet/` is untouched. Tfvars are unchanged. No new
+modules are introduced.
+
+### §11. Approach per FR
+
+#### FR-223 — Hard-coded `ip_tags` on first-party PIPs
+
+Add `ip_tags = { FirstPartyUsage = "/Unprivileged" }` inside both
+`module "pip_data"` and `module "pip_mgmt"` calls in
+`modules/network/firewall/main.tf`, and inside the new bastion PIP
+module call introduced under FR-224. The value is a hard-coded local
+constant (not a variable) — see C16.14 and per Constitution III
+(defaults preserve behaviour, but here the *Azure* default differs
+from our config default; this amendment aligns the two).
+
+#### FR-224 — Bastion BYO PIP refactor
+
+Replace the bastion AVM's embedded PIP with an external one:
+
+```hcl
+# modules/network/bastion/main.tf (after refactor)
+
+module "pip" {
+  source  = "Azure/avm-res-network-publicipaddress/azurerm"
+  version = "~> 0.2"
+
+  name                = var.public_ip_name
+  location            = var.location
+  resource_group_name = split("/", var.resource_group_id)[4]
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  zones               = ["1", "2", "3"]
+  ip_tags             = { FirstPartyUsage = "/Unprivileged" }
+  tags                = var.public_ip_tags
+  enable_telemetry    = false
+}
+
+module "bastion" {
+  source  = "Azure/avm-res-network-bastionhost/azurerm"
+  # ...unchanged...
+  ip_configuration = {
+    name                 = "ipconfig"
+    subnet_id            = var.subnet_id
+    create_public_ip     = false
+    public_ip_address_id = module.pip.public_ip_id
+  }
+}
+```
+
+Bastion submodule public interface gains one optional input
+(`public_ip_tags`, default `{}`) and one new output
+(`public_ip_id`); existing inputs (`name`, `location`,
+`resource_group_id`, `subnet_id`, `public_ip_name`, `tags`) and
+existing outputs (`resource_id`, `name`) are preserved unchanged.
+
+`modules/network/main.tf` line 132 (the existing
+`module "bastion"` block in the wrapper) gains a single new line
+`public_ip_tags = module.naming.names[local.pip_canonical_names.bas].tags`
+so the new PIP carries the same engine-derived tags the embedded one
+did.
+
+#### FR-225 — Per-service serviceEndpoint locations
+
+Introduce in `modules/network/locals.tf`:
+
+```hcl
+storage_se_locations = {
+  swedencentral = ["swedencentral", "swedensouth"]
+}
+```
+
+and rewrite the inline expression in `modules/network/main.tf`:
+
+```hcl
+service_endpoints_with_location = [
+  for ep in local.role_catalogue[r].service_endpoints : {
+    service   = ep
+    locations = ep == "Microsoft.Storage"
+                ? lookup(local.storage_se_locations, local.region_full, ["*"])
+                : ["*"]
+  }
+]
+```
+
+The `lookup(..., ["*"])` fallback preserves today's behaviour for
+unmapped regions (C16.16). The `region_full` local already exists in
+`modules/network/locals.tf` (resolved via the naming engine).
+
+### §12. State migration (C16.18)
+
+Because FR-224 changes the address of the bastion PIP from
+`module.network.module.bastion[0].module.bastion.module.public_ip_address[0].azurerm_public_ip.this`
+to
+`module.network.module.bastion[0].module.pip.azurerm_public_ip.this`,
+Phase 9 MUST run a `terraform state mv` BEFORE the gate plan. The
+move is performed against the live `hub/npd/vnet.tfstate` backend
+while the SA firewall is temporarily open (Phase 9 T119).
+
+If the state mv is skipped, the plan will show one destroy + one add
+for the bastion PIP, failing the FR-222 gate.
+
+### §13. Testing strategy
+
+Reuse existing mocked root-stack tests (`terraform/vnet/tests/*`)
+with additions. All tests run with the existing `mock_provider`
+stack (azurerm + azapi + modtm + random + time + dns alias).
+
+- `pip_ip_tags_present.tftest.hcl` — single `run` block with
+  `command = plan` against hub fixture; uses
+  `expect_failures = []` and inspects the plan to assert
+  `length([for r in run.<rname>.<resource>... : r if r.ip_tags == { FirstPartyUsage = "/Unprivileged" }]) == 3`.
+  Practical implementation: use `assert` with a
+  `module.network.module.firewall[0].module.pip_data.azurerm_public_ip.this.ip_tags["FirstPartyUsage"]`
+  reference once the resource is created during plan.
+- `subnet_storage_endpoint_regional.tftest.hcl` — single `run` block
+  with `command = plan` against hub fixture; asserts that the
+  `dev` subnet's `service_endpoints_with_location` includes
+  `{ service = "Microsoft.Storage", locations = ["swedencentral", "swedensouth"] }`
+  and that the same subnet still emits
+  `{ service = "Microsoft.KeyVault", locations = ["*"] }`.
+- Bastion BYO PIP wiring is implicitly covered by the first test
+  (three PIPs ⇒ bastion's external PIP is one of them); no separate
+  test required to keep test count proportionate.
+
+Existing tests (`plan_zero_diff_*`, `plan_snapshot_*`) MUST continue
+to pass without modification — the public interface is unchanged.
+
+### §14. Rollout (Phase 9)
+
+Hub-only live rollout, mirroring Phase 8 (T111-T118):
+
+1. Open state SA firewall to operator IP (T119).
+2. `terraform init -reconfigure -backend-config=.../backend.hcl -backend-config="key=hub/npd/vnet.tfstate"`.
+3. **State move** for bastion PIP (T121, MANDATORY per C16.18).
+4. `terraform plan -out hub.npd.tfplan`.
+5. **GATE per FR-222**: plan summary MUST be `Plan: 0 to add, 0 to change, 0 to destroy.`. ABORT and revert state mv otherwise.
+6. (no apply — gate alone proves zero-diff convergence; if T123 GATE passes, code has converged with reality)
+7. Restore SA firewall lock.
+8. Report and mark Phase 9 complete.
+
+> No `terraform apply` in Phase 9 — the entire purpose of this
+> amendment is to make the *plan* a no-op against live Azure. If the
+> gate is satisfied, no resources need touching.

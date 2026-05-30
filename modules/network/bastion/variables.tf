@@ -28,3 +28,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "public_ip_tags" {
+  description = "Engine-emitted tags for the bastion data-plane PIP (FR-224)."
+  type        = map(string)
+  default     = {}
+}

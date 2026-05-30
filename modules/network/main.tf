@@ -65,8 +65,11 @@ module "vnet" {
 
       service_endpoints_with_location = [
         for ep in local.role_catalogue[r].service_endpoints : {
-          service   = ep
-          locations = ["*"]
+          service = ep
+          # Microsoft.Storage is server-side normalised from ["*"] to a
+          # regional pair by Azure (FR-225). Other endpoints (e.g.
+          # Microsoft.KeyVault) are stored as-is, so ["*"] is fine.
+          locations = ep == "Microsoft.Storage" ? lookup(local.storage_se_locations, local.region_full, ["*"]) : ["*"]
         }
       ]
 
@@ -136,6 +139,7 @@ module "bastion" {
   subnet_id         = module.vnet.subnets[local.role_catalogue["bastion"].abbr3].resource_id
   public_ip_name    = local.pip_canonical_names.bas
   tags              = module.naming.names[local.bastion_canonical_name].tags
+  public_ip_tags    = module.naming.names[local.pip_canonical_names.bas].tags
 }
 
 # ----- firewall (hub only) -----

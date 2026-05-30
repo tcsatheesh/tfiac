@@ -64,6 +64,16 @@ output "bastion_id" {
   value       = var.role == "hub" ? module.bastion[0].resource_id : null
 }
 
+output "firewall_pip_ip_tags" {
+  description = "First-party ip_tags applied to the hub firewall PIPs (null on spoke). FR-223 / C16.14; exposed for plan-time tests."
+  value       = var.role == "hub" ? module.firewall[0].pip_ip_tags : null
+}
+
+output "bastion_pip_ip_tags" {
+  description = "First-party ip_tags applied to the hub bastion PIP (null on spoke). FR-223 / C16.14; exposed for plan-time tests."
+  value       = var.role == "hub" ? module.bastion[0].pip_ip_tags : null
+}
+
 output "resource_group_name" {
   description = "Engine-emitted RG name."
   value       = local.rg_canonical_name
@@ -77,4 +87,16 @@ output "resource_group_id" {
 output "naming" {
   description = "Engine names map (for callers that need the full set)."
   value       = module.naming.names
+}
+
+output "subnet_service_endpoints" {
+  description = "Map of role => list({service, locations}) actually passed to the subnet AVM module. Exposed so plan-time tests can assert FR-225 regional expansion is applied (e.g. Microsoft.Storage in swedencentral => [\"swedencentral\",\"swedensouth\"])."
+  value = {
+    for r in local.active_roles : r => [
+      for ep in local.role_catalogue[r].service_endpoints : {
+        service   = ep
+        locations = ep == "Microsoft.Storage" ? lookup(local.storage_se_locations, local.region_full, ["*"]) : ["*"]
+      }
+    ]
+  }
 }

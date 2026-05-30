@@ -1,3 +1,12 @@
+# Single source of truth for first-party PIP ip_tags (FR-223 / C16.14):
+# Azure auto-applies this tag to Standard SKU PIPs backing first-party
+# services. Declaring it in config keeps refresh state aligned so the
+# resource is never force-replaced. Re-exported via output "pip_ip_tags"
+# so plan-time tests can assert it (T129).
+locals {
+  first_party_pip_ip_tags = { FirstPartyUsage = "/Unprivileged" }
+}
+
 # Data-plane PIP for the firewall.
 module "pip_data" {
   source  = "Azure/avm-res-network-publicipaddress/azurerm"
@@ -9,6 +18,7 @@ module "pip_data" {
   allocation_method   = "Static"
   sku                 = "Standard"
   zones               = ["1", "2", "3"]
+  ip_tags             = local.first_party_pip_ip_tags
   tags                = var.pip_data_tags
   enable_telemetry    = false
 }
@@ -26,6 +36,7 @@ module "pip_mgmt" {
   allocation_method   = "Static"
   sku                 = "Standard"
   zones               = ["1", "2", "3"]
+  ip_tags             = local.first_party_pip_ip_tags
   tags                = var.pip_mgmt_tags
   enable_telemetry    = false
 }
