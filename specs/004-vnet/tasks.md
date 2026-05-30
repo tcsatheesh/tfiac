@@ -249,16 +249,16 @@ in [plan.md](plan.md).
 
 ### Live rollout — hub/npd (sequential, post-merge on master)
 
-- [ ] T111 Open state SA firewall on `stcwetfstate01`: `publicNetworkAccess=Enabled`, add operator public IP rule (record IP in PR comment for audit)
-- [ ] T112 `cd terraform/vnet && terraform init -reconfigure -backend-config=../../variables/backend.hcl -backend-config="key=hub/npd/vnet.tfstate"`
-- [ ] T113 `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=883c9081-23ed-4674-95c5-45c74834e093 -out=hub.npd.tfplan`
-- [ ] T114 **GATE per FR-222 / C16.12**: inspect plan summary. MUST be `Plan: N to add, 0 to change, 0 to destroy.` where every "add" line is either `data.terraform_remote_state.dns` (read) or `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[...]`. ABORT and revert if any other change appears against pre-existing vnet/subnet/NSG/route-table/firewall/bastion/peering resources
-- [ ] T115 `terraform apply hub.npd.tfplan` — confirm exit 0 and N link resources created
-- [ ] T116 Restore state SA firewall: `publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove temp operator IP rule (CLAUDE.md autonomy rule)
+- [x] T111 Open state SA firewall on `stcwetfstate01`: `publicNetworkAccess=Enabled`, add operator public IP rule (record IP in PR comment for audit)
+- [x] T112 `cd terraform/vnet && terraform init -reconfigure -backend-config=../../variables/backend.hcl -backend-config="key=hub/npd/vnet.tfstate"`
+- [x] T113 `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=883c9081-23ed-4674-95c5-45c74834e093 -out=hub.npd.tfplan`
+- [x] T114 **GATE per FR-222 / C16.12**: inspect plan summary. MUST be `Plan: N to add, 0 to change, 0 to destroy.` where every "add" line is either `data.terraform_remote_state.dns` (read) or `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[...]`. ABORT and revert if any other change appears against pre-existing vnet/subnet/NSG/route-table/firewall/bastion/peering resources
+- [x] T115 `terraform apply hub.npd.tfplan` — confirm exit 0 and N link resources created
+- [x] T116 Restore state SA firewall: `publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove temp operator IP rule (CLAUDE.md autonomy rule)
 
 ### Live verification (sequential)
 
-- [ ] T117 From operator workstation, validate in-vnet private resolution via the build VM:
+- [x] T117 From operator workstation, validate in-vnet private resolution via the build VM:
   ```bash
   az vm run-command invoke \
     -g rg-bld-shd-hub-npd-swc-001 \
@@ -268,7 +268,7 @@ in [plan.md](plan.md).
     --scripts "set -e; nslookup -type=SOA privatelink.blob.core.windows.net 168.63.129.16; nslookup -type=SOA privatelink.vaultcore.azure.net 168.63.129.16"
   ```
   Acceptance: both SOA queries return an authority anchored at `azureprivatedns.net`, proving the vnet resolver now consults the linked private zones (per plan §8 step 4). NXDOMAIN on A-record lookups for non-provisioned hosts is expected and fine — the SOA authority is the contract
-- [ ] T118 Report plan summary (N adds), apply duration, and SOA query output back to user; mark Phase 8 complete
+- [x] T118 Report plan summary (N adds), apply duration, and SOA query output back to user; mark Phase 8 complete
 
 > Phase 8 tasks track spec FR-211..FR-222 and clarifications C16.1..C16.12, and execute plan amendment §1–§9. Dependency chain: T080–T082 (verify) → T083–T089 (submodule scaffold, parallel) → T090–T093 (submodule tests, parallel) → T094 → T095 → T096 → T097 (root wiring, sequential) → T098 → T099/T100/T101/T102 (root tests, T100/T101 parallel) → T103/T104 (tfvars, parallel) → T105 → T106 → T107 → T108 → T109 → T110 (gate + merge) → T111…T116 (rollout, sequential) → T117 → T118 (verify + report).
 
@@ -293,14 +293,14 @@ in [plan.md](plan.md).
 
 ### Phase 9 live rollout (post-merge)
 
-- [ ] T135 Open SA firewall on `stcwetfstate01` to operator IP (mirror T111).
-- [ ] T136 `cd terraform/vnet && rm -rf .terraform && terraform init -reconfigure -backend-config=../../variables/backend.hcl -backend-config="key=hub/npd/vnet.tfstate"`.
-- [ ] T137 **State migration (C16.18)**: `terraform state mv 'module.network.module.bastion[0].module.bastion.module.public_ip_address[0].azurerm_public_ip.this' 'module.network.module.bastion[0].module.pip.azurerm_public_ip.this'`.
-- [ ] T138 `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=883c9081-23ed-4674-95c5-45c74834e093 -out=hub.npd.tfplan`.
-- [ ] T139 **GATE per FR-222**: plan summary MUST be `No changes. Your infrastructure matches the configuration.` OR `Plan: 25 to add, 0 to change, 0 to destroy.` where the 25 adds are exclusively `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[*]` carried over from Phase 8. ABORT and `terraform state mv` BACK if any other change appears.
-- [ ] T140 If gate passes AND adds == 25 dnslinks (Phase 8 not yet applied), `terraform apply hub.npd.tfplan` — this completes Phase 8's apply with drift fixed; otherwise (gate green with zero adds), skip apply.
-- [ ] T141 Restore SA firewall lock (mirror T116).
-- [ ] T142 If T140 applied: validate per Phase 8 T117 (build VM nslookup SOA); otherwise skip.
-- [ ] T143 Report plan summary and Phase 9 complete.
+- [x] T135 Open SA firewall on `stcwetfstate01` to operator IP (mirror T111).
+- [x] T136 `cd terraform/vnet && rm -rf .terraform && terraform init -reconfigure -backend-config=../../variables/backend.hcl -backend-config="key=hub/npd/vnet.tfstate"`.
+- [x] T137 **State migration (C16.18)**: `terraform state mv 'module.network.module.bastion[0].module.bastion.module.public_ip_address[0].azurerm_public_ip.this' 'module.network.module.bastion[0].module.pip.azurerm_public_ip.this'`.
+- [x] T138 `terraform plan -no-color -input=false -var-file=../../variables/hub/npd/vnet.tfvars.json -var subscription_id=883c9081-23ed-4674-95c5-45c74834e093 -out=hub.npd.tfplan`.
+- [x] T139 **GATE per FR-222**: plan summary MUST be `No changes. Your infrastructure matches the configuration.` OR `Plan: 25 to add, 0 to change, 0 to destroy.` where the 25 adds are exclusively `module.dnslinks.azurerm_private_dns_zone_virtual_network_link.this[*]` carried over from Phase 8. ABORT and `terraform state mv` BACK if any other change appears.
+- [x] T140 If gate passes AND adds == 25 dnslinks (Phase 8 not yet applied), `terraform apply hub.npd.tfplan` — this completes Phase 8's apply with drift fixed; otherwise (gate green with zero adds), skip apply.
+- [x] T141 Restore SA firewall lock (mirror T116).
+- [x] T142 If T140 applied: validate per Phase 8 T117 (build VM nslookup SOA); otherwise skip.
+- [x] T143 Report plan summary and Phase 9 complete.
 
 > Phase 9 tasks track spec FR-223..FR-225 and clarifications C16.13..C16.18, and execute plan amendment §10–§14. Dependency chain: T119 (firewall) → T120/T121 (bastion vars+outputs, parallel) → T122 → T123 → T124 → T125 → T126 → T127 → T128 → T129/T130 (tests, parallel) → T131 → T132 → T133 → T134 → T135 → T136 → T137 → T138 → T139 → T140 → T141 → T142 → T143.
