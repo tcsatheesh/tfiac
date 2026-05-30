@@ -12,6 +12,8 @@ mock_provider "azurerm" {
 }
 mock_provider "azurerm" { alias = "hub" }
 mock_provider "azurerm" { alias = "dns" }
+mock_provider "azapi" {}
+mock_provider "modtm" {}
 mock_provider "random" {}
 mock_provider "time" {}
 
