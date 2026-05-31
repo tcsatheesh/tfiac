@@ -1,6 +1,7 @@
 {
   "acr": "privatelink.azurecr.io",
   "agentsvc": "privatelink.agentsvc.azure-automation.net",
+  "aiservices": "privatelink.services.ai.azure.com",
   "aml-api": "privatelink.api.azureml.ms",
   "appconfig": "privatelink.azconfig.io",
   "automation": "privatelink.azure-automation.net",

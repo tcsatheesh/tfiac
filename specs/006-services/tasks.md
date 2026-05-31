@@ -528,3 +528,55 @@ drops the legacy KV + SA fixtures. All tasks are post-implement.
 - [X] T-C017-031 Fix plan §5 wording drift (analyze MAJOR M2): edit the C-017 §5 line in [specs/006-services/plan.md](../../specs/006-services/plan.md) to remove the inaccurate "the existing 'missing storage_account_id' run is removed" phrase — the existing run is `empty_canonical_name_rejected` (kept verbatim) per T-C017-009. (FR-026 / C-017)
 - [X] T-C017-032 Add `properties.publicNetworkAccess` reminder to T-C017-004 implementation (analyze MINOR m1) — covered by plan.md §1 verbatim; included here for implementer hygiene. (FR-026 / C-017)
 - [X] T-C017-033 Remove now-unused `data "azurerm_subscription" "current"` from [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf) once T-C017-011 swaps to `parent_id = var.parent_account_id` (analyze MINOR m4). (FR-026 / C-017)
+
+## Phase C-018 — Foundry account private endpoint + private DNS (amendment)
+
+> Delivers [spec.md C-018 / FR-027](../../specs/006-services/spec.md). Opt-in
+> private endpoint for the `aifoundry` Cognitive Services account; defaults
+> preserve C-017 behaviour. `[P]` = parallelisable (different files, no
+> ordering dependency).
+
+### Phase C-018.A — DNS catalogue
+
+- [X] T-C018-001 Edit [modules/dnszones/catalogue.tf](../../modules/dnszones/catalogue.tf) per [plan.md §C-018.1](plan.md): add row `"aiservices" = "privatelink.services.ai.azure.com"` to `local.catalogue` (keep `cogsvc`, `openai`). (FR-027 / C-018)
+- [X] T-C018-002 [P] Update any zone-count / catalogue-completeness assertion under [modules/dnszones/tests/](../../modules/dnszones/tests/) for the new `aiservices` row; run `terraform -chdir=modules/dnszones test` → green. (FR-027 / C-018)
+
+### Phase C-018.B — aifoundry wrapper PE support
+
+- [X] T-C018-003 Edit [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf) per [plan.md §C-018.2](plan.md): add `private_endpoint_enabled` (bool, default `false`), `private_endpoint_subnet_id` (string, default `null`, regex validator for `…/subnets/<name>` when non-null), `private_dns_zone_ids` (list(string), default `[]`). (FR-027 / C-018)
+- [X] T-C018-004 Edit [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf) per [plan.md §C-018.3](plan.md): make `defaults.public_network_access` resolve to `"Disabled"` when `var.private_endpoint_enabled` else `"Enabled"` (overrides still win); add `pe_name = "pep-${var.canonical_name}"`. (FR-027 / C-018)
+- [X] T-C018-005 Edit [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf) per [plan.md §C-018.4](plan.md): add count-gated `azurerm_private_endpoint.this` (subnet `var.private_endpoint_subnet_id`, `private_service_connection` with `subresource_names=["account"]` targeting `azapi_resource.this.id`, `private_dns_zone_group { name="default", private_dns_zone_ids=var.private_dns_zone_ids }`); add a `precondition` asserting `private_endpoint_enabled ⇒ subnet set && zones non-empty`. (FR-027 / C-018)
+- [X] T-C018-006 [P] Edit [modules/aifoundry/outputs.tf](../../modules/aifoundry/outputs.tf): add `output "private_endpoint_id"` = `one(azurerm_private_endpoint.this[*].id)`. (FR-027 / C-018)
+- [X] T-C018-007 [P] Update [modules/aifoundry/README.md](../../modules/aifoundry/README.md) documenting the PE inputs and the in-module `pep-${canonical_name}` naming deviation (engine `private_endpoint` row reserved for the generic follow-up). (FR-027 / C-018)
+
+### Phase C-018.C — services stack wiring
+
+- [X] T-C018-008 Edit [terraform/services/variables.tf](../../terraform/services/variables.tf) per [plan.md §C-018.6](plan.md): add `enable_aifoundry_private_endpoint` (bool, default `false`), `private_endpoint_subnet_role` (string, default `"development"`, validator on known spoke roles), `vnet_state_backend` + `dns_state_backend` (objects, default `null`) with a validator `enable ⇒ both backends non-null`. Leave the A4 `private_endpoints`/`diagnostic_settings` hard-fails UNCHANGED. (FR-027 / C-018)
+- [X] T-C018-009 Create [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf) per [plan.md §C-018.7](plan.md): `local.aifoundry_pe_required`, two count-gated `data "terraform_remote_state"` (`vnet`, `dns`), `local.pe_subnet_id`, `local.pe_zone_ids` (keys `cogsvc`/`openai`/`aiservices`). (FR-027 / C-018)
+- [X] T-C018-010 Edit [terraform/services/main.tf](../../terraform/services/main.tf) per [plan.md §C-018.8](plan.md): pass `private_endpoint_enabled`, `private_endpoint_subnet_id`, `private_dns_zone_ids` into `module.aifoundry`. (FR-027 / C-018)
+- [X] T-C018-011 Edit [terraform/services/check.tf](../../terraform/services/check.tf) per [plan.md §C-018.9](plan.md): add `check "aifoundry_pe_requires_account"`. (FR-027 / C-018)
+
+### Phase C-018.D — Day-one tfvars
+
+- [X] T-C018-012 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json) per [plan.md §C-018.10](plan.md): set `enable_aifoundry_private_endpoint=true`, `private_endpoint_subnet_role="development"`, add `vnet_state_backend` (key `sp01/npd/vnet.tfstate`) + `dns_state_backend` (key `hub/prd/dns.tfstate`). (FR-027 / C-018)
+
+### Phase C-018.E — Tests
+
+- [X] T-C018-013 [P] Create [modules/aifoundry/tests/private_endpoint_positive.tftest.hcl](../../modules/aifoundry/tests/private_endpoint_positive.tftest.hcl): PE enabled emits `azurerm_private_endpoint.this` (group id `account`), DNS zone group, and `publicNetworkAccess="Disabled"`. (FR-027 / C-018)
+- [X] T-C018-014 [P] Create [modules/aifoundry/tests/private_endpoint_negative.tftest.hcl](../../modules/aifoundry/tests/private_endpoint_negative.tftest.hcl): `private_endpoint_enabled=true` with null subnet hard-fails; malformed subnet id fails the regex. (FR-027 / C-018)
+- [X] T-C018-015 [P] Create [terraform/services/tests/aifoundry_pe_happy.tftest.hcl](../../terraform/services/tests/aifoundry_pe_happy.tftest.hcl): `enable_aifoundry_private_endpoint=true` with `override_data` for `data.terraform_remote_state.vnet` + `.dns`; asserts subnet + three zone ids wired into `module.aifoundry`. (FR-027 / C-018)
+- [X] T-C018-016 [P] Create [terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl](../../terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl): toggle on, no `aifoundry` selected ⇒ `check.aifoundry_pe_requires_account` fails. (FR-027 / C-018)
+
+### Phase C-018.F — Verification gates (HARD)
+
+- [X] T-C018-017 `terraform fmt -recursive` from repo root → no changes. (FR-027 / C-018)
+- [X] T-C018-018 [P] `terraform -chdir=modules/dnszones test` → 100% pass. (FR-027 / C-018)
+- [X] T-C018-019 [P] `terraform -chdir=modules/aifoundry test` → 100% pass (existing + new PE tests). (FR-027 / C-018)
+- [X] T-C018-020 `terraform -chdir=terraform/services test` → 100% pass (existing C-016/C-017 fixtures unchanged + new PE tests). (FR-027 / C-018)
+
+### Phase C-018.G — Rollout
+
+- [ ] T-C018-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-027 / C-018)
+- [ ] T-C018-022 `git checkout master && git pull --ff-only`; apply hub DNS so the new zone exists: dispatch `deploy.yaml` for `service=dns tenant=hub environment=npd` then `environment=prd` (`apply=true`). (FR-027 / C-018)
+- [ ] T-C018-023 Dispatch `deploy.yaml` for `service=services tenant=sp01 environment=dev action=apply apply=true`. (FR-027 / C-018)
+- [ ] T-C018-024 Verify `aif-uc1-uc1-sp01-dev-swc-001` shows `properties.publicNetworkAccess="Disabled"` and exactly one private endpoint `pep-aif-uc1-uc1-sp01-dev-swc-001` in the `development` subnet with a DNS zone group spanning `cogsvc`/`openai`/`aiservices`. Restore the state-SA firewall if temp-opened. (FR-027 / C-018)

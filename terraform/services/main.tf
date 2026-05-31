@@ -220,6 +220,13 @@ module "aifoundry" {
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
   # C-017 (Amendment 2026-05-30) — the Cognitive Services Foundry account
   # manages its own storage/secrets; sibling KV/SA wiring removed.
+
+  # C-018 (Amendment 2026-05-31) — opt-in account private endpoint (FR-027).
+  # All three inputs resolve to inert defaults (false / null / []) unless
+  # enable_aifoundry_private_endpoint is set, preserving day-one behaviour.
+  private_endpoint_enabled   = var.enable_aifoundry_private_endpoint
+  private_endpoint_subnet_id = local.pe_subnet_id
+  private_dns_zone_ids       = local.pe_zone_ids
 }
 
 module "aifoundry_project" {

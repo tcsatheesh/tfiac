@@ -181,3 +181,52 @@ variable "tfstate_container" {
     error_message = "tfstate_container must match ^[a-z0-9][a-z0-9-]{2,62}$ (Azure container naming rules)."
   }
 }
+
+# ----- C-018 (Amendment 2026-05-31) — Foundry account private endpoint (FR-027) -----
+variable "enable_aifoundry_private_endpoint" {
+  description = "C-018: when true, attach an Azure private endpoint (+ hub private DNS) to the AI Foundry Cognitive Services account so it is reachable only from the spoke VNet, defaulting publicNetworkAccess to Disabled. Default false preserves day-one (public) behaviour."
+  type        = bool
+  default     = false
+}
+
+variable "private_endpoint_subnet_role" {
+  description = "C-018: spoke VNet subnet role (from the network-stack role catalogue) the Foundry private-endpoint NIC lands in. Looked up via the vnet remote state. Only consulted when enable_aifoundry_private_endpoint = true."
+  type        = string
+  default     = "development"
+
+  validation {
+    condition = contains([
+      "development", "pre-production", "api-management", "buildsvr",
+      "function-app", "logic-app", "preprod-func", "preprod-logic",
+      "bastion", "firewall", "firewall-mgmt",
+    ], var.private_endpoint_subnet_role)
+    error_message = "private_endpoint_subnet_role must be one of the 11 known network-stack subnet roles."
+  }
+}
+
+variable "vnet_state_backend" {
+  description = "C-018: remote-state backend coordinates for the spoke VNet stack (terraform/vnet/) whose subnets host the Foundry private endpoint. Required (non-null) when enable_aifoundry_private_endpoint = true."
+  type = object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+    key                  = string
+  })
+  default = null
+}
+
+variable "dns_state_backend" {
+  description = "C-018: remote-state backend coordinates for the hub private-DNS stack (terraform/dns/) supplying the cogsvc/openai/aiservices zone IDs. Required (non-null) when enable_aifoundry_private_endpoint = true."
+  type = object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+    key                  = string
+  })
+  default = null
+
+  validation {
+    condition     = !var.enable_aifoundry_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "enable_aifoundry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+  }
+}

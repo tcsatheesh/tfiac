@@ -102,3 +102,18 @@ check "environment_workload_only" {
     error_message = "C-016 / FR-025 — environment must be one of dev|pre|prd for the services stack; 'npd' is reserved for shared/hub stacks."
   }
 }
+
+# aifoundry_pe_requires_account (spec.md C-018 / FR-027): enabling the Foundry
+# account private endpoint only makes sense when an `aifoundry` account is
+# actually selected in this stack. Fires at plan time, before any remote-state
+# or provider call, with a clear remediation message. Defence-in-depth pair for
+# the variable-level vnet/dns_state_backend requirement.
+check "aifoundry_pe_requires_account" {
+  assert {
+    condition = !(
+      var.enable_aifoundry_private_endpoint &&
+      length([for s in var.services : s if s.type == "aifoundry"]) == 0
+    )
+    error_message = "C-018 / FR-027 — enable_aifoundry_private_endpoint = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
+  }
+}

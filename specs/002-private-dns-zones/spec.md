@@ -20,7 +20,7 @@ A spoke-stack operator (e.g. the owner of a storage stack with a private endpoin
 
 **Acceptance Scenarios**:
 
-1. **Given** the global DNS stack has been applied in the prd hub with the day-one catalogue and `custom_zones = []`, **When** a consumer reads `terraform_remote_state.dns.outputs.zone_ids`, **Then** the map contains exactly 25 entries, one per catalogue key, each mapping to a valid Azure `privateDnsZones/<fqdn>` resource ID.
+1. **Given** the global DNS stack has been applied in the prd hub with the day-one catalogue and `custom_zones = []`, **When** a consumer reads `terraform_remote_state.dns.outputs.zone_ids`, **Then** the map contains exactly 26 entries, one per catalogue key, each mapping to a valid Azure `privateDnsZones/<fqdn>` resource ID.
 2. **Given** the stack is applied, **When** the consumer reads `outputs.zone_names["blob"]`, **Then** the value equals `"privatelink.blob.core.windows.net"`.
 3. **Given** the stack is applied, **When** a consumer reads `outputs.resource_group_name`, **Then** the value is the engine-emitted RG name for `(hub, hub, prd, <region>)` and is consumable by `data.azurerm_resource_group`.
 4. **Given** the stack is applied, **When** `terraform plan` is re-run with unchanged inputs, **Then** the plan reports zero changes.
@@ -99,7 +99,7 @@ This user story is reserved for a future migration feature. The current reposito
 
 #### Catalogue contract
 
-- **FR-011**: The stack MUST host the following 25 catalogue keys mapping to Microsoft-published private-link FQDNs (Azure global cloud, day-one set):
+- **FR-011**: The stack MUST host the following 26 catalogue keys mapping to Microsoft-published private-link FQDNs (Azure global cloud, day-one set):
 
   | Key | FQDN |
   |---|---|
@@ -113,6 +113,7 @@ This user story is reserved for a future migration feature. The current reposito
   | `acr` | `privatelink.azurecr.io` |
   | `openai` | `privatelink.openai.azure.com` |
   | `cogsvc` | `privatelink.cognitiveservices.azure.com` |
+  | `aiservices` | `privatelink.services.ai.azure.com` |
   | `search` | `privatelink.search.windows.net` |
   | `cosmos-sql` | `privatelink.documents.azure.com` |
   | `webapp` | `privatelink.azurewebsites.net` |

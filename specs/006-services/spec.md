@@ -249,6 +249,7 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 
 - **FR-025**: The services stack rejects `environment ∈ {npd}` and accepts only `{dev, pre, prd}`; hub stacks (`terraform/log/`, `terraform/vnet/`, `terraform/dns/`) are unaffected and retain their `{npd, prd}` allowlist. Enforcement is defence-in-depth: (i) `terraform/services/variables.tf` `validation` block on `var.environment`; (ii) root-stack `check "environment_workload_only"` in `terraform/services/check.tf`; (iii) negative test `terraform/services/tests/reject_npd_environment.tftest.hcl`. See C-016 for rationale and full rollout decisions.
 - **FR-026**: Foundry account+project replaces ML Workspace Hub+Project pair. The `aifoundry` wrapper MUST emit `Microsoft.CognitiveServices/accounts` (kind=`AIServices`, `properties.allowProjectManagement=true`, `properties.customSubDomainName = var.canonical_name`, `properties.publicNetworkAccess="Enabled"`, `sku.name="S0"`, system-assigned identity) and MUST NOT require sibling `storage` or `keyvault` selections. The `aifoundry_project` wrapper MUST emit `Microsoft.CognitiveServices/accounts/projects` as a child of the parent account, taking `var.parent_account_id` in place of the legacy `var.hub_resource_id`. Both wrappers preserve the existing `var.canonical_name` / `var.engine_record` / diagnostic-settings contract. Pinned API versions: `Microsoft.CognitiveServices/accounts@2025-09-01`, `Microsoft.CognitiveServices/accounts/projects@2025-09-01`. The `aifoundry_project_requires_account` check (renamed from `aifoundry_project_requires_hub` per C-015 §4) enforces 1:1 project→account in the same stack; the `aifoundry_requires_hub_deps` check is REMOVED. The `aifp` catalogue row `azure_max` drops from 64 to 32 to match the Foundry projects RP hard limit. See C-017 for full rationale, migration, and out-of-scope items.
+- **FR-027**: When `var.enable_aifoundry_private_endpoint = true` (default `false`), the `aifoundry` wrapper MUST provision an `azurerm_private_endpoint` for the Cognitive Services account in a spoke subnet (resolved by role from the spoke VNet remote state), attach a `private_dns_zone_group` to the hub private DNS zones `privatelink.cognitiveservices.azure.com` (`cogsvc`), `privatelink.openai.azure.com` (`openai`), and `privatelink.services.ai.azure.com` (`aiservices`, newly added to the DNS catalogue), use subresource group ID `account`, and default `properties.publicNetworkAccess` to `"Disabled"` (override-able). With the default `false`, behaviour is identical to FR-026 (PE absent, `publicNetworkAccess="Enabled"`, no VNet/DNS remote-state reads). The services stack reads the spoke VNet and hub DNS via count-gated `data "terraform_remote_state"` blocks (`var.vnet_state_backend`, `var.dns_state_backend`) only when the toggle is on and an `aifoundry` is selected. The generic `services[*].private_endpoints` field of Assumption A4 stays reserved and hard-failed. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "aifoundry_pe_requires_account"`, and positive+negative tests. See C-018 for full rationale and rollout ordering.
 
 ### Key Entities
 
@@ -806,3 +807,161 @@ inside the Foundry account, Foundry Agent service, customer-managed-
 key encryption, private-endpoint wiring (including flipping
 `publicNetworkAccess` to `"Disabled"`), multi-project topologies
 within a single account. All tracked as follow-ups.
+
+---
+
+## Clarifications Amendment 2026-05-31 (Foundry account private endpoint)
+
+### C-018 — Private endpoint + private DNS for the Foundry account (lifts the PE portion of C-017 "out of scope"; partially relaxes Assumption A4 and A8 for the `aifoundry` type only)
+
+**Date:** 2026-05-31. **Status:** Resolved.
+
+Operator intent: the Foundry Cognitive Services account
+`aif-uc1-uc1-sp01-dev-swc-001` (and, by inheritance, its
+`aifp-…` project — projects have no independent network surface and
+ride the parent account's data-plane endpoint) MUST be reachable only
+from inside the spoke VNet. This amendment adds a private endpoint to
+the `aifoundry` account, links it to the central hub private DNS
+zones, and flips `publicNetworkAccess` to `"Disabled"` when the PE is
+enabled. It explicitly lifts the "private-endpoint wiring (including
+flipping `publicNetworkAccess` to `Disabled`)" item that C-017 §"Out
+of scope" deferred — but only for the `aifoundry` account; the generic
+per-service `services[*].private_endpoints` / `diagnostic_settings`
+fields from Assumption A4 remain reserved and hard-failed (a fully
+generic multi-service PE framework is a separate follow-up).
+
+Resolutions (encoded directly per CLAUDE.md autonomy rules; no
+operator interview):
+
+1. **Opt-in, defaults preserve existing behaviour (C-011 (ii)).** The
+   PE is gated by a stack-level boolean
+   `var.enable_aifoundry_private_endpoint` (default `false`). With the
+   default, the stack behaves exactly as it does post-C-017
+   (account `publicNetworkAccess="Enabled"`, no PE, no VNet/DNS
+   remote-state reads). The day-one `variables/sp01/dev/services.tfvars.json`
+   sets it to `true` to satisfy the operator's secure-by-VNet intent.
+
+2. **`modules/aifoundry/` gains PE support (self-contained, no new
+   generic module).** Three new inputs:
+   - `private_endpoint_subnet_id` (string, default `null`) — the
+     spoke subnet resource ID the PE NIC lands in.
+   - `private_dns_zone_ids` (list(string), default `[]`) — the hub
+     private DNS zone resource IDs the PE A-records register into.
+   - `private_endpoint_enabled` (bool, default `false`) — master
+     toggle; when `true`, `private_endpoint_subnet_id` MUST be a valid
+     subnet resource ID (variable validation) and at least one zone ID
+     MUST be supplied.
+   When `private_endpoint_enabled = true` the wrapper:
+   - sets `properties.publicNetworkAccess` default to `"Disabled"`
+     (still override-able via `var.overrides.public_network_access` —
+     defence-in-depth / escape hatch per C-011);
+   - creates `azurerm_private_endpoint.this` (count-gated) in the
+     supplied subnet, with a single `private_service_connection`
+     targeting the account `azapi_resource.this.id` and
+     `subresource_names = ["account"]` (the group ID for
+     `Microsoft.CognitiveServices/accounts` PEs);
+   - attaches a `private_dns_zone_group` referencing
+     `private_dns_zone_ids`.
+   The PE canonical name is derived in-module as
+   `pep-${var.canonical_name}` (≤ 80 chars; `pep-aif-uc1-uc1-sp01-dev-swc-001`
+   = 32 chars). The generic naming-engine `private_endpoint`
+   catalogue row (abbr `pep`, positional child, `parent_type="*"`)
+   remains RESERVED for the future generic multi-service PE feature;
+   deriving the name in-module keeps this amendment self-contained and
+   avoids threading a child engine record per account. This deviation
+   is documented in the wrapper `README.md`.
+
+3. **Foundry private DNS zones — add the missing `aiservices` zone.**
+   A Cognitive Services Foundry (`AIServices`) account PE with group
+   ID `account` registers FQDNs across THREE private DNS zones:
+   - `privatelink.cognitiveservices.azure.com` (catalogue key
+     `cogsvc` — already present);
+   - `privatelink.openai.azure.com` (catalogue key `openai` — already
+     present);
+   - `privatelink.services.ai.azure.com` (catalogue key `aiservices`
+     — **MISSING**; added to `modules/dnszones/catalogue.tf`).
+   The hub DNS stack deploys all catalogue zones by default
+   (`disable_catalogue_zones = []`), so adding the row auto-creates the
+   zone on the next `hub/npd` + `hub/prd` dns apply. The us6 / DNS
+   catalogue-completeness assertions and any zone-count test are
+   updated for the new row.
+
+4. **Services stack consumes the spoke VNet + hub DNS via remote
+   state (relaxes A8 for this consumer).** Two new optional object
+   inputs mirror the vnet stack's pattern
+   (`var.vnet_state_backend`, `var.dns_state_backend`; each
+   `{resource_group_name, storage_account_name, container_name, key,
+   subscription_id}`). Two new `data "terraform_remote_state"` blocks
+   (`vnet`, `dns`) are COUNT-GATED on
+   `local.aifoundry_pe_required` (true iff
+   `var.enable_aifoundry_private_endpoint` AND an `aifoundry` is
+   selected) so stacks that don't enable the PE need not supply the
+   backends and incur no new reads. The subnet is resolved by role
+   from `data.terraform_remote_state.vnet.outputs.subnets[
+   var.private_endpoint_subnet_role].id`
+   (`var.private_endpoint_subnet_role`, default `"development"`); the
+   zone IDs are resolved from
+   `data.terraform_remote_state.dns.outputs.zone_ids` for the keys
+   `["cogsvc", "openai", "aiservices"]`. Day-one `sp01/dev` uses the
+   spoke vnet state key `sp01/npd/vnet.tfstate` (the spoke VNet is
+   shared across `dev`/`pre` in the `npd` keyspace) and the hub DNS
+   state key `hub/prd/dns.tfstate` (the central zones live in the
+   `hub/prd` keyspace), matching the existing
+   `variables/sp01/npd/vnet.tfvars.json` `hub_state_backend` /
+   `dns_state_backend` declarations.
+
+5. **`publicNetworkAccess` flip is opt-in via the PE toggle.** When
+   `enable_aifoundry_private_endpoint = true`, the account default for
+   `publicNetworkAccess` becomes `"Disabled"`; when `false`, it
+   remains `"Enabled"` (C-017 day-one behaviour). An operator may still
+   force `"Enabled"` alongside a PE via
+   `overrides."<aif name>".public_network_access = "Enabled"` for a
+   migration window. FR-026's "`publicNetworkAccess="Enabled"`"
+   statement is hereby qualified: Enabled is the default ONLY when no
+   PE is enabled.
+
+6. **Defence-in-depth validation (C-011 (iii)).** Enforced at every
+   boundary: (i) `modules/aifoundry/variables.tf` validators on
+   `private_endpoint_subnet_id` (subnet resource-id regex when set)
+   and on the enabled⇒subnet-present invariant; (ii)
+   `terraform/services/variables.tf` validators on
+   `private_endpoint_subnet_role` (must be a known spoke role) and on
+   the enable⇒backends-present invariant; (iii) a root-stack
+   `check "aifoundry_pe_requires_account"` ensuring the PE toggle is
+   only meaningful when an `aifoundry` is selected; (iv) the existing
+   A4 hard-fail on `services[*].private_endpoints` is UNCHANGED (the
+   generic field stays blocked).
+
+7. **Tests (C-011 (iv)).** New positive + negative coverage in the
+   same PR:
+   - `modules/aifoundry/tests/private_endpoint_positive.tftest.hcl` —
+     enabled PE emits `azurerm_private_endpoint.this` with group ID
+     `account`, the DNS zone group, and `publicNetworkAccess="Disabled"`.
+   - `modules/aifoundry/tests/private_endpoint_negative.tftest.hcl` —
+     `private_endpoint_enabled=true` with a null/blank subnet ID
+     hard-fails; and a malformed subnet ID hard-fails the regex.
+   - `terraform/services/tests/aifoundry_pe_happy.tftest.hcl` —
+     `enable_aifoundry_private_endpoint=true` with `override_data`
+     stubs for the `vnet` and `dns` remote state resolves the subnet
+     + three zone IDs and wires them into `module.aifoundry`.
+   - `terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl`
+     — toggle on but no `aifoundry` selected ⇒
+     `check.aifoundry_pe_requires_account` fails.
+   `terraform fmt -recursive` and all affected `terraform test`
+   suites MUST be green before merge.
+
+8. **Rollout ordering.** The hub DNS stack (`hub/npd` then `hub/prd`)
+   MUST be applied BEFORE the `sp01/dev` services stack so the
+   `aiservices` zone exists for the PE's `private_dns_zone_group`. The
+   spoke VNet (`sp01/npd/vnet`) MUST already be applied (it is) so the
+   `development` subnet ID resolves. Post-merge: apply hub dns, then
+   services; verify the account shows `publicNetworkAccess="Disabled"`
+   and exactly one private endpoint exists, resolving the
+   `cogsvc`/`openai`/`aiservices` FQDNs privately.
+
+Out of scope for this amendment: a fully generic per-service
+`services[*].private_endpoints` framework (the field stays reserved /
+hard-failed); private endpoints for any non-`aifoundry` service type;
+NSG/route-table changes on the PE subnet; private endpoints for the
+Foundry project child (projects share the parent account endpoint and
+need no separate PE); custom (non-catalogue) DNS zones for the PE.

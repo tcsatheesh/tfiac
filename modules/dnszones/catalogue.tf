@@ -1,5 +1,5 @@
 # Day-one catalogue: Microsoft-published private-link DNS zones for the Azure
-# global cloud. Mirrors spec.md FR-011 verbatim (25 entries). Adding a row here
+# global cloud. Mirrors spec.md FR-011 verbatim (26 entries). Adding a row here
 # MUST be accompanied by the same edit in spec.md FR-011 (enforced by
 # tests/catalogue_completeness.tftest.hcl and the SC-008 grep audit).
 #
@@ -20,6 +20,7 @@ locals {
     "acr"        = "privatelink.azurecr.io"
     "openai"     = "privatelink.openai.azure.com"
     "cogsvc"     = "privatelink.cognitiveservices.azure.com"
+    "aiservices" = "privatelink.services.ai.azure.com"
     "search"     = "privatelink.search.windows.net"
     "cosmos-sql" = "privatelink.documents.azure.com"
     "webapp"     = "privatelink.azurewebsites.net"

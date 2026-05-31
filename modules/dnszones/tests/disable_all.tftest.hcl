@@ -11,7 +11,7 @@ variables {
   custom_zones    = []
   disable_catalogue_zones = [
     "blob", "file", "queue", "table", "dfs", "web", "vault", "acr",
-    "openai", "cogsvc", "search", "cosmos-sql", "webapp", "automation",
+    "openai", "cogsvc", "aiservices", "search", "cosmos-sql", "webapp", "automation",
     "monitor", "oms", "ods", "agentsvc", "aml-api", "notebooks",
     "appconfig", "servicebus", "eventgrid", "iothub", "iothub-dps",
   ]

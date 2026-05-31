@@ -22,18 +22,18 @@ run "zone_ids_keys_equal_catalogue_keys" {
   command = plan
 
   assert {
-    condition     = length(output.zone_ids) == 25
-    error_message = "Expected 25 zone_ids entries (one per catalogue key); got ${length(output.zone_ids)}."
+    condition     = length(output.zone_ids) == 26
+    error_message = "Expected 26 zone_ids entries (one per catalogue key); got ${length(output.zone_ids)}."
   }
 
   # zone_names is plan-time known and parallel to zone_ids per DNS-INV-10.
   assert {
     condition = sort(keys(output.zone_names)) == sort([
       "blob", "file", "queue", "table", "dfs", "web", "vault", "acr",
-      "openai", "cogsvc", "search", "cosmos-sql", "webapp", "automation",
+      "openai", "cogsvc", "aiservices", "search", "cosmos-sql", "webapp", "automation",
       "monitor", "oms", "ods", "agentsvc", "aml-api", "notebooks",
       "appconfig", "servicebus", "eventgrid", "iothub", "iothub-dps",
     ])
-    error_message = "zone_names keys must equal the 25 catalogue keys (FR-024). Got: ${jsonencode(sort(keys(output.zone_names)))}."
+    error_message = "zone_names keys must equal the 26 catalogue keys (FR-024). Got: ${jsonencode(sort(keys(output.zone_names)))}."
   }
 }
