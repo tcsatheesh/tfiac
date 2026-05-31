@@ -72,3 +72,27 @@ variable "diagnostic_settings_enabled" {
   type        = bool
   default     = true
 }
+
+# ----- C-018 (Amendment 2026-05-31) — Private endpoint wiring (FR-027) -----
+variable "private_endpoint_enabled" {
+  description = "C-018: when true, provision an azurerm_private_endpoint for the Cognitive Services account and default properties.publicNetworkAccess to \"Disabled\". Default false preserves the C-017 day-one behaviour (no PE, public access Enabled)."
+  type        = bool
+  default     = false
+}
+
+variable "private_endpoint_subnet_id" {
+  description = "C-018: resource ID of the subnet the private-endpoint NIC lands in. Required (non-null) when private_endpoint_enabled = true; ignored otherwise."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.private_endpoint_subnet_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Network/virtualNetworks/[^/]+/subnets/[^/]+$", var.private_endpoint_subnet_id))
+    error_message = "private_endpoint_subnet_id must be null or a full subnet resource ID of the form /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>."
+  }
+}
+
+variable "private_dns_zone_ids" {
+  description = "C-018: hub private DNS zone resource IDs the private endpoint registers A-records into (cogsvc/openai/aiservices). Required non-empty when private_endpoint_enabled = true."
+  type        = list(string)
+  default     = []
+}

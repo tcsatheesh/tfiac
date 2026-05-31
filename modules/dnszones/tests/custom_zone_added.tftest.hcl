@@ -32,7 +32,7 @@ run "custom_zone_appears" {
 
   # Catalogue stays intact alongside the new entry.
   assert {
-    condition     = length(output.zone_names) == 26
-    error_message = "Expected 25 catalogue + 1 custom = 26 zone_names entries; got ${length(output.zone_names)}."
+    condition     = length(output.zone_names) == 27
+    error_message = "Expected 26 catalogue + 1 custom = 27 zone_names entries; got ${length(output.zone_names)}."
   }
 }

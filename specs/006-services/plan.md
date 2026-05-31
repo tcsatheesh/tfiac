@@ -683,3 +683,131 @@ After squash-merge:
 4. Restore the state-SA firewall on `sttfsshdhubnpdswc001`
    (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove any
    temp operator IPs) once the apply settles.
+
+## Phase C-018 — Foundry account private endpoint + private DNS
+
+This phase is an **amendment** to feature 006-services delivering
+[spec.md C-018 / FR-027](spec.md#clarifications-amendment-2026-05-31-foundry-account-private-endpoint):
+add an opt-in private endpoint to the `aifoundry` Cognitive Services
+account so the account (and its project, which shares the account's
+data-plane endpoint) is reachable only from inside the spoke VNet.
+Defaults preserve C-017 behaviour (PE off, public access Enabled). The
+project wrapper, APIM, environment allowlists, naming engine, and the
+generic `services[*].private_endpoints` field are **untouched**.
+
+**Pre-condition.** The spoke VNet `sp01/npd/vnet` is already applied
+(provides the `development` subnet). The hub DNS stack
+(`hub/npd` + `hub/prd`) must be re-applied AFTER the catalogue gains
+the `aiservices` zone and BEFORE the services apply, so the PE's
+`private_dns_zone_group` can reference
+`privatelink.services.ai.azure.com`.
+
+### File-level edits
+
+1. **`modules/dnszones/catalogue.tf` — add the Foundry agent zone.**
+   Add row `"aiservices" = "privatelink.services.ai.azure.com"` to the
+   `local.catalogue` map (keeps `cogsvc` and `openai`). No other
+   change; the DNS stack auto-deploys it (`disable_catalogue_zones`
+   default `[]`). Update any zone-count assertion in
+   `modules/dnszones/tests/` and the catalogue-completeness check.
+
+2. **`modules/aifoundry/variables.tf` — three new inputs.**
+   - `private_endpoint_enabled` (bool, default `false`).
+   - `private_endpoint_subnet_id` (string, default `null`) with a
+     validator: when non-null it MUST match the
+     `…/subnets/<name>` resource-id regex.
+   - `private_dns_zone_ids` (list(string), default `[]`).
+   Add a cross-field `precondition` in main.tf asserting
+   `private_endpoint_enabled ⇒ private_endpoint_subnet_id != null &&
+   length(private_dns_zone_ids) > 0`.
+
+3. **`modules/aifoundry/locals.tf` — PE-aware default.** Change the
+   `defaults.public_network_access` so it resolves to `"Disabled"`
+   when `var.private_endpoint_enabled` is true, `"Enabled"` otherwise;
+   `var.overrides` still wins (escape hatch). Add
+   `pe_name = "pep-${var.canonical_name}"`.
+
+4. **`modules/aifoundry/main.tf` — PE resources.** Add (count-gated on
+   `var.private_endpoint_enabled`):
+   - `azurerm_private_endpoint.this` in `private_endpoint_subnet_id`,
+     `private_service_connection { is_manual_connection = false,
+     private_connection_resource_id = azapi_resource.this.id,
+     subresource_names = ["account"] }`, and a
+     `private_dns_zone_group { name = "default", private_dns_zone_ids
+     = var.private_dns_zone_ids }`.
+   Document the in-module `pep-` naming deviation in
+   `modules/aifoundry/README.md` (engine `private_endpoint` row stays
+   reserved for the generic follow-up).
+
+5. **`modules/aifoundry/outputs.tf` — expose PE id (optional).** Add
+   `output "private_endpoint_id"` (value
+   `one(azurerm_private_endpoint.this[*].id)`) for downstream/debug
+   visibility.
+
+6. **`terraform/services/variables.tf` — stack inputs.**
+   - `enable_aifoundry_private_endpoint` (bool, default `false`).
+   - `private_endpoint_subnet_role` (string, default `"development"`)
+     with a validator restricting to known spoke roles.
+   - `vnet_state_backend` + `dns_state_backend` (objects, default
+     `null`) mirroring `variables/sp01/npd/vnet.tfvars.json`. Validator:
+     `enable_aifoundry_private_endpoint ⇒ both backends non-null`.
+   The existing A4 hard-fail on `services[*].private_endpoints`
+   /`diagnostic_settings` is LEFT UNCHANGED.
+
+7. **`terraform/services/data.vnetdns.tf` (new) — remote state.** Add
+   `local.aifoundry_pe_required = var.enable_aifoundry_private_endpoint
+   && length([for s in var.services : s if s.type == "aifoundry"]) > 0`,
+   then two count-gated `data "terraform_remote_state"` blocks (`vnet`,
+   `dns`) using the new backend vars. Resolve
+   `local.pe_subnet_id` and `local.pe_zone_ids` (keys `cogsvc`,
+   `openai`, `aiservices`).
+
+8. **`terraform/services/main.tf` — wire the module.** Pass
+   `private_endpoint_enabled = local.aifoundry_pe_required`,
+   `private_endpoint_subnet_id = try(local.pe_subnet_id, null)`,
+   `private_dns_zone_ids = try(local.pe_zone_ids, [])` into
+   `module.aifoundry`.
+
+9. **`terraform/services/check.tf` — guard.** Add
+   `check "aifoundry_pe_requires_account"`: if
+   `var.enable_aifoundry_private_endpoint` then an `aifoundry` MUST be
+   selected. Existing checks untouched.
+
+10. **`variables/sp01/dev/services.tfvars.json` — enable PE.** Add
+    `enable_aifoundry_private_endpoint=true`,
+    `private_endpoint_subnet_role="development"`,
+    `vnet_state_backend` (key `sp01/npd/vnet.tfstate`) and
+    `dns_state_backend` (key `hub/prd/dns.tfstate`), reusing the
+    `rg-tfs-shd-hub-npd-swc-001` / `sttfsshdhubnpdswc001` / `tfstate`
+    backend coordinates and subscription `883c9081-…`.
+
+### Test impact
+
+- `modules/aifoundry/tests/private_endpoint_positive.tftest.hcl`,
+  `modules/aifoundry/tests/private_endpoint_negative.tftest.hcl`.
+- `terraform/services/tests/aifoundry_pe_happy.tftest.hcl`
+  (with `override_data` for `data.terraform_remote_state.vnet` and
+  `.dns`), `terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl`.
+- `modules/dnszones/tests/*` zone-count assertion updated for the new
+  `aiservices` row.
+- Existing C-016/C-017 fixtures keep `enable_aifoundry_private_endpoint`
+  at its default `false`, so they need NO `vnet`/`dns` override blocks.
+
+### Rollout (CLAUDE.md step 4)
+
+After squash-merge:
+
+1. `git checkout master && git pull --ff-only`.
+2. Apply the hub DNS stack so the new zone exists:
+   `gh workflow run deploy.yaml -f service=dns -f tenant=hub -f environment=npd -f action=apply -f apply=true`
+   then the same for `-f environment=prd` (the `hub/prd/dns.tfstate`
+   keyspace the services PE references).
+3. Apply the services stack:
+   `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`.
+4. Verify `aif-uc1-uc1-sp01-dev-swc-001` shows
+   `properties.publicNetworkAccess = "Disabled"` and exactly one
+   private endpoint (`pep-aif-uc1-uc1-sp01-dev-swc-001`) in the
+   `development` subnet, with a private DNS zone group spanning
+   `cogsvc`/`openai`/`aiservices`.
+5. Restore the state-SA firewall on `sttfsshdhubnpdswc001` if it was
+   temp-opened.
