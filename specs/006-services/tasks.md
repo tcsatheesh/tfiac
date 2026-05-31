@@ -576,7 +576,7 @@ drops the legacy KV + SA fixtures. All tasks are post-implement.
 
 ### Phase C-018.G — Rollout
 
-- [ ] T-C018-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-027 / C-018)
-- [ ] T-C018-022 `git checkout master && git pull --ff-only`; apply hub DNS so the new zone exists: dispatch `deploy.yaml` for `service=dns tenant=hub environment=npd` then `environment=prd` (`apply=true`). (FR-027 / C-018)
-- [ ] T-C018-023 Dispatch `deploy.yaml` for `service=services tenant=sp01 environment=dev action=apply apply=true`. (FR-027 / C-018)
-- [ ] T-C018-024 Verify `aif-uc1-uc1-sp01-dev-swc-001` shows `properties.publicNetworkAccess="Disabled"` and exactly one private endpoint `pep-aif-uc1-uc1-sp01-dev-swc-001` in the `development` subnet with a DNS zone group spanning `cogsvc`/`openai`/`aiservices`. Restore the state-SA firewall if temp-opened. (FR-027 / C-018)
+- [X] T-C018-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-027 / C-018)
+- [X] T-C018-022 `git checkout master && git pull --ff-only`; apply hub DNS so the new zone exists: dispatch `deploy.yaml` for `service=dns tenant=hub environment=npd` then `environment=prd` (`apply=true`). (FR-027 / C-018)
+- [X] T-C018-023 Dispatch `deploy.yaml` for `service=services tenant=sp01 environment=dev action=apply apply=true`. (FR-027 / C-018)
+- [X] T-C018-024 Verify `aif-uc1-uc1-sp01-dev-swc-001` shows `properties.publicNetworkAccess="Disabled"` and exactly one private endpoint `pep-aif-uc1-uc1-sp01-dev-swc-001` in the `development` subnet with a DNS zone group spanning `cogsvc`/`openai`/`aiservices`. Restore the state-SA firewall if temp-opened. (FR-027 / C-018)
