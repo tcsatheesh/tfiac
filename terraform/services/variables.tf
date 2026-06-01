@@ -265,6 +265,13 @@ variable "dns_state_backend" {
     condition     = !var.enable_storage_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
     error_message = "enable_storage_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
   }
+
+  # C-039 (FR-035): the search private endpoint needs both the spoke VNet
+  # (subnet) and the hub DNS (search zone) remote states.
+  validation {
+    condition     = !var.enable_search_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "enable_search_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+  }
 }
 
 # ----- C-019 (Amendment 2026-06-01) — Foundry Application Insights (FR-028) -----
@@ -284,6 +291,13 @@ variable "enable_container_registry_private_endpoint" {
 # ----- C-035 (Amendment 2026-06-02) — Storage account private endpoint (FR-034) -----
 variable "enable_storage_private_endpoint" {
   description = "C-035: when true, every selected storage account is deployed with public_network_access disabled and an Azure private endpoint (subresource 'blob', + hub privatelink.blob.core.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the blob zone) and private_endpoint_subnet_role. Only meaningful when a 'storage' is selected (enforced by check.storage_pe_requires_storage). Default false preserves day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO thread/file store stays private (FR-033)."
+  type        = bool
+  default     = false
+}
+
+# ----- C-039 (Amendment 2026-06-02) — AI Search private endpoint (FR-035) -----
+variable "enable_search_private_endpoint" {
+  description = "C-039: when true, every selected search service is deployed with public_network_access disabled and an Azure private endpoint (subresource 'searchService', + hub privatelink.search.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the search zone) and private_endpoint_subnet_role. Only meaningful when a 'search' is selected (enforced by check.search_pe_requires_search). Default false preserves day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO vector store stays private (FR-033)."
   type        = bool
   default     = false
 }

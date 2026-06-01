@@ -72,3 +72,27 @@ variable "diagnostic_settings_enabled" {
   type        = bool
   default     = true
 }
+
+# ----- C-039 (Amendment 2026-06-02) — opt-in private endpoint (FR-035) -----
+variable "private_endpoint_enabled" {
+  description = "C-039 / FR-035: when true, set public_network_access_enabled = false and provision an azurerm_private_endpoint (subresource group id 'searchService') so the AI Search service is reachable only from the spoke VNet. Default false preserves the prior behaviour (public network access, no PE)."
+  type        = bool
+  default     = false
+}
+
+variable "private_endpoint_subnet_id" {
+  description = "C-039: resource ID of the subnet the private-endpoint NIC lands in. Required (non-null) when private_endpoint_enabled = true; ignored otherwise."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.private_endpoint_subnet_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Network/virtualNetworks/[^/]+/subnets/[^/]+$", var.private_endpoint_subnet_id))
+    error_message = "private_endpoint_subnet_id must be null or a full subnet resource ID of the form /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>."
+  }
+}
+
+variable "private_dns_zone_ids" {
+  description = "C-039: hub private DNS zone resource IDs (privatelink.search.windows.net) the private endpoint registers A-records into. Required non-empty when private_endpoint_enabled = true."
+  type        = list(string)
+  default     = []
+}

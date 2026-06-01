@@ -1769,3 +1769,59 @@ the live destructive recreate (VC-8), and BYO Storage/Search PE-ification
 Search private endpoint (FR-035, the sibling amendment), the `103` instance
 toggle flip + BYO selection (CA-013 #6), and any non-`blob` storage subresource
 (file/queue/table) PE support.
+
+---
+
+## AMENDMENT 2026-06-02 — AI Search private endpoint (FR-035)
+
+> **Why now.** Sibling to FR-034. FR-033 threaded the BYO AI Search service by
+> resource ID only (C-034), leaving it on public network access. The standing
+> **private-by-default mandate** requires every Private-Link-capable service to
+> disable public access and be reached via a private endpoint — Azure AI Search
+> supports Private Link, so the BYO vector store MUST be private. This amendment
+> closes the second (and final) half of the C-034 follow-up, mirroring FR-034 /
+> the ACR FR-029 precedent exactly. With both FR-034 and FR-035 merged, the
+> `103` instance can select Storage + Cosmos + Search all fully private and turn
+> on Hosted-Agent network injection (CA-013 #6).
+
+- **FR-035 — AI Search private endpoint (engine, opt-in, default-off).**
+  `modules/search` gains `private_endpoint_enabled` (bool, default false),
+  `private_endpoint_subnet_id`, and `private_dns_zone_ids`. When enabled, the
+  service sets `public_network_access_enabled = false` and provisions exactly
+  one `azurerm_private_endpoint` (subresource group id `searchService`) into the
+  supplied subnet, registering A-records in the hub
+  `privatelink.search.windows.net` zone. Default-off renders the service
+  byte-for-byte as before (public, no PE). The services stack gains
+  `enable_search_private_endpoint` (default false) which, when true, resolves
+  the PE subnet (by `private_endpoint_subnet_role`) from the spoke VNet remote
+  state + the `search` zone from the hub DNS remote state and threads them into
+  every selected `search` module instance.
+
+### Clarifications — Session 2026-06-02 (FR-035)
+
+- **C-039 — Opt-in toggle, mirror FR-034 / the ACR (C-020) precedent.** Rather
+  than forcing every existing search service private (which would flip
+  `public_network_access` on already-deployed public services), FR-035 follows
+  the established repo convention: an opt-in `enable_search_private_endpoint`
+  toggle, default false (day-one parity). The private-by-default mandate is
+  satisfied at the point of use — the `103` instance turns it ON for the BYO
+  agent vector store.
+- **C-040 — Subresource `searchService`.** The Azure AI Search Private Link
+  subresource (group id) is `searchService`, so the private endpoint targets
+  that subresource + the `privatelink.search.windows.net` zone.
+- **C-041 — Reuses existing plumbing.** No new remote-state backends or subnet
+  roles: search PE reuses `vnet_state_backend` + `dns_state_backend` +
+  `private_endpoint_subnet_role` (the same trio the storage/ACR/Foundry PEs
+  use). The `search` zone already exists in the 002 DNS catalogue
+  (`modules/dnszones/catalogue.tf`) — no 002 change.
+- **C-042 — Defence-in-depth.** `enable_search_private_endpoint = true` is
+  guarded by (a) variable validation requiring both remote-state backends,
+  (b) `check.search_pe_requires_search` (a `search` must be selected), and
+  (c) the module's own `lifecycle.precondition` (non-null subnet + non-empty
+  zone list).
+
+### Out of scope for FR-035
+
+The `103` instance toggle flip + BYO selection + injection (CA-013 #6), the
+live destructive recreate (VC-8), and the ACR public exception (103) are all
+outside this engine amendment.

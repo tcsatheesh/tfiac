@@ -162,6 +162,16 @@ check "storage_pe_requires_storage" {
   }
 }
 
+check "search_pe_requires_search" {
+  assert {
+    condition = !(
+      var.enable_search_private_endpoint &&
+      length([for s in var.services : s if s.type == "search"]) == 0
+    )
+    error_message = "C-039 / FR-035 — enable_search_private_endpoint = true requires a 'search' selection in this services stack."
+  }
+}
+
 # container_app_env_requires_subnet (spec.md C-021 / FR-030): selecting a
 # `container_app_environment` requires enable_container_apps = true so the
 # internal environment receives its delegated subnet + spoke VNet wiring from
