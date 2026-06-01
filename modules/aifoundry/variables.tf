@@ -103,3 +103,54 @@ variable "application_insights_enabled" {
   type        = bool
   default     = false
 }
+
+# ----- C-022..C-026 / FR-031 (Amendment 2026-06-02) — Hosted-Agent network injection -----
+variable "network_injection_enabled" {
+  description = "FR-031 / C-022: when true, the Foundry account is created with Hosted-Agent network injection (properties.networkInjections scenario=agent bound to var.agent_subnet_id), three BYO account connections (Storage/Cosmos/Search), and an Agents capabilityHosts child. Injection is settable ONLY at account creation (VC-1) — flipping this on an existing account requires an operator-approved recreate. Default false preserves the post-FR-028 day-one behaviour (no networkInjections, no connections, no capability host)."
+  type        = bool
+  default     = false
+}
+
+variable "agent_subnet_id" {
+  description = "FR-031 / C-023 / VC-5: full resource ID of the dedicated agent subnet (delegated to Microsoft.App/environments, recommended /24, exclusive to this account). Required (non-null) when network_injection_enabled = true; ignored otherwise. The subnet is created by the 004-vnet engine + an instance VNet, never by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.agent_subnet_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Network/virtualNetworks/[^/]+/subnets/[^/]+$", var.agent_subnet_id))
+    error_message = "agent_subnet_id must be null or a full subnet resource ID of the form /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>."
+  }
+}
+
+variable "agent_storage_account_id" {
+  description = "FR-031 / C-024 / VC-3/VC-4: full resource ID of the BYO Azure Storage account used for the capability host storageConnections leg. Required (non-null) when network_injection_enabled = true; ignored otherwise. Provisioned by a separate feature, never by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.agent_storage_account_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Storage/storageAccounts/[^/]+$", var.agent_storage_account_id))
+    error_message = "agent_storage_account_id must be null or a full Microsoft.Storage/storageAccounts resource ID."
+  }
+}
+
+variable "agent_cosmosdb_account_id" {
+  description = "FR-031 / C-024 / VC-3/VC-4: full resource ID of the BYO Azure Cosmos DB account used for the capability host threadStorageConnections leg. Required (non-null) when network_injection_enabled = true; ignored otherwise. Provisioned by the dependent cosmosdb feature (CA-013 #2), never by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.agent_cosmosdb_account_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.DocumentDB/databaseAccounts/[^/]+$", var.agent_cosmosdb_account_id))
+    error_message = "agent_cosmosdb_account_id must be null or a full Microsoft.DocumentDB/databaseAccounts resource ID."
+  }
+}
+
+variable "agent_search_service_id" {
+  description = "FR-031 / C-024 / VC-3/VC-4: full resource ID of the BYO Azure AI Search service used for the capability host vectorStoreConnections leg. Required (non-null) when network_injection_enabled = true; ignored otherwise. Provisioned by a separate feature, never by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.agent_search_service_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Search/searchServices/[^/]+$", var.agent_search_service_id))
+    error_message = "agent_search_service_id must be null or a full Microsoft.Search/searchServices resource ID."
+  }
+}

@@ -682,3 +682,43 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 - [X] T-C021-019 Push branch, open PR against `master`, squash-merge, delete remote+local branch. (FR-029/FR-030)
 - [X] T-C021-020 `git checkout master && git pull --ff-only`; apply the `sp01/npd` VNet (adds `container-apps` subnet), then `sp01/dev` services. (FR-029/FR-030)
 - [X] T-C021-021 Verify ACR `publicNetworkAccess=Disabled` + Premium + PE, and the ACA internal env + private default-domain DNS zone. Restore the state-SA firewall if temp-opened. (FR-029/FR-030)
+
+---
+
+## Phase FR-031 — Foundry Hosted-Agent network injection (engine, default-off)
+
+### FR-031.A — Module inputs & locals
+
+- [ ] T-FR031-001 Add inputs to [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf): `network_injection_enabled` (bool, default false); `agent_subnet_id`, `agent_storage_account_id`, `agent_cosmosdb_account_id`, `agent_search_service_id` (string, default null, full-resource-id regex, null-allowed); cross-field validation requiring all four non-null + `private_endpoint_enabled=true` when injection on. (FR-031 / C-022..C-025)
+- [ ] T-FR031-002 Add locals to [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): `network_injection_enabled` flag, three connection names (`conn-storage-/conn-cosmos-/conn-search-${canonical_name}` truncated), and the `network_injections` list (empty when off). (FR-031 / C-025)
+
+### FR-031.B — Module resources
+
+- [ ] T-FR031-003 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): merge `networkInjections` into the account `azapi` body ONLY when enabled (empty ⇒ attribute omitted, day-one parity). (FR-031 step 1 / VC-2)
+- [ ] T-FR031-004 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): three count-gated `azapi_resource` `Microsoft.CognitiveServices/accounts/connections@2025-09-01` for BYO Storage/Cosmos/Search. (FR-031 step 2 / VC-4 / C-025)
+- [ ] T-FR031-005 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): one count-gated `azapi_resource` `.../capabilityHosts@2025-09-01` (`capabilityHostKind="Agents"`, `customerSubnet`, three connection-name lists), `depends_on` the connections. (FR-031 step 3 / VC-3 / C-026)
+- [ ] T-FR031-006 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): `precondition` on the account resource enforcing FR-031 step 4 (injection ⇒ PE on + four ids present), naming the missing input. (FR-031 step 4)
+
+### FR-031.C — Tests (plan-level, mocked, `-backend=false`)
+
+- [ ] T-FR031-007 [P] `modules/aifoundry/tests/network_injection_positive.tftest.hcl` — toggle on + all inputs ⇒ plan ok; assert injection scenario/subnet, capability host, three connections, account `publicNetworkAccess="Disabled"`.
+- [ ] T-FR031-008 [P] `modules/aifoundry/tests/network_injection_reject.tftest.hcl` — toggle on + missing BYO id (expect fail) AND toggle on + `private_endpoint_enabled=false` (expect fail).
+- [ ] T-FR031-009 [P] `modules/aifoundry/tests/network_injection_default_off.tftest.hcl` — toggle unset ⇒ zero connections, zero capability hosts, body has no `networkInjections` (day-one parity).
+
+### FR-031.D — Verification gates (HARD)
+
+- [ ] T-FR031-010 `terraform fmt -recursive` from repo root → no changes. (FR-031)
+- [ ] T-FR031-011 `terraform -chdir=modules/aifoundry test` → 100% pass. (FR-031)
+
+### FR-031.E — Rollout
+
+- [ ] T-FR031-012 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-022). (FR-031)
+
+### CA-013 — Dependent feature program (tracked, NOT in this PR)
+
+- [ ] T-FR031-D2 (Feature) 006+001: new `cosmosdb` selectable type + `modules/cosmosdb/` (private-by-default, PE + `privatelink.documents.azure.com`) + `cosmos` naming row. (CA-013 #2 / VC-3/VC-4/VC-6)
+- [ ] T-FR031-D3 (Feature) 004-vnet: new `agents` subnet role delegated `Microsoft.App/environments`, dedicated /24, exclusive. (CA-013 #3 / VC-5)
+- [ ] T-FR031-D4 (Feature) 102-sp01-npd-vnet: expand spoke to `10.240.2.0/23`, agent subnet `10.240.3.0/24`. (CA-013 #4 / VC-5)
+- [ ] T-FR031-D5 (Feature) 002-private-dns: add Cosmos `privatelink.documents.azure.com` zone. (CA-013 #5 / VC-6)
+- [ ] T-FR031-D6 (Feature) 103-sp01-dev-services: flip toggle, select BYO trio, thread agent subnet, **document ACR public-access mandate exception**. (CA-013 #6 / VC-7)
+- [ ] T-FR031-D7 (Operator-approved, destructive) Live recreate: delete+purge Foundry account + capability host BEFORE the VNet, re-apply with injection on. NOT executed by automation. (CA-013 / VC-1 / VC-8)

@@ -19,16 +19,29 @@ resource "azapi_resource" "this" {
   }
 
   body = {
-    kind = "AIServices"
-    sku  = { name = "S0" }
-    properties = {
-      allowProjectManagement = true
-      customSubDomainName    = var.canonical_name
-      publicNetworkAccess    = local.config.public_network_access
-    }
+    kind       = "AIServices"
+    sku        = { name = "S0" }
+    properties = local.account_properties
   }
 
   response_export_values = ["id", "properties.endpoints"]
+
+  # FR-031 step 4 (C-022..C-024) — when Hosted-Agent network injection is on,
+  # the account MUST be private (injection is meaningless on a public account)
+  # and all four agent inputs (subnet + the three BYO resource ids) MUST be
+  # present. Defence-in-depth on top of the per-variable validators.
+  lifecycle {
+    precondition {
+      condition = !var.network_injection_enabled || (
+        var.private_endpoint_enabled &&
+        var.agent_subnet_id != null &&
+        var.agent_storage_account_id != null &&
+        var.agent_cosmosdb_account_id != null &&
+        var.agent_search_service_id != null
+      )
+      error_message = "FR-031 — network_injection_enabled=true requires private_endpoint_enabled=true and non-null agent_subnet_id, agent_storage_account_id, agent_cosmosdb_account_id, and agent_search_service_id."
+    }
+  }
 }
 
 # C-014 (Amendment 2026-05-31) — default diagnostic settings to shared hub LA.
@@ -141,6 +154,109 @@ resource "azapi_resource" "appinsights_connection" {
       }
     }
   }
+
+  response_export_values = ["id"]
+}
+
+# C-024..C-026 / FR-031 (Amendment 2026-06-02) — Hosted-Agent BYO connections.
+# When network injection is on, the Agents capability host (below) needs THREE
+# account connections referencing customer-owned Storage, Cosmos DB and AI
+# Search. The connection names are fixed/short (C-025) to satisfy the RP
+# pattern; category/target/authType follow the Foundry BYO contract. All three
+# resolve to zero-count (inert) defaults unless var.network_injection_enabled
+# is set, preserving day-one behaviour.
+resource "azapi_resource" "agent_storage_connection" {
+  count     = local.network_injection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
+  name      = local.agent_conn_storage
+  parent_id = azapi_resource.this.id
+
+  body = {
+    properties = {
+      category      = "AzureStorageAccount"
+      target        = var.agent_storage_account_id
+      authType      = "AAD"
+      isSharedToAll = true
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = var.agent_storage_account_id
+      }
+    }
+  }
+
+  response_export_values = ["id"]
+}
+
+resource "azapi_resource" "agent_cosmos_connection" {
+  count     = local.network_injection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
+  name      = local.agent_conn_cosmos
+  parent_id = azapi_resource.this.id
+
+  body = {
+    properties = {
+      category      = "CosmosDB"
+      target        = var.agent_cosmosdb_account_id
+      authType      = "AAD"
+      isSharedToAll = true
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = var.agent_cosmosdb_account_id
+      }
+    }
+  }
+
+  response_export_values = ["id"]
+}
+
+resource "azapi_resource" "agent_search_connection" {
+  count     = local.network_injection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
+  name      = local.agent_conn_search
+  parent_id = azapi_resource.this.id
+
+  body = {
+    properties = {
+      category      = "CognitiveSearch"
+      target        = var.agent_search_service_id
+      authType      = "AAD"
+      isSharedToAll = true
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = var.agent_search_service_id
+      }
+    }
+  }
+
+  response_export_values = ["id"]
+}
+
+# C-026 / FR-031 step 3 (VC-3) — Agents capability host. capabilityHostKind is
+# "Agents"; customerSubnet is the dedicated agent subnet; the three connection
+# lists reference the connection NAMES created above (depends_on guarantees they
+# exist first — VC-3 hard-fails otherwise). storageConnections=Storage,
+# threadStorageConnections=Cosmos DB, vectorStoreConnections=AI Search.
+resource "azapi_resource" "capability_host" {
+  count     = local.network_injection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/capabilityHosts@2025-09-01"
+  name      = "agents"
+  parent_id = azapi_resource.this.id
+
+  body = {
+    properties = {
+      capabilityHostKind       = "Agents"
+      customerSubnet           = var.agent_subnet_id
+      storageConnections       = [local.agent_conn_storage]
+      threadStorageConnections = [local.agent_conn_cosmos]
+      vectorStoreConnections   = [local.agent_conn_search]
+    }
+  }
+
+  depends_on = [
+    azapi_resource.agent_storage_connection,
+    azapi_resource.agent_cosmos_connection,
+    azapi_resource.agent_search_connection,
+  ]
 
   response_export_values = ["id"]
 }
