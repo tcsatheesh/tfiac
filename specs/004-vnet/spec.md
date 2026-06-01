@@ -1,6 +1,27 @@
-# Feature 004 — Hub & Spoke Network Foundation
+# Feature 004 — Hub & Spoke Network Foundation (generic engine)
 
 **Status**: Implemented on master alongside spec.
+
+> **ENGINE FEATURE — instances live in their own features (2026-06-01 retro-split).**
+> This feature owns the **generic, reusable** network engine (`modules/network/`)
+> and the generic root stack `terraform/vnet/` ONLY. It defines *how* a hub or
+> spoke vnet is built (role catalogue, NSGs, route tables, peering, bastion,
+> firewall) but deploys **nothing** by itself. Every concrete deployment —
+> its CIDRs, subnet map, `firewall_sku_tier`, backend state key, CI path, and
+> rollout command — lives in a dedicated **instance feature** that pins one
+> `variables/<tenant>/<env>/vnet.tfvars.json` file:
+>
+> | Instance feature | Tenant/env | Role | tfvars |
+> |---|---|---|---|
+> | [007-hub-npd-vnet](../007-hub-npd-vnet/spec.md) | hub/npd | hub | `variables/hub/npd/vnet.tfvars.json` |
+> | [008-sp01-npd-vnet](../008-sp01-npd-vnet/spec.md) | sp01/npd | spoke | `variables/sp01/npd/vnet.tfvars.json` |
+>
+> **Adding a new spoke vnet is a new instance feature, not a change here.**
+> See the "Add another spoke" runbook in
+> [008-sp01-npd-vnet](../008-sp01-npd-vnet/spec.md). Touch this feature only
+> when the *engine* itself changes (new subnet role, new toggle, peering
+> behaviour, etc.). The day-one CIDRs recorded below are retained for history;
+> they are now owned by the instance features above.
 
 ## Summary
 
