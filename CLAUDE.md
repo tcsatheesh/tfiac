@@ -56,6 +56,28 @@ follow this workflow without asking the user to confirm each step:
   - Amendments to a shipped feature: append to the existing
     `specs/NNN-<feature>/` artifacts (new FR-NNN, new C-clarifications,
     new Phase in `tasks.md`) rather than creating a new feature folder.
+  - **Engine features vs. instance features (architectural split).** Generic,
+    reusable stacks are "engine features" that deploy NOTHING by themselves —
+    they define *how* something is built and are parameterized 100% via tfvars
+    + backend state key. Examples: `004-vnet` (`terraform/vnet/`,
+    `modules/network/`), `006-services` (`terraform/services/` + service
+    wrapper modules). Every concrete deployment (a specific tenant/env's
+    CIDRs, subnet map, service selection, toggles, backend key, CI path,
+    rollout command) is an "instance feature" that pins exactly one
+    `variables/<tenant>/<env>/<stack>.tfvars.json`. Examples:
+    `007-hub-npd-vnet`, `008-sp01-npd-vnet`, `009-sp01-dev-services`.
+    - **Adding a new spoke / new tenant-env deployment = a NEW instance
+      feature**, NOT an amendment to the engine. Scaffold a new
+      `specs/NNN-<tenant>-<env>-<stack>/` folder + a new
+      `variables/<tenant>/<env>/<stack>.tfvars.json`; the engine code does
+      NOT change. (See the "Add another spoke" runbook in
+      `specs/008-sp01-npd-vnet/spec.md`.)
+    - **Touch an engine feature ONLY when the engine itself changes** (new
+      subnet role, new selectable service type, new toggle, topology/peering
+      rule). Such changes are amendments to the engine feature AND, where they
+      add a selectable type or naming row, also to `001-naming`.
+    - Instance features must only *select / parameterize*; they MUST NOT
+      define new resource types or naming rows (those are engine + `001`).
   - Variables should be runtime-configurable via tfvars, never hard-coded.
   - Defaults preserve existing behaviour.
   - Validation lives at every input boundary (defence-in-depth).

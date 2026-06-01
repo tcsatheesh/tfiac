@@ -8,6 +8,26 @@
 
 **Input**: User description: "Build a deployment system where I can select what Azure services I need to build and they are built and deployed either in the hub or a spoke in a separate resource group (purpose=svc)"
 
+> **ENGINE FEATURE — instances live in their own features (2026-06-01 retro-split).**
+> This feature owns the **generic, reusable** selectable-services engine
+> (`terraform/services/` + the service wrapper modules under `modules/`)
+> ONLY. It defines *how* a `svc` resource group of selectable Azure services
+> is built (selection list, topology gating, naming, RBAC, private endpoints)
+> but deploys **nothing** by itself. Every concrete deployment — its service
+> selection, toggles, overrides, backend state key, CI path, and rollout
+> command — lives in a dedicated **instance feature** that pins one
+> `variables/<tenant>/<env>/services.tfvars.json` file:
+>
+> | Instance feature | Tenant/env | Topology | tfvars |
+> |---|---|---|---|
+> | [009-sp01-dev-services](../009-sp01-dev-services/spec.md) | sp01/dev | spoke | `variables/sp01/dev/services.tfvars.json` |
+>
+> (`hub/prd` and `sp01/prd` service instances remain documented in this
+> engine spec's history and may be extracted to their own instance features
+> on next touch.) **Adding services to a new tenant/env is a new instance
+> feature, not a change here.** Touch this feature only when the *engine*
+> itself changes (new selectable type, new toggle, topology rule, etc.).
+
 > **AMENDMENT NOTICE (2026-05-30, post `/speckit.analyze` pass 2).** The
 > sections below were authored against an assumed naming-engine surface
 > that does not match the implemented engine
