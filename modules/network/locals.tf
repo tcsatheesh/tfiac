@@ -75,6 +75,20 @@ locals {
       service_endpoints = []
       delegation        = ["Microsoft.App/environments"]
     }
+    # FR-226 (Amendment 2026-06-02) — dedicated Foundry Hosted-Agent subnet
+    # (VC-5). Delegated to Microsoft.App/environments like `container-apps`,
+    # but a DISTINCT role so a spoke can carry both an ACA managed-environment
+    # subnet (`cae`) and a separate, exclusive agent subnet (`agt`). Recommended
+    # /24; the CIDR is supplied per-instance via var.subnets. No route table
+    # (the managed environment handles its own egress).
+    "agents" = {
+      abbr3             = "agt"
+      literal_name      = null
+      needs_nsg         = true
+      needs_route_table = false
+      service_endpoints = []
+      delegation        = ["Microsoft.App/environments"]
+    }
     "bastion" = {
       abbr3             = "bas"
       literal_name      = "AzureBastionSubnet"
