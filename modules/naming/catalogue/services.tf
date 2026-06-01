@@ -33,23 +33,26 @@ locals {
     "keyvault"                  = { abbr = "kv", shape = "concatenated", azure_max = 24, level = "top" }
     "container_registry"        = { abbr = "cr", shape = "concatenated", azure_max = 50, level = "top" }
     "container_app_environment" = { abbr = "cae", shape = "hyphenated", azure_max = 32, level = "top" }
-    "user_assigned_identity"    = { abbr = "id", shape = "hyphenated", azure_max = 128, level = "top" }
-    "vm"                        = { abbr = "vm", shape = "hyphenated", azure_max = 64, level = "top" }
-    "app_service_plan"          = { abbr = "asp", shape = "hyphenated", azure_max = 40, level = "top" }
-    "apim"                      = { abbr = "apim", shape = "hyphenated", azure_max = 50, level = "top" }
-    "vpn_gateway"               = { abbr = "vpng", shape = "hyphenated", azure_max = 80, level = "top" }
-    "expressroute_gateway"      = { abbr = "ergw", shape = "hyphenated", azure_max = 80, level = "top" }
-    "function_app"              = { abbr = "func", shape = "hyphenated", azure_max = 60, level = "top" }
-    "logic_app"                 = { abbr = "logic", shape = "hyphenated", azure_max = 80, level = "top" }
-    "aml_workspace"             = { abbr = "mlw", shape = "hyphenated", azure_max = 33, level = "top" }
-    "openai"                    = { abbr = "oai", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry"                 = { abbr = "aif", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry_project"         = { abbr = "aifp", shape = "hyphenated", azure_max = 32, level = "top" }
-    "language"                  = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
-    "doc_intel"                 = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
-    "search"                    = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }
-    "dns_zone"                  = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
-    "private_dns_zone"          = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
+    # cosmosdb (Amendment 2026-06-02, FR-032) — Azure Cosmos DB account. Name 3-44
+    # chars, lowercase alnum + hyphen. CAF abbr `cosmos`; hyphenated shape.
+    "cosmosdb"               = { abbr = "cosmos", shape = "hyphenated", azure_max = 44, level = "top" }
+    "user_assigned_identity" = { abbr = "id", shape = "hyphenated", azure_max = 128, level = "top" }
+    "vm"                     = { abbr = "vm", shape = "hyphenated", azure_max = 64, level = "top" }
+    "app_service_plan"       = { abbr = "asp", shape = "hyphenated", azure_max = 40, level = "top" }
+    "apim"                   = { abbr = "apim", shape = "hyphenated", azure_max = 50, level = "top" }
+    "vpn_gateway"            = { abbr = "vpng", shape = "hyphenated", azure_max = 80, level = "top" }
+    "expressroute_gateway"   = { abbr = "ergw", shape = "hyphenated", azure_max = 80, level = "top" }
+    "function_app"           = { abbr = "func", shape = "hyphenated", azure_max = 60, level = "top" }
+    "logic_app"              = { abbr = "logic", shape = "hyphenated", azure_max = 80, level = "top" }
+    "aml_workspace"          = { abbr = "mlw", shape = "hyphenated", azure_max = 33, level = "top" }
+    "openai"                 = { abbr = "oai", shape = "hyphenated", azure_max = 64, level = "top" }
+    "aifoundry"              = { abbr = "aif", shape = "hyphenated", azure_max = 64, level = "top" }
+    "aifoundry_project"      = { abbr = "aifp", shape = "hyphenated", azure_max = 32, level = "top" }
+    "language"               = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
+    "doc_intel"              = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
+    "search"                 = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }
+    "dns_zone"               = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
+    "private_dns_zone"       = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
 
     # ----- Child resources (8 rows) -----
     "subnet"             = { abbr = "snet", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "vnet" }

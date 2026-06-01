@@ -192,6 +192,33 @@ module "container_app_environment" {
   vnet_id                  = local.spoke_vnet_id
 }
 
+# FR-032 (Amendment 2026-06-02) — private-by-default Azure Cosmos DB account
+# (SQL/NoSQL API). Reachable only from the spoke VNet via an always-on private
+# endpoint into the hub privatelink.documents.azure.com zone. The PE subnet (by
+# role) + cosmos-sql zone id come from the vnet/dns remote state, which is
+# required whenever a cosmosdb is selected (local.cosmosdb_selected). Usable as
+# a standalone service or as the BYO thread store for a Foundry Hosted-Agent
+# capability host.
+module "cosmosdb" {
+  source = "../../modules/cosmosdb"
+  for_each = {
+    for n, e in module.naming.names : n => e if e.service_type == "cosmosdb"
+  }
+
+  canonical_name      = each.key
+  resource_group_name = azurerm_resource_group.svc.name
+  location            = azurerm_resource_group.svc.location
+  tags                = each.value.tags
+  engine_record       = each.value
+  overrides           = lookup(var.overrides, each.key, {})
+  # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
+  shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  # FR-032 — private-only: always-on PE into the spoke PE subnet + cosmos-sql zone.
+  private_endpoint_subnet_id = local.cosmosdb_pe_subnet_id
+  private_dns_zone_ids       = local.cosmosdb_pe_zone_ids
+}
+
 module "user_assigned_identity" {
   source = "../../modules/uai"
   for_each = {

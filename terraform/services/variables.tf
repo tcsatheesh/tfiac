@@ -103,10 +103,10 @@ variable "services" {
         "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
         "user_assigned_identity", "search", "openai", "aifoundry", "aifoundry_project",
         "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
-        "container_app_environment",
+        "container_app_environment", "cosmosdb",
       ], s.type)
     ])
-    error_message = "services[*].type must be one of the 17 v1 selectable types (spec.md C-001 + C-015 + C-021). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
+    error_message = "services[*].type must be one of the 18 v1 selectable types (spec.md C-001 + C-015 + C-021 + FR-032). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
   }
 
   validation {
@@ -243,6 +243,13 @@ variable "dns_state_backend" {
   validation {
     condition     = !var.enable_container_registry_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
     error_message = "enable_container_registry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+  }
+
+  # FR-032: Cosmos DB is private-only — selecting it requires both the spoke
+  # VNet (PE subnet) and hub DNS (cosmos-sql zone) remote states.
+  validation {
+    condition     = length([for s in var.services : s if s.type == "cosmosdb"]) == 0 || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "selecting a 'cosmosdb' service requires both vnet_state_backend and dns_state_backend to be set (FR-032 — Cosmos DB is private-only)."
   }
 }
 

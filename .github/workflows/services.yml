@@ -5,6 +5,7 @@ on:
     paths:
       - modules/keyvault/**
       - modules/storage/**
+      - modules/cosmosdb/**
       - modules/appinsights/**
       - modules/cntreg/**
       - modules/uai/**
@@ -28,6 +29,7 @@ on:
     paths:
       - modules/keyvault/**
       - modules/storage/**
+      - modules/cosmosdb/**
       - modules/appinsights/**
       - modules/cntreg/**
       - modules/uai/**
@@ -60,6 +62,7 @@ jobs:
         dir:
           - modules/keyvault
           - modules/storage
+          - modules/cosmosdb
           - modules/appinsights
           - modules/cntreg
           - modules/uai

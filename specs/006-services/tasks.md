@@ -716,9 +716,49 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 
 ### CA-013 — Dependent feature program (tracked, NOT in this PR)
 
-- [ ] T-FR031-D2 (Feature) 006+001: new `cosmosdb` selectable type + `modules/cosmosdb/` (private-by-default, PE + `privatelink.documents.azure.com`) + `cosmos` naming row. (CA-013 #2 / VC-3/VC-4/VC-6)
-- [ ] T-FR031-D3 (Feature) 004-vnet: new `agents` subnet role delegated `Microsoft.App/environments`, dedicated /24, exclusive. (CA-013 #3 / VC-5)
+- [x] T-FR031-D2 (Feature) 006+001: new `cosmosdb` selectable type + `modules/cosmosdb/` (private-by-default, PE + `privatelink.documents.azure.com`) + `cosmos` naming row. (CA-013 #2 / VC-3/VC-4/VC-6) — **DONE, see Phase FR-032 below.**
+- [x] T-FR031-D3 (Feature) 004-vnet: new `agents` subnet role delegated `Microsoft.App/environments`, dedicated /24, exclusive. (CA-013 #3 / VC-5) — **DONE, PR #31 (FR-226).**
 - [ ] T-FR031-D4 (Feature) 102-sp01-npd-vnet: expand spoke to `10.240.2.0/23`, agent subnet `10.240.3.0/24`. (CA-013 #4 / VC-5)
-- [ ] T-FR031-D5 (Feature) 002-private-dns: add Cosmos `privatelink.documents.azure.com` zone. (CA-013 #5 / VC-6)
+- [x] T-FR031-D5 (Feature) 002-private-dns: add Cosmos `privatelink.documents.azure.com` zone. (CA-013 #5 / VC-6) — **RETIRED: zone already in catalogue (`cosmos-sql`); no-op (C-029).**
 - [ ] T-FR031-D6 (Feature) 103-sp01-dev-services: flip toggle, select BYO trio, thread agent subnet, **document ACR public-access mandate exception**. (CA-013 #6 / VC-7)
 - [ ] T-FR031-D7 (Operator-approved, destructive) Live recreate: delete+purge Foundry account + capability host BEFORE the VNet, re-apply with injection on. NOT executed by automation. (CA-013 / VC-1 / VC-8)
+
+---
+
+## Phase FR-032 — `cosmosdb` private-by-default selectable type (engine, additive)
+
+### FR-032.A — Naming row (feature 001)
+
+- [x] T-FR032-001 Add top-level row `"cosmosdb" = { abbr="cosmos", shape="hyphenated", azure_max=44, level="top" }` to [modules/naming/catalogue/services.tf](../../modules/naming/catalogue/services.tf). (FR-032 / VF-3)
+- [x] T-FR032-002 Add the `cosmosdb` row to the Naming Pattern Table in [specs/001-naming-convention-engine/spec.md](../001-naming-convention-engine/spec.md) (top-level section). (FR-032)
+- [x] T-FR032-003 Add `"cosmosdb"` to the four hard-coded type lists in [modules/naming/tests/us6_catalogue_completeness.tftest.hcl](../../modules/naming/tests/us6_catalogue_completeness.tftest.hcl); bump top-level count 27→28. (FR-032)
+
+### FR-032.B — Wrapper module `modules/cosmosdb/`
+
+- [x] T-FR032-004 `modules/cosmosdb/versions.tf` — terraform ~>1.9, azurerm ~>4.0. (FR-021/FR-022)
+- [x] T-FR032-005 `modules/cosmosdb/variables.tf` — canonical_name (≤44 regex), rg/location/tags, engine_record, overrides, `shared_log_analytics_workspace_id`, `diagnostic_settings_enabled` (default true), REQUIRED `private_endpoint_subnet_id` (full-subnet-id regex) + non-empty `private_dns_zone_ids`. (FR-032 steps 3/4)
+- [x] T-FR032-006 `modules/cosmosdb/locals.tf` — private-only defaults (`Session`, `local_authentication_disabled=true`, no free tier, no auto-failover), `pe_name=pep-${canonical_name}`. (FR-032)
+- [x] T-FR032-007 `modules/cosmosdb/main.tf` — `azurerm_cosmosdb_account` (`offer_type=Standard`, `kind=GlobalDocumentDB`, `public_network_access_enabled=false` ALWAYS, single geo_location); always-on `azurerm_private_endpoint` (`subresource_names=["Sql"]`, DNS zone group); count-gated diag → hub LA. (FR-032 steps 1-4 / VC-2)
+- [x] T-FR032-008 `modules/cosmosdb/outputs.tf` — `resource_id`, `private_endpoint_id`. (FR-019)
+- [x] T-FR032-009 [P] `modules/cosmosdb/tests/positive.tftest.hcl` — asserts public=false, local-auth disabled, GlobalDocumentDB, PE subnet/Sql/zone, diag→hub LA. (FR-032)
+- [x] T-FR032-010 [P] `modules/cosmosdb/tests/negative.tftest.hcl` — rejects empty/uppercase name, malformed PE subnet, empty zone list. (FR-032)
+
+### FR-032.C — Services-stack wiring
+
+- [x] T-FR032-011 [terraform/services/locals.tf](../../terraform/services/locals.tf): add `cosmosdb` to `v1_selectable_types`; `type_short.cosmosdb="cos"`. (FR-032)
+- [x] T-FR032-012 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): `cosmosdb_selected`; include in `vnet_state_required`/`dns_state_required` gated on backend non-null; resolve `cosmosdb_pe_subnet_id` + `cosmosdb_pe_zone_ids` (`zone_ids["cosmos-sql"]`). (FR-032 / VF-1)
+- [x] T-FR032-013 [terraform/services/main.tf](../../terraform/services/main.tf): `module "cosmosdb"` (for_each `type=="cosmosdb"`) wiring PE subnet + zone ids. (FR-032)
+- [x] T-FR032-014 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `cosmosdb` to `services[*].type` allow-list; `var.dns_state_backend` validation requiring both backends when `cosmosdb` selected. (FR-032 / C-028)
+- [x] T-FR032-015 [terraform/services/check.tf](../../terraform/services/check.tf): `check "cosmosdb_requires_backends"`. (FR-032 / C-028)
+- [x] T-FR032-016 `terraform/services/tests/cosmosdb_happy.tftest.hcl` — selecting `cosmosdb` resolves PE subnet + `cosmos-sql` zone; one module instance. (FR-032)
+
+### FR-032.D — Verification gates (HARD)
+
+- [x] T-FR032-017 `terraform fmt -recursive` from repo root → no changes. (FR-032)
+- [x] T-FR032-018 `terraform -chdir=modules/cosmosdb test` → 7/7 pass. (FR-032)
+- [x] T-FR032-019 `terraform -chdir=modules/naming test` → 36/36 pass. (FR-032)
+- [x] T-FR032-020 `terraform -chdir=terraform/services test` → 15/15 pass. (FR-032)
+
+### FR-032.E — Rollout
+
+- [ ] T-FR032-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — additive engine type, no instance selects `cosmosdb` (C-027). (FR-032)

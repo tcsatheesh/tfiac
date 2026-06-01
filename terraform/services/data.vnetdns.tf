@@ -18,10 +18,15 @@ locals {
   acr_pe_required       = var.enable_container_registry_private_endpoint
   container_apps_active = var.enable_container_apps
 
+  # FR-032 (Amendment 2026-06-02) — Cosmos DB is private-ONLY: selecting it
+  # ALWAYS requires the spoke VNet (PE subnet) + hub DNS (cosmos-sql zone)
+  # remote states. There is no toggle — selection implies private wiring.
+  cosmosdb_selected = length([for s in var.services : s if s.type == "cosmosdb"]) > 0
+
   # Any feature that needs the spoke VNet remote state.
-  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.container_apps_active
+  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.container_apps_active || (local.cosmosdb_selected && var.vnet_state_backend != null)
   # Any feature that needs the hub DNS remote state (PE zone ids).
-  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required
+  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
 }
 
 data "terraform_remote_state" "vnet" {
@@ -87,4 +92,15 @@ locals {
     data.terraform_remote_state.vnet[0].outputs.vnet_id,
     null,
   ) : null
+
+  # FR-032 — Cosmos DB PE: the spoke PE subnet (by role) + the hub cosmos-sql
+  # zone (privatelink.documents.azure.com). null/empty when no cosmosdb selected.
+  cosmosdb_pe_subnet_id = local.cosmosdb_selected ? try(
+    data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
+    null,
+  ) : null
+
+  cosmosdb_pe_zone_ids = local.cosmosdb_selected ? [
+    data.terraform_remote_state.dns[0].outputs.zone_ids["cosmos-sql"]
+  ] : []
 }
