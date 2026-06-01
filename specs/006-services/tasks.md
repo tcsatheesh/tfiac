@@ -618,6 +618,6 @@ Amendment delivering [spec.md C-019 / FR-028](spec.md#clarifications-amendment-2
 
 ### Phase C-019.F — Rollout
 
-- [ ] T-C019-017 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-028 / C-019)
-- [ ] T-C019-018 `git checkout master && git pull --ff-only`; apply the services stack (`service=services tenant=sp01 environment=dev action=apply apply=true`). (FR-028 / C-019)
-- [ ] T-C019-019 Verify `aif-uc1-uc1-sp01-dev-swc-001` has an `AppInsights` connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is workspace-based against the hub LA. Restore the state-SA firewall if temp-opened. (FR-028 / C-019)
+- [X] T-C019-017 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-028 / C-019)
+- [X] T-C019-018 `git checkout master && git pull --ff-only`; apply the services stack (`service=services tenant=sp01 environment=dev action=apply apply=true`). (FR-028 / C-019)
+- [X] T-C019-019 Verify `aif-uc1-uc1-sp01-dev-swc-001` has an `AppInsights` connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is workspace-based against the hub LA. Restore the state-SA firewall if temp-opened. (FR-028 / C-019)
