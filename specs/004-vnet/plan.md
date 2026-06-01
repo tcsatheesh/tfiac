@@ -805,3 +805,31 @@ Hub-only live rollout, mirroring Phase 8 (T111-T118):
 > No `terraform apply` in Phase 9 — the entire purpose of this
 > amendment is to make the *plan* a no-op against live Azure. If the
 > gate is satisfied, no resources need touching.
+
+---
+
+## Amendment 2026-06-02 — FR-226 dedicated Foundry agent subnet role (engine)
+
+**Scope.** Add one `agents` role to the module-internal subnet role catalogue
+(`modules/network/locals.tf`), delegated `Microsoft.App/environments`,
+`abbr3 = "agt"`, `needs_nsg = true`, `needs_route_table = false`,
+`service_endpoints = []`. Purely additive; no existing role/default changes;
+no naming-engine (001) change (subnet purposes are free-form abbr3); the
+existing `VNET-INV-5` precondition auto-validates the new role.
+
+**Files touched.**
+- `modules/network/locals.tf` — new `agents` entry in `local.role_catalogue`.
+- `modules/network/variables.tf` — `agents` added to the static VNET-INV-5
+  `var.subnets` key allow-list.
+- `modules/network/outputs.tf` — test-support introspection outputs
+  `subnet_delegations` + `subnet_route_table_attached` (mirrors the existing
+  `subnet_service_endpoints` plan-test output).
+- `modules/network/tests/agents_role_delegation.tftest.hcl` — new test.
+
+**Verification (plan-level only, mocked, `-backend=false`).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=modules/network test` → 100% pass (existing +
+  `agents_role_delegation`).
+
+**Rollout.** None — engine-only, no instance selects `agents` yet. Lighting it
+up is the `102-sp01-npd-vnet` address-space expansion (CA-013 #4). Merge-only PR.

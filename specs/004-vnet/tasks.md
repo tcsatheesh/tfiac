@@ -304,3 +304,15 @@ in [plan.md](plan.md).
 - [x] T143 Report plan summary and Phase 9 complete.
 
 > Phase 9 tasks track spec FR-223..FR-225 and clarifications C16.13..C16.18, and execute plan amendment §10–§14. Dependency chain: T119 (firewall) → T120/T121 (bastion vars+outputs, parallel) → T122 → T123 → T124 → T125 → T126 → T127 → T128 → T129/T130 (tests, parallel) → T131 → T132 → T133 → T134 → T135 → T136 → T137 → T138 → T139 → T140 → T141 → T142 → T143.
+
+---
+
+## Phase FR-226 — Dedicated Foundry agent subnet role (engine)
+
+- [ ] T-FR226-001 Add `agents` role to `local.role_catalogue` in [modules/network/locals.tf](../../modules/network/locals.tf): abbr3=agt, literal_name=null, needs_nsg=true, needs_route_table=false, service_endpoints=[], delegation=["Microsoft.App/environments"]. (FR-226 / VC-5)
+- [ ] T-FR226-001b Add `agents` to the static VNET-INV-5 `var.subnets` allow-list in [modules/network/variables.tf](../../modules/network/variables.tf). (FR-226)
+- [ ] T-FR226-001c Add test-support outputs `subnet_delegations` + `subnet_route_table_attached` to [modules/network/outputs.tf](../../modules/network/outputs.tf). (FR-226)
+- [ ] T-FR226-002 [P] Add [modules/network/tests/agents_role_delegation.tftest.hcl](../../modules/network/tests/agents_role_delegation.tftest.hcl): spoke plan with subnets incl. agents asserts delegation Microsoft.App/environments, NSG present, no shared route table, snet-…-agt-… canonical name. (FR-226)
+- [ ] T-FR226-003 `terraform fmt -recursive` → no changes. (FR-226)
+- [ ] T-FR226-004 `terraform -chdir=modules/network test` → 100% pass. (FR-226)
+- [ ] T-FR226-005 Push branch, open PR against master, squash-merge, delete branch. No live apply (engine-only). (FR-226)

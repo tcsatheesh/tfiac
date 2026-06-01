@@ -523,3 +523,85 @@ documented here for audit.
   `module.network.module.bastion[0].module.pip.azurerm_public_ip.this`.
   Phase 9 MUST include a `terraform state mv` step prior to plan so
   the existing Azure resource is preserved (no destroy/recreate).
+
+---
+
+## Amendment: Dedicated Foundry Hosted-Agent subnet role (FR-226)
+
+**Status**: Amendment — appended to feature 004 (engine). Driven by the
+Foundry Hosted-Agent network-injection program (see
+`specs/006-services/spec.md` FR-031 / CA-013 #3 / VC-5). Engine-only and
+purely additive: it adds ONE new entry to the module-internal subnet role
+catalogue. No existing role, name, or default changes; no instance consumes
+it until a spoke VNet selects it.
+
+### Background (VC-5, from Microsoft Learn `ai-foundry/agents/how-to/virtual-networks`)
+
+A Foundry account with Hosted-Agent network injection requires a **dedicated
+agent subnet**:
+
+- delegated to `Microsoft.App/environments`,
+- recommended size **/24**,
+- **exclusive to a single Foundry account** — it CANNOT be shared with another
+  account nor with an Azure Container Apps managed-environment subnet,
+- RFC1918 only (CGNAT `100.64/10` is unsupported),
+- same region as the account.
+
+The catalogue already has a `container-apps` role (abbr3 `cae`) delegated to
+`Microsoft.App/environments`, but that role names the ACA managed-environment
+subnet and may be co-selected in the same spoke. Per the exclusivity rule the
+agent subnet MUST be a distinct role so a spoke can carry BOTH an ACA subnet
+and a separate, dedicated agent subnet without a name/role collision.
+
+### Requirement
+
+- **FR-226 — `agents` subnet role.** The module-internal role catalogue
+  (`modules/network/locals.tf`) MUST gain one new role `agents`:
+
+  | Role | Azure-mandated name | Default NSG | Default route table | Default service endpoints | Default delegation |
+  |---|---|---|---|---|---|
+  | `agents` | (engine-named) | yes | no | — | `Microsoft.App/environments` |
+
+  Fields: `abbr3 = "agt"`, `literal_name = null`, `needs_nsg = true`,
+  `needs_route_table = false`, `service_endpoints = []`,
+  `delegation = ["Microsoft.App/environments"]`. The subnet is engine-named
+  via the existing `subnet` child type (`child_purpose = "agt"`); **no
+  naming-engine catalogue (001) change is required** (subnet purposes are
+  free-form `abbr3` strings). `needs_route_table = false` mirrors the
+  `container-apps` role (the delegated managed-environment handles its own
+  egress; attaching the shared spoke 0.0.0.0/0 → firewall route is neither
+  required nor recommended for the injected environment). The `agents` key
+  MUST also be added to the static `VNET-INV-5` allow-list in
+  `modules/network/variables.tf` (the `var.subnets` key validation enumerates
+  the permitted roles); the `check.tf` runtime precondition then validates it
+  against `keys(local.role_catalogue)` automatically.
+
+### Clarifications — Session 2026-06-02
+
+- **C17 — Distinct role, not a rename of `container-apps`.** The new `agents`
+  role is added alongside (not in place of) `container-apps`. A spoke may
+  select either, both, or neither. This honours VC-5 exclusivity: the ACA
+  environment subnet (`cae`) and the Foundry agent subnet (`agt`) are
+  separately named, separately delegated subnet instances.
+- **C18 — /24 sizing is an instance concern.** The catalogue defines the role
+  and its delegation only; the actual CIDR (recommended /24) is supplied by
+  the instance VNet's `var.subnets` map (e.g. the `102-sp01-npd-vnet`
+  address-space expansion, CA-013 #4). The engine does not pin a size.
+- **C19 — Engine-only, default-off in practice.** No `var.subnets` map in any
+  current instance lists `agents`, so this amendment changes nothing live
+  until an instance VNet opts in. Day-one parity preserved.
+
+### Test plan (amendment)
+
+- `modules/network/tests/agents_role_delegation.tftest.hcl` — a spoke plan
+  with `subnets` including `"agents" = "<cidr>"` asserts (a) the agent subnet
+  is emitted with delegation `Microsoft.App/environments`, (b) it carries an
+  NSG, (c) it does NOT attach the shared route table, and (d) the engine
+  emits the `snet-…-agt-…` canonical name. Reuses the existing mocked,
+  `-backend=false` module-test harness.
+
+### Out of scope for FR-226
+
+Address-space expansion / CIDR selection (CA-013 #4, the `102` instance), the
+Foundry account wiring that consumes the subnet id (006 FR-031, already
+merged), and any live apply.

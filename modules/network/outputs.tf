@@ -100,3 +100,17 @@ output "subnet_service_endpoints" {
     ]
   }
 }
+
+output "subnet_delegations" {
+  description = "Map of role => list(delegation service name) actually passed to the subnet AVM module. Exposed so plan-time tests can assert delegation wiring (e.g. the FR-226 `agents` role delegates Microsoft.App/environments)."
+  value = {
+    for r in local.active_roles : r => local.role_catalogue[r].delegation
+  }
+}
+
+output "subnet_route_table_attached" {
+  description = "Map of role => bool indicating whether the subnet attaches the shared route table (needs_route_table). Exposed so plan-time tests can assert FR-226: the `agents` (and `container-apps`) role does NOT attach the shared spoke default route."
+  value = {
+    for r in local.active_roles : r => local.role_catalogue[r].needs_route_table
+  }
+}
