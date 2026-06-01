@@ -50,3 +50,36 @@ No new engine tests. Local `terraform fmt -recursive` + `terraform test`
 (`-backend=false`) green across the touched service modules +
 `terraform/services`. Live validation via `deploy.yaml` apply against
 `sp01/dev/services.tfstate` AFTER the spoke vnet exists.
+
+## Amendment plan — FR-103-05 (Foundry Hosted-Agent injection light-up)
+
+**Scope.** Instance-only. Flip on Foundry Hosted-Agent network injection now
+that the engine prerequisites (006 FR-032/033/034/035, 004/102 agents subnet)
+are all merged. ONLY `specs/103-*` + `variables/sp01/dev/services.tfvars.json`
+change — no engine code (FR-103-01).
+
+**tfvars edits (the only deployable artifact).**
+- `services[]` += `storage`, `cosmosdb`, `search` (the BYO Agent trio).
+- `enable_aifoundry_network_injection`: `true` (FR-033).
+- `enable_storage_private_endpoint`: `true` (FR-034).
+- `enable_search_private_endpoint`: `true` (FR-035).
+- `enable_container_registry_private_endpoint`: **`false`** (VC-7 ACR public
+  exception — the ONE documented private-by-default deviation).
+- `agent_subnet_role`: `agents` (default; pinned explicitly for clarity).
+- `enable_aifoundry_private_endpoint`: `true` (unchanged — injection prereq).
+
+**Engine invariants relied on (already merged, NOT changed here).**
+- `check.aifoundry_network_injection_prereqs` — injection ⇒ private account +
+  exactly one each of aifoundry/storage/cosmosdb/search.
+- `check.storage_pe_requires_storage` / `check.search_pe_requires_search`.
+- `enable_aifoundry_network_injection` requires `vnet_state_backend` (agents
+  subnet) and `enable_aifoundry_private_endpoint = true`.
+
+**Verification (local, no live state).** `terraform fmt -recursive` +
+`terraform test` (engine suites unchanged & green); `terraform validate` of
+the stack; manual JSON sanity of the tfvars. **No local apply** (FR-103-04).
+
+**Rollout (operator-run, VC-8/VC-9).** Destructive Foundry recreate: operator
+purges the existing Foundry account + `Agents` capability host, THEN dispatches
+`deploy.yaml` (`service=services tenant=sp01 environment=dev action=apply
+apply=true`). The agent does NOT execute this. See the spec's operator runbook.
