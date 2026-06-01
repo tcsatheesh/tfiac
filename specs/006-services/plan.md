@@ -1182,3 +1182,39 @@ the C-034 follow-up). Engine-only, default-off.
 
 **Rollout.** None in this PR — engine-only, default-off. The `103` instance
 (CA-013 #6) flips it on. Merge-only.
+
+## Amendment plan — FR-035 AI Search private endpoint
+
+**Scope.** Sibling to FR-034. Give `modules/search` + the services stack an
+opt-in private endpoint (subresource `searchService`), mirroring FR-034 / the
+ACR FR-029 pattern, so the BYO Hosted-Agent vector store can be private (closes
+the search half — and the whole — of the C-034 follow-up). Engine-only,
+default-off.
+
+**Files touched.**
+- `modules/search/variables.tf` — `private_endpoint_enabled` (bool, default
+  false) + `private_endpoint_subnet_id` (subnet-id regex) + `private_dns_zone_ids`.
+- `modules/search/locals.tf` — `pe_name = "pep-${canonical_name}"`.
+- `modules/search/main.tf` — `public_network_access_enabled =
+  !private_endpoint_enabled`; count-gated `azurerm_private_endpoint`
+  (subresource `searchService` + DNS zone group + precondition).
+- `modules/search/outputs.tf` — `private_endpoint_id` (null when off).
+- `modules/search/tests/private_endpoint_{positive,negative}.tftest.hcl` — NEW.
+- `terraform/services/variables.tf` — `enable_search_private_endpoint` (default
+  false) + backend validation.
+- `terraform/services/data.vnetdns.tf` — `search_pe_required` gate (added to
+  vnet+dns remote-state requirement); `search_pe_subnet_id` +
+  `search_pe_zone_ids` (the `search` zone).
+- `terraform/services/main.tf` — thread the three inputs into `module.search`.
+- `terraform/services/check.tf` — `check "search_pe_requires_search"`.
+- `terraform/services/tests/search_pe_happy.tftest.hcl` — NEW.
+
+**Verification (plan-level only — no apply).**
+- `terraform -chdir=modules/search test` → 8/8 pass.
+- `terraform -chdir=terraform/services test` → 18/18 pass.
+- `terraform fmt -recursive` clean; services validate OK.
+- `search` zone already in 002 catalogue — no 002 change. CI `services.yml`
+  already includes `modules/search`.
+
+**Rollout.** None in this PR — engine-only, default-off. The `103` instance
+(CA-013 #6) flips it on. Merge-only.

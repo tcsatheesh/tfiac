@@ -823,3 +823,35 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-034.E — Rollout
 
 - [ ] T-FR034-013 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-035). (FR-034)
+
+---
+
+## Phase FR-035 — AI Search private endpoint (engine, opt-in, default-off)
+
+### FR-035.A — Module
+
+- [x] T-FR035-001 [modules/search/variables.tf](../../modules/search/variables.tf): `private_endpoint_enabled` (bool, default false) + `private_endpoint_subnet_id` (subnet-id regex) + `private_dns_zone_ids`. (FR-035 / C-039)
+- [x] T-FR035-002 [modules/search/locals.tf](../../modules/search/locals.tf): `pe_name = "pep-${canonical_name}"`. (FR-035)
+- [x] T-FR035-003 [modules/search/main.tf](../../modules/search/main.tf): `public_network_access_enabled = !private_endpoint_enabled`; count-gated `azurerm_private_endpoint` (subresource `searchService` + DNS zone group + precondition). (FR-035 / C-040)
+- [x] T-FR035-004 [modules/search/outputs.tf](../../modules/search/outputs.tf): `private_endpoint_id` (null when off). (FR-035)
+
+### FR-035.B — Stack wiring
+
+- [x] T-FR035-005 [terraform/services/variables.tf](../../terraform/services/variables.tf): `enable_search_private_endpoint` (default false) + backend validation. (FR-035 / C-042)
+- [x] T-FR035-006 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): `search_pe_required` gate + `search_pe_subnet_id` + `search_pe_zone_ids` (`search` zone). (FR-035 / C-041)
+- [x] T-FR035-007 [terraform/services/main.tf](../../terraform/services/main.tf): thread the three inputs into `module.search`. (FR-035)
+- [x] T-FR035-008 [terraform/services/check.tf](../../terraform/services/check.tf): `check "search_pe_requires_search"`. (FR-035 / C-042)
+
+### FR-035.C — Tests
+
+- [x] T-FR035-009 `modules/search/tests/private_endpoint_{positive,negative}.tftest.hcl` + `terraform/services/tests/search_pe_happy.tftest.hcl` — NEW. (FR-035)
+
+### FR-035.D — Verification gates (HARD)
+
+- [x] T-FR035-010 `terraform fmt -recursive` → no changes. (FR-035)
+- [x] T-FR035-011 `terraform -chdir=modules/search test` → 8/8 pass. (FR-035)
+- [x] T-FR035-012 `terraform -chdir=terraform/services test` → 18/18 pass. (FR-035)
+
+### FR-035.E — Rollout
+
+- [ ] T-FR035-013 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-039). (FR-035)

@@ -17,6 +17,7 @@ locals {
   aifoundry_pe_required = var.enable_aifoundry_private_endpoint
   acr_pe_required       = var.enable_container_registry_private_endpoint
   storage_pe_required   = var.enable_storage_private_endpoint
+  search_pe_required    = var.enable_search_private_endpoint
   container_apps_active = var.enable_container_apps
 
   # FR-032 (Amendment 2026-06-02) — Cosmos DB is private-ONLY: selecting it
@@ -29,9 +30,9 @@ locals {
   agent_injection_enabled = var.enable_aifoundry_network_injection
 
   # Any feature that needs the spoke VNet remote state.
-  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.container_apps_active || local.agent_injection_enabled || (local.cosmosdb_selected && var.vnet_state_backend != null)
+  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.container_apps_active || local.agent_injection_enabled || (local.cosmosdb_selected && var.vnet_state_backend != null)
   # Any feature that needs the hub DNS remote state (PE zone ids).
-  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
+  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
 }
 
 data "terraform_remote_state" "vnet" {
@@ -95,6 +96,17 @@ locals {
 
   storage_pe_zone_ids = local.storage_pe_required ? [
     data.terraform_remote_state.dns[0].outputs.zone_ids["blob"]
+  ] : []
+
+  # C-039 (FR-035) — search PE: same spoke subnet (by role) + the hub search
+  # zone (privatelink.search.windows.net). null/empty when search PE disabled.
+  search_pe_subnet_id = local.search_pe_required ? try(
+    data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
+    null,
+  ) : null
+
+  search_pe_zone_ids = local.search_pe_required ? [
+    data.terraform_remote_state.dns[0].outputs.zone_ids["search"]
   ] : []
 
   # C-021 (FR-030) — Container Apps internal env: delegated subnet (by role) +

@@ -258,6 +258,15 @@ module "search" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  # C-039 (Amendment 2026-06-02) — opt-in private endpoint (FR-035). Inputs
+  # resolve to inert defaults (false / null / []) unless
+  # enable_search_private_endpoint is set, preserving day-one behaviour
+  # (public network access, no PE). Required so a Foundry Hosted-Agent BYO
+  # vector store stays private (FR-033).
+  private_endpoint_enabled   = var.enable_search_private_endpoint
+  private_endpoint_subnet_id = local.search_pe_subnet_id
+  private_dns_zone_ids       = local.search_pe_zone_ids
 }
 
 module "openai" {

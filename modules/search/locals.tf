@@ -6,4 +6,6 @@ locals {
   }
 
   config = merge(local.defaults, var.overrides)
+
+  pe_name = "pep-${var.canonical_name}"
 }
