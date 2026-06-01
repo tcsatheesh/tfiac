@@ -43,6 +43,7 @@ concatenated services use none.
 | `storage`                | `st`      | concatenated  | `st{p}{usecase}{tenant}{environment}{region}{instance}`       | 24 |
 | `keyvault`               | `kv`      | concatenated  | `kv{p}{usecase}{tenant}{environment}{region}{instance}`       | 24 |
 | `container_registry`     | `cr`      | concatenated  | `cr{p}{usecase}{tenant}{environment}{region}{instance}`       | 50 |
+| `container_app_environment` | `cae`  | hyphenated    | `cae-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 32 |
 | `user_assigned_identity` | `id`      | hyphenated    | `id-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 128 |
 | `vm`                     | `vm`      | hyphenated    | `vm-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `app_service_plan`       | `asp`     | hyphenated    | `asp-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 40 |

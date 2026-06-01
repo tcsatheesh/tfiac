@@ -621,3 +621,64 @@ Amendment delivering [spec.md C-019 / FR-028](spec.md#clarifications-amendment-2
 - [X] T-C019-017 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-028 / C-019)
 - [X] T-C019-018 `git checkout master && git pull --ff-only`; apply the services stack (`service=services tenant=sp01 environment=dev action=apply apply=true`). (FR-028 / C-019)
 - [X] T-C019-019 Verify `aif-uc1-uc1-sp01-dev-swc-001` has an `AppInsights` connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is workspace-based against the hub LA. Restore the state-SA firewall if temp-opened. (FR-028 / C-019)
+
+## Phase C-020 / C-021 — Container registry (private endpoint) + Container Apps (internal env)
+
+Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
+
+### Phase C-020/21.A — Naming + network foundations
+
+- [X] T-C021-001 Edit [modules/naming/catalogue/services.tf](../../modules/naming/catalogue/services.tf) per [plan.md §C-020/C-021.1](plan.md): add `container_app_environment` row (`abbr="cae"`, `shape="hyphenated"`, `azure_max=32`, `level="top"`). (FR-030 / C-021)
+- [X] T-C021-002 Edit [specs/001-naming-convention-engine/spec.md](../001-naming-convention-engine/spec.md) Naming Pattern Table: add the matching `container_app_environment` → `cae` row (keeps `us6_catalogue_completeness` + CI audit green). (FR-030 / C-021)
+- [X] T-C021-003 Edit [modules/network/locals.tf](../../modules/network/locals.tf) per [plan.md §C-020/C-021.3](plan.md): add `container-apps` role to `role_catalogue` (`abbr3="cae"`, `needs_nsg=true`, `needs_route_table=false`, `delegation=["Microsoft.App/environments"]`). (FR-030 / C-021)
+- [X] T-C021-004 Edit [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json): add `"container-apps": "10.240.2.192/27"` to `subnets`. (FR-030 / C-021)
+
+### Phase C-020.B — cntreg private endpoint
+
+- [X] T-C020-001 Edit [modules/cntreg/variables.tf](../../modules/cntreg/variables.tf): add `private_endpoint_enabled` (bool, default false), `private_endpoint_subnet_id` (string, default null), `private_dns_zone_ids` (list(string), default []) with validators. (FR-029 / C-020)
+- [X] T-C020-002 Edit [modules/cntreg/locals.tf](../../modules/cntreg/locals.tf): when `private_endpoint_enabled` force `sku="Premium"`; derive `pep-${var.canonical_name}`. (FR-029 / C-020)
+- [X] T-C020-003 Edit [modules/cntreg/main.tf](../../modules/cntreg/main.tf): set `public_network_access_enabled=false` when enabled; add count-gated `azurerm_private_endpoint.this` (subresource `registry`, `private_dns_zone_group`) + `lifecycle.precondition` (subnet non-null, zone list non-empty). (FR-029 / C-020)
+- [X] T-C020-004 Edit [modules/cntreg/outputs.tf](../../modules/cntreg/outputs.tf): add `private_endpoint_id` output. (FR-029 / C-020)
+
+### Phase C-021.C — containerapps module (NEW)
+
+- [X] T-C021-005 [P] Create [modules/containerapps/versions.tf](../../modules/containerapps/versions.tf) + [providers.tf](../../modules/containerapps/providers.tf) mirroring an existing wrapper. (FR-030 / C-021)
+- [X] T-C021-006 [P] Create [modules/containerapps/variables.tf](../../modules/containerapps/variables.tf): `canonical_name`, `resource_group_name`, `location`, `tags`, `engine_record`, `overrides`, `shared_log_analytics_workspace_id`, `infrastructure_subnet_id`, `vnet_id`. (FR-030 / C-021)
+- [X] T-C021-007 Create [modules/containerapps/locals.tf](../../modules/containerapps/locals.tf) + [main.tf](../../modules/containerapps/main.tf): `azurerm_container_app_environment` (internal, `internal_load_balancer_enabled=true`, hub LA, one `Consumption` workload profile) + `azurerm_private_dns_zone` (`=default_domain`), `azurerm_private_dns_a_record` (`*`→`static_ip_address`), `azurerm_private_dns_zone_virtual_network_link` to spoke VNet. (FR-030 / C-021)
+- [X] T-C021-008 [P] Create [modules/containerapps/outputs.tf](../../modules/containerapps/outputs.tf) + [README.md](../../modules/containerapps/README.md). (FR-030 / C-021)
+
+### Phase C-020/21.D — services stack wiring
+
+- [X] T-C021-009 Edit [terraform/services/locals.tf](../../terraform/services/locals.tf): add `container_app_environment` to `v1_selectable_types` and `type_short` (`cae`). (FR-030 / C-021)
+- [X] T-C020-005 Edit [terraform/services/variables.tf](../../terraform/services/variables.tf): add `enable_container_registry_private_endpoint` (bool, default false), `enable_container_apps` (bool, default false), `container_apps_subnet_role` (string, default `container-apps`, role-validated); add `container_app_environment` to the services type allowlist; broaden the `dns_state_backend`/`vnet_state_backend` non-null validation for the new toggles. (FR-029/FR-030 / C-020/C-021)
+- [X] T-C020-006 Edit [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): generalise gate to `local.any_pe_required`; add `local.acr_pe_zone_ids`, `local.container_apps_subnet_id`, `local.spoke_vnet_id`. (FR-029/FR-030 / C-020/C-021)
+- [X] T-C020-007 Edit [terraform/services/main.tf](../../terraform/services/main.tf): thread PE inputs into `module.container_registry`; add `module "container_app_environment"`. (FR-029/FR-030)
+- [X] T-C020-008 Edit [terraform/services/check.tf](../../terraform/services/check.tf): add `check "acr_pe_requires_registry"` + `check "container_app_env_requires_subnet"`. (FR-029/FR-030 / C-020/C-021)
+
+### Phase C-020/21.E — Day-one tfvars
+
+- [X] T-C021-010 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json): add `container_registry` + `container_app_environment` selections; set `enable_container_registry_private_endpoint=true` + `enable_container_apps=true`. (FR-029/FR-030 / C-020/C-021)
+
+### Phase C-020/21.F — Tests
+
+- [X] T-C020-009 [P] Create [modules/cntreg/tests/private_endpoint_positive.tftest.hcl](../../modules/cntreg/tests/private_endpoint_positive.tftest.hcl): enabled ⇒ Premium SKU, `public_network_access_enabled=false`, one PE subresource `registry` + acr zone. (FR-029 / C-020)
+- [X] T-C020-010 [P] Create [modules/cntreg/tests/private_endpoint_negative.tftest.hcl](../../modules/cntreg/tests/private_endpoint_negative.tftest.hcl): default ⇒ Standard SKU, public, zero PE. (FR-029 / C-020)
+- [X] T-C021-011 [P] Create [modules/containerapps/tests/internal_env_positive.tftest.hcl](../../modules/containerapps/tests/internal_env_positive.tftest.hcl): internal env (`internal_load_balancer_enabled=true`, subnet+hub LA wired) + private DNS zone + wildcard A + vnet link. (FR-030 / C-021)
+- [X] T-C020-011 [P] Create [terraform/services/tests/acr_pe_happy.tftest.hcl](../../terraform/services/tests/acr_pe_happy.tftest.hcl). (FR-029 / C-020)
+- [X] T-C020-012 [P] Create [terraform/services/tests/reject_acr_pe_without_registry.tftest.hcl](../../terraform/services/tests/reject_acr_pe_without_registry.tftest.hcl). (FR-029 / C-020)
+- [X] T-C021-012 [P] Create [terraform/services/tests/container_apps_happy.tftest.hcl](../../terraform/services/tests/container_apps_happy.tftest.hcl). (FR-030 / C-021)
+- [X] T-C021-013 [P] Create [terraform/services/tests/reject_container_apps_without_subnet.tftest.hcl](../../terraform/services/tests/reject_container_apps_without_subnet.tftest.hcl). (FR-030 / C-021)
+
+### Phase C-020/21.G — Verification gates (HARD)
+
+- [X] T-C021-014 `terraform fmt -recursive` from repo root → no changes. (FR-029/FR-030)
+- [X] T-C021-015 [P] `terraform -chdir=modules/cntreg test` → 100% pass. (FR-029 / C-020)
+- [X] T-C021-016 [P] `terraform -chdir=modules/containerapps test` → 100% pass. (FR-030 / C-021)
+- [X] T-C021-017 [P] `terraform -chdir=modules/naming test` + `modules/network test` → 100% pass (new catalogue/role rows). (FR-030 / C-021)
+- [X] T-C021-018 `terraform -chdir=terraform/services test` → 100% pass. (FR-029/FR-030)
+
+### Phase C-020/21.H — Rollout
+
+- [X] T-C021-019 Push branch, open PR against `master`, squash-merge, delete remote+local branch. (FR-029/FR-030)
+- [X] T-C021-020 `git checkout master && git pull --ff-only`; apply the `sp01/npd` VNet (adds `container-apps` subnet), then `sp01/dev` services. (FR-029/FR-030)
+- [X] T-C021-021 Verify ACR `publicNetworkAccess=Disabled` + Premium + PE, and the ACA internal env + private default-domain DNS zone. Restore the state-SA firewall if temp-opened. (FR-029/FR-030)

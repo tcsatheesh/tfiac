@@ -18,6 +18,7 @@ locals {
     "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
     "user_assigned_identity", "search", "openai", "aifoundry", "aifoundry_project",
     "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
+    "container_app_environment",
   ]
 
   # ----- Deferred / other-stack-owned reasons (CA-003 friendly messages) -----
@@ -40,22 +41,23 @@ locals {
 
   # ----- Per-type 3-letter slug for synthetic engine key (R-2 step 3) -----
   type_short = {
-    keyvault               = "kvl"
-    storage                = "sto"
-    log_analytics          = "log"
-    app_insights           = "api"
-    container_registry     = "cnt"
-    user_assigned_identity = "uai"
-    search                 = "srh"
-    openai                 = "oai"
-    aifoundry              = "aif"
-    aifoundry_project      = "aifp"
-    language               = "lan"
-    doc_intel              = "dci"
-    function_app           = "fna"
-    logic_app              = "lga"
-    aml_workspace          = "aml"
-    apim                   = "apm"
+    keyvault                  = "kvl"
+    storage                   = "sto"
+    log_analytics             = "log"
+    app_insights              = "api"
+    container_registry        = "cnt"
+    user_assigned_identity    = "uai"
+    search                    = "srh"
+    openai                    = "oai"
+    aifoundry                 = "aif"
+    aifoundry_project         = "aifp"
+    language                  = "lan"
+    doc_intel                 = "dci"
+    function_app              = "fna"
+    logic_app                 = "lga"
+    aml_workspace             = "aml"
+    apim                      = "apm"
+    container_app_environment = "cae"
   }
 
   # ----- Step A: group var.services by (type, coalesce(purpose, usecase)) -----

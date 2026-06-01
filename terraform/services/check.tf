@@ -132,3 +132,32 @@ check "aifoundry_appinsights_requires_account" {
     error_message = "C-019 / FR-028 — enable_aifoundry_application_insights = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
   }
 }
+
+# acr_pe_requires_registry (spec.md C-020 / FR-029): enabling the ACR private
+# endpoint only makes sense when a `container_registry` is actually selected in
+# this stack. Fires at plan time, before any remote-state or provider call.
+# Defence-in-depth pair for the variable-level vnet/dns_state_backend requirement.
+check "acr_pe_requires_registry" {
+  assert {
+    condition = !(
+      var.enable_container_registry_private_endpoint &&
+      length([for s in var.services : s if s.type == "container_registry"]) == 0
+    )
+    error_message = "C-020 / FR-029 — enable_container_registry_private_endpoint = true requires a 'container_registry' selection in this services stack."
+  }
+}
+
+# container_app_env_requires_subnet (spec.md C-021 / FR-030): selecting a
+# `container_app_environment` requires enable_container_apps = true so the
+# internal environment receives its delegated subnet + spoke VNet wiring from
+# the vnet remote state. Fires at plan time. Defence-in-depth pair for the
+# module's always-required infrastructure_subnet_id / vnet_id validators.
+check "container_app_env_requires_subnet" {
+  assert {
+    condition = !(
+      length([for s in var.services : s if s.type == "container_app_environment"]) > 0 &&
+      !var.enable_container_apps
+    )
+    error_message = "C-021 / FR-030 — selecting a 'container_app_environment' requires enable_container_apps = true (which supplies the delegated subnet + spoke VNet wiring via vnet_state_backend)."
+  }
+}

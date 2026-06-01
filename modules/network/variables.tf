@@ -62,10 +62,10 @@ variable "subnets" {
       contains([
         "development", "pre-production", "api-management", "buildsvr",
         "function-app", "logic-app", "preprod-func", "preprod-logic",
-        "bastion", "firewall", "firewall-mgmt",
+        "container-apps", "bastion", "firewall", "firewall-mgmt",
       ], r)
     ])
-    error_message = "VNET-INV-5: every key in var.subnets must be one of: development, pre-production, api-management, buildsvr, function-app, logic-app, preprod-func, preprod-logic, bastion, firewall, firewall-mgmt."
+    error_message = "VNET-INV-5: every key in var.subnets must be one of: development, pre-production, api-management, buildsvr, function-app, logic-app, preprod-func, preprod-logic, container-apps, bastion, firewall, firewall-mgmt."
   }
 
   # VNET-INV-10: hub deployments require bastion + firewall + firewall-mgmt

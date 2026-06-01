@@ -67,6 +67,14 @@ locals {
       service_endpoints = []
       delegation        = ["Microsoft.Web/serverFarms"]
     }
+    "container-apps" = {
+      abbr3             = "cae"
+      literal_name      = null
+      needs_nsg         = true
+      needs_route_table = false
+      service_endpoints = []
+      delegation        = ["Microsoft.App/environments"]
+    }
     "bastion" = {
       abbr3             = "bas"
       literal_name      = "AzureBastionSubnet"
