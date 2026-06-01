@@ -1304,3 +1304,198 @@ Out of scope for this amendment: deploying actual Container Apps
 (environment + ACR + DNS) is delivered; GitHub Actions / CD wiring to
 push images; Dapr components; custom domains/certs on the environment;
 KEDA scale rules.
+
+---
+
+## AMENDMENT 2026-06-02 — Foundry Hosted-Agent network injection (FR-031)
+
+> **AMENDMENT NOTICE (2026-06-02).** This amendment adds the *engine
+> capability* for **Azure AI Foundry Hosted-Agent network injection** to the
+> `aifoundry` wrapper module. It is **engine-only** and **default-off**: with
+> the new toggle unset, the module's behaviour is byte-for-byte identical to
+> the post-FR-028 (App Insights) state. No live resource changes, no instance
+> selection, and no destructive recreate are part of this amendment — those
+> are separate, dependent features (see CA-013 "Dependent feature program").
+
+### Problem statement
+
+A Foundry account deployed by this stack with
+`enable_aifoundry_private_endpoint = true` (FR-027, C-018) has
+`properties.publicNetworkAccess = "Disabled"`. The **Hosted Agents** runtime
+executes in a **Microsoft-managed sandbox that is NOT in the customer VNet**;
+it can only reach the account's model endpoint over the *public* endpoint.
+With public access disabled, every hosted-agent run returns HTTP 500. The
+*only* supported fix is **network injection**: at account-creation time the
+account is bound to a dedicated, delegated **agent subnet** so the
+Microsoft-managed runtime is injected into the customer VNet. Microsoft Learn
+(`ai-foundry/agents/how-to/virtual-networks`) confirms network injection
+**cannot be added to an existing account** — the account must be recreated.
+
+### Verified Microsoft contract (drives this amendment)
+
+These facts are taken from Microsoft Learn + the
+`Microsoft.CognitiveServices/accounts@2025-09-01` /
+`.../accounts/capabilityHosts@2025-09-01` Bicep schemas and are recorded so
+the design is not guesswork:
+
+- **VC-1 — Injection is creation-time only.** `properties.networkInjections`
+  must be present when the account is first created. Adding it later is
+  unsupported → recreate (delete + purge) is required. (Operator-approved;
+  see CA-013.)
+- **VC-2 — `networkInjections` shape.** Array of
+  `{ scenario = "agent", subnetArmId = <agent subnet id>,
+  useMicrosoftManagedNetwork = false }`. `scenario` enum is `"agent"` |
+  `"none"`.
+- **VC-3 — Capability host is mandatory.** A
+  `Microsoft.CognitiveServices/accounts/capabilityHosts@2025-09-01`
+  child with `capabilityHostKind = "Agents"`, `customerSubnet = <agent
+  subnet id>`, and **all three** connection lists non-empty:
+  `storageConnections` (Azure Storage), `threadStorageConnections`
+  (Azure Cosmos DB), `vectorStoreConnections` (Azure AI Search). Omitting
+  any one hard-fails at create.
+- **VC-4 — BYO all three.** The three connection lists reference
+  `Microsoft.CognitiveServices/accounts/connections` resources on the
+  account that point at a **customer-owned** Storage account, Cosmos DB
+  account, and AI Search service. There is no Microsoft-managed default for
+  the injected scenario.
+- **VC-5 — Dedicated agent subnet.** A subnet delegated to
+  `Microsoft.App/environments`, **recommended /24**, **exclusive to a
+  single Foundry account** (cannot be shared with another account or with the
+  existing `container-apps` ACA subnet), RFC1918 only (CGNAT `100.64/10`
+  unsupported). Same region as the account.
+- **VC-6 — Private endpoints are NOT auto-created.** The BYO Storage, Cosmos
+  and Search private endpoints (and their DNS) must be provisioned
+  separately. Cosmos requires the `privatelink.documents.azure.com` zone,
+  which is **not** in the current hub private-DNS catalogue (feature 002).
+- **VC-7 — ACR must stay PUBLIC.** Hosted agents pull the agent container
+  image from an ACR that "can't currently be placed behind a private
+  network". This conflicts with FR-029 (private ACR) and is recorded as an
+  explicit, scoped mandate exception in the dependent `103` instance feature
+  (see CA-013), NOT in this engine amendment.
+- **VC-8 — Delete order.** When recreating, the Foundry account + its
+  capability host must be deleted **and purged** *before* the agent VNet/
+  subnet is deleted.
+
+### Functional requirement
+
+- **FR-031 — `aifoundry` Hosted-Agent network injection (engine,
+  default-off).** The `aifoundry` wrapper module MUST accept a new
+  `network_injection_enabled` input (bool, default `false`). With the
+  default `false`, the module renders **exactly** the post-FR-028 account
+  body and child set — no `networkInjections`, no capability host, no BYO
+  connections, no new remote-state reads — preserving day-one behaviour.
+  When `true`, the module MUST:
+  1. Add a single `properties.networkInjections` entry to the account
+     `azapi` body: `scenario = "agent"`, `subnetArmId = var.agent_subnet_id`,
+     `useMicrosoftManagedNetwork = false` (VC-2).
+  2. Create three `Microsoft.CognitiveServices/accounts/connections`
+     resources on the account pointing at the BYO Storage account
+     (`var.agent_storage_account_id`), Cosmos DB account
+     (`var.agent_cosmosdb_account_id`), and AI Search service
+     (`var.agent_search_service_id`) (VC-4).
+  3. Create one `Microsoft.CognitiveServices/accounts/capabilityHosts`
+     child (`capabilityHostKind = "Agents"`, `customerSubnet =
+     var.agent_subnet_id`) whose `storageConnections`,
+     `threadStorageConnections`, and `vectorStoreConnections` reference the
+     three connection names from step 2 (VC-3).
+  4. Enforce, via **module-level variable validation + a `precondition`**,
+     that when `network_injection_enabled = true`: (a)
+     `private_endpoint_enabled = true` (the account must be private —
+     injection is meaningless on a public account), (b) `agent_subnet_id` is
+     a non-null full subnet resource ID, and (c) all three BYO IDs
+     (`agent_storage_account_id`, `agent_cosmosdb_account_id`,
+     `agent_search_service_id`) are non-null full resource IDs. Any unmet
+     condition hard-fails at plan time naming the missing input (VC-3/VC-4/
+     VC-5). Defence-in-depth: module variable validators + module
+     `precondition` + (in the dependent `103` feature) a root-stack `check`.
+
+### Clarifications — Session 2026-06-02
+
+- **C-022 — Engine-only, no instance lit-up here.** FR-031 delivers ONLY the
+  module capability + plan-level tests. It does NOT add a services-stack
+  passthrough that any current instance selects, does NOT provision the BYO
+  Storage/Cosmos/Search, does NOT create the agent subnet, and does NOT
+  recreate any live account. The toggle stays `false` everywhere after this
+  amendment; lighting it up is the dependent `103` instance feature gated on
+  the prerequisite engine/instance features in CA-013. Rationale: keep the
+  engine change additive, reversible, and validatable at `terraform plan`
+  level (the live capability cannot be `apply`-validated because it requires
+  a destructive recreate, which is operator-approved).
+- **C-023 — `agent_subnet_id` is supplied, not created.** The engine treats
+  the dedicated /24 agent subnet (VC-5) as an *input*: it is created by the
+  **004-vnet engine** (new `agents` subnet role, delegated
+  `Microsoft.App/environments`) and an instance VNet, and its id is threaded
+  in via the services-stack remote-state plumbing in the dependent feature.
+  The `aifoundry` module never creates network. This honours the
+  engine/instance split (network lives in 004/10n-vnet, not 006).
+- **C-024 — BYO Storage/Cosmos/Search are supplied, not created here.** The
+  three connection lists reference customer-owned resources. Provisioning
+  them (notably a NEW `cosmosdb` selectable type + wrapper module + 001
+  naming row, plus their private endpoints and the Cosmos
+  `privatelink.documents.azure.com` DNS zone per VC-6) is **out of scope for
+  this FR-031 engine amendment** and is enumerated as dependent engine work
+  in CA-013. FR-031 only wires the *connection + capability-host* references
+  given the resource IDs as inputs.
+- **C-025 — Connection naming & body shape.** The three account connections
+  use FIXED short names `agentstorage`, `agentcosmos`, `agentsearch` —
+  required because the connection-name RP pattern
+  (`^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$`, no dots, max ~33 chars) cannot hold a
+  `${canonical_name}`-suffixed name. This mirrors the C-019 precedent (the
+  App Insights connection is the fixed name `appinsights`); the generic
+  naming-engine rows are not extended for these internal children. Each
+  connection sets `category` to its BYO type (`AzureStorageAccount`,
+  `CosmosDB`, `CognitiveSearch`), `target`/`metadata.ResourceId` to the BYO
+  resource id, `authType = "AAD"`, and `isSharedToAll = true` so child
+  projects inherit it. (The exact category/authType strings are confirmed at
+  the operator-approved live recreate, VC-1/VC-8; the engine is default-off so
+  no current deployment is affected.)
+- **C-026 — Capability host is a dependent child.** The
+  `capabilityHosts` resource `depends_on` the three connection resources so
+  the connection names exist before the capability host references them
+  (VC-3 hard-fails otherwise).
+
+### CA-013 — Dependent feature program (Hosted-Agent injection is a 6-feature epic)
+
+FR-031 is the **first** of a dependency-ordered set. The capability is not
+operational until all of the following land (each its own feature + PR per the
+`00n`/`10n` rules; this amendment delivers only #1):
+
+1. **006-services FR-031 (THIS amendment, engine, `00n`).** `aifoundry`
+   network-injection plumbing, default-off. ✅ delivered here.
+2. **006-services + 001-naming (engine, `00n`).** New `cosmosdb` selectable
+   service type + `modules/cosmosdb/` wrapper (private-by-default, PE +
+   `privatelink.documents.azure.com`) + a `cosmos` naming row. Required to
+   supply the BYO Cosmos for `threadStorageConnections` (VC-3/VC-4). The
+   existing `storage` and `search` wrappers already satisfy the other two
+   BYO legs.
+3. **004-vnet (engine, `00n`).** New `agents` subnet role delegated to
+   `Microsoft.App/environments`, dedicated **/24**, exclusive to one Foundry
+   account (VC-5). Distinct from the existing `container-apps` role.
+4. **102-sp01-npd-vnet (instance, `10n`).** Expand the spoke address space —
+   `10.240.2.0/24` is 100% consumed — to carve the /24 `agents` subnet.
+   **Decision (defensible default, encoded):** widen the spoke prefix to
+   `10.240.2.0/23` and place the agent subnet at `10.240.3.0/24`, leaving the
+   existing `10.240.2.0/24` subnet map untouched.
+5. **002-private-dns-zones (engine, `00n`).** Add the Cosmos
+   `privatelink.documents.azure.com` private DNS zone to the hub catalogue
+   (VC-6).
+6. **103-sp01-dev-services (instance, `10n`).** Flip the new toggle, select
+   `cosmosdb` + storage + search as the BYO trio, thread the agent subnet,
+   AND record the **ACR public-access mandate exception** (VC-7): hosted
+   agents require a *public* ACR, so `cruc1uc1sp01devswc001` must set
+   `public_network_access_enabled = true` for this one registry — an explicit
+   documented deviation from the private-by-default mandate, justified by the
+   mandate's own "no Private Link support for this scenario" carve-out.
+
+The **live recreate** (delete + purge the Foundry account + capability host
+before the VNet, per VC-8, then re-apply with injection on) is a
+**destructive, operator-approved** runbook step delivered alongside #6 — it
+is NOT executed by automation and NOT part of any of the above PRs' apply.
+
+### Out of scope for FR-031
+
+The `cosmosdb` wrapper module + naming row (#2), the `agents` subnet role
+(#3), the spoke address-space expansion (#4), the Cosmos DNS zone (#5), any
+instance toggle flip / ACR exception (#6), and the live destructive recreate
+(VC-8) — all are dependent features tracked in CA-013, not this engine
+amendment.

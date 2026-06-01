@@ -1007,3 +1007,51 @@ subnet); (3) apply `sp01/dev` services; (4) verify ACR
 `publicNetworkAccess = Disabled` + Premium + PE, and the ACA
 environment is internal with a private default-domain DNS zone; (5)
 restore the state-SA firewall if temp-opened.
+
+---
+
+## Amendment 2026-06-02 — FR-031 Foundry Hosted-Agent network injection (engine, default-off)
+
+**Scope (engine-only).** Add the `aifoundry` module capability for Hosted-Agent
+network injection per FR-031 / C-022..C-026 / VC-1..VC-8. Default-off; with the
+toggle unset the rendered account body + child set are byte-for-byte identical to
+the post-FR-028 state. No services-stack instance lights it up here (CA-013 #1).
+
+**Files touched.**
+- `modules/aifoundry/variables.tf` — new inputs: `network_injection_enabled`
+  (bool, default `false`); `agent_subnet_id`, `agent_storage_account_id`,
+  `agent_cosmosdb_account_id`, `agent_search_service_id` (string, default
+  `null`, full-resource-id regex validation, null-allowed). Cross-field
+  validation: `network_injection_enabled = true` ⇒ all four non-null +
+  `private_endpoint_enabled = true`.
+- `modules/aifoundry/locals.tf` — derive the three in-module connection names
+  (`conn-storage-/conn-cosmos-/conn-search-${canonical_name}`, truncated) and a
+  `network_injection` flag local; build the `networkInjections` list (empty
+  when disabled).
+- `modules/aifoundry/main.tf` — (a) merge `networkInjections` into the account
+  `azapi` body only when enabled (empty list ⇒ attribute omitted to preserve
+  the exact pre-amendment body); (b) three count-gated
+  `azapi_resource` connections (`Microsoft.CognitiveServices/accounts/connections@2025-09-01`)
+  for Storage/Cosmos/Search; (c) one count-gated `azapi_resource`
+  `capabilityHosts` (`capabilityHostKind="Agents"`, `customerSubnet`, the three
+  connection-name lists), `depends_on` the connections (C-026); (d) a
+  `precondition` on the account resource enforcing FR-031 step 4.
+
+**Verification (plan-level only — no apply).**
+- `modules/aifoundry/tests/network_injection_positive.tftest.hcl` — toggle on +
+  all inputs ⇒ plan succeeds; asserts `networkInjections[0].scenario == "agent"`,
+  capability host kind/subnet, three connections, account
+  `publicNetworkAccess == "Disabled"`.
+- `modules/aifoundry/tests/network_injection_reject.tftest.hcl` — toggle on with
+  a missing BYO id and toggle on with `private_endpoint_enabled=false` ⇒ expect
+  plan failure (negative).
+- `modules/aifoundry/tests/network_injection_default_off.tftest.hcl` — toggle
+  unset ⇒ zero connections, zero capability hosts, body has no `networkInjections`
+  (day-one parity).
+- `terraform fmt -recursive` clean; `terraform -chdir=modules/aifoundry test`
+  100% pass; mocked, `-backend=false`, no live state.
+
+**Rollout.** None in this PR — engine-only, default-off, nothing to apply.
+The dependent program (CA-013 #2–#6 + the operator-approved live recreate, VC-8)
+ships as separate features/PRs and is the ONLY place a live apply / recreate
+happens. This PR is merge-only.

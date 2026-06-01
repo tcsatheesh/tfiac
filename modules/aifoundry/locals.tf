@@ -26,4 +26,39 @@ locals {
   # self-contained (no per-account child engine record). App Insights names
   # allow up to 260 chars, so `appi-${canonical_name}` is always valid.
   appi_name = "appi-${var.canonical_name}"
+
+  # C-022..C-026 (Amendment 2026-06-02) — Hosted-Agent network injection.
+  network_injection_enabled = var.network_injection_enabled
+
+  # C-025 — fixed short connection names. The connection-name RP pattern
+  # `^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$` forbids dots and caps length, so a
+  # `${canonical_name}`-derived name is impossible; fixed names mirror the
+  # C-019 `appinsights` precedent (one account per module instance ⇒ no
+  # collisions). The capabilityHost references these exact names (VC-3).
+  agent_conn_storage = "agentstorage"
+  agent_conn_cosmos  = "agentcosmos"
+  agent_conn_search  = "agentsearch"
+
+  # FR-031 step 1 / VC-2 — the networkInjections list is EMPTY when disabled
+  # so the merge below omits the attribute entirely, preserving the exact
+  # post-FR-028 account body (day-one parity, A-031-04).
+  network_injections = local.network_injection_enabled ? [
+    {
+      scenario                   = "agent"
+      subnetArmId                = var.agent_subnet_id
+      useMicrosoftManagedNetwork = false
+    }
+  ] : []
+
+  # FR-031 step 1 — account properties, conditionally extended with
+  # networkInjections only when the list is non-empty (attribute omitted
+  # otherwise — NOT set to []).
+  account_properties = merge(
+    {
+      allowProjectManagement = true
+      customSubDomainName    = var.canonical_name
+      publicNetworkAccess    = local.config.public_network_access
+    },
+    local.network_injection_enabled ? { networkInjections = local.network_injections } : {}
+  )
 }
