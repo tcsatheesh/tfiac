@@ -16,10 +16,22 @@ follow this workflow without asking the user to confirm each step:
    5. `/speckit.implement`
 3. **Push, PR, merge**: push the branch to `origin`, raise a PR against
    `master`, and squash-merge it (delete the remote + local branch).
-4. **Roll out on master**: `git checkout master && git pull --ff-only`, then
-   run `terraform plan` and `terraform apply` for the affected stack(s).
-   Reach the private state SA (and every other private endpoint) via the
-   SOCKS proxy — **NEVER** open the tfstate storage-account firewall.
+4. **Roll out on master via GitHub workflows ONLY**: after the squash-merge
+   lands on `master`, trigger the rollout through the `deploy` workflow
+   (`.github/workflows/deploy.yaml`) — **NEVER** run `terraform apply`
+   (or `terraform plan` against real state) locally. The workflow runs on
+   the in-VNet self-hosted `hub-npd` runner with OIDC, so it reaches the
+   private state SA and every private endpoint natively — no SOCKS proxy and
+   no firewall change required.
+   - Dispatch per affected stack, in dependency order, with
+     `gh workflow run deploy.yaml -f service=<stack> -f tenant=<t>
+     -f environment=<env> -f action=apply -f apply=true`
+     (e.g. `service=vnet` before `service=services`).
+   - Watch each run to completion (`gh run watch`) and confirm the gated
+     `apply` job succeeded before dispatching the next stack.
+   - The local SOCKS proxy (`temp/bastun/`, `socks5h://127.0.0.1:1080`) is
+     only ever for read-only inspection / debugging of private endpoints from
+     the workstation — never for applying infrastructure.
 
 ## Autonomy rules
 
@@ -59,7 +71,13 @@ follow this workflow without asking the user to confirm each step:
     explicitly in the spec/PR with the reason. Public exposure is never the
     default and is never enabled "for convenience".
 - Live-Azure operations (plan/apply against real subscriptions) are part of
-  step 4 and run automatically after merge.
+  step 4 and **MUST run exclusively through the GitHub `deploy` workflow**
+  (`.github/workflows/deploy.yaml`, `gh workflow run`). NEVER run
+  `terraform apply` (or `terraform plan` against real state) from the
+  workstation — all rollouts go through CI on the in-VNet self-hosted
+  `hub-npd` runner. Local `terraform fmt`/`validate`/`test` (with
+  `-backend=false`) are still fine; only live state operations are
+  workflow-only.
 - **NEVER open the tfstate storage-account firewall.** The state SA
   (`sttfsshdhubnpdswc001` / `rg-tfs-shd-hub-npd-swc-001`) MUST stay
   `publicNetworkAccess=Disabled`, `defaultAction=Deny`, with no temporary IP
@@ -69,9 +87,10 @@ follow this workflow without asking the user to confirm each step:
   firewall never needs to be touched. Do NOT add the current IP, do NOT flip
   `publicNetworkAccess` to `Enabled`/`defaultAction` to `Allow`, not even
   temporarily "to unblock an apply". If a backend operation fails with a 403,
-  the fix is to ensure the SOCKS proxy is up and exported (e.g.
-  `ALL_PROXY`/`HTTPS_PROXY=socks5h://127.0.0.1:1080`), never to open the
-  firewall.
+  the fix is to dispatch the `deploy` workflow (which runs on the in-VNet
+  self-hosted runner and reaches the state SA natively), never to open the
+  firewall. The SOCKS proxy is only for read-only inspection/debugging from
+  the workstation.
 - Only stop and ask when:
   - A destructive operation has no safe automatic recovery path (e.g.
     deleting a resource that holds irreplaceable data).
