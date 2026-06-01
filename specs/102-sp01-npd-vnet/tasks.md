@@ -35,3 +35,21 @@ against the shipped 004-vnet engine. Tasks `[x]` shipped on master.
 - [x] T009 Author the "Add another spoke" runbook in `spec.md` so a new spoke
   (e.g. sp02) is a new `10n` instance feature + one tfvars file, zero engine
   changes.
+
+## Phase FR-102-04 — agent subnet (`/23` expansion)
+
+- [x] T010 [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json):
+  `address_space` `10.240.2.0/24` → `10.240.2.0/23`; add subnet
+  `agents = 10.240.3.0/24` (existing CIDRs unchanged). (FR-102-04 / C-102-01/02)
+- [x] T011 Confirm NO engine edit — `agents` role already in the 004-vnet
+  catalogue (FR-226). `10n` MUST NOT alter `00n`. (C-102-03)
+- [x] T012 Amend `specs/102-*/` spec/plan/tasks + `analyze.md` addendum
+  (amendment to feature 102, not a new spoke — C-102-04).
+- [x] T013 CI: confirm `variables/sp01/npd/vnet.tfvars.json` already in
+  `vnet.yml` `paths:` (no edit needed).
+- [x] T014 Validation (local, no live state): `terraform fmt -recursive` clean;
+  `modules/network` + `terraform/vnet` tests green (engine unchanged).
+- [ ] T015 Rollout (workflow only): `gh workflow run deploy.yaml -f service=vnet
+  -f tenant=sp01 -f environment=npd -f action=apply -f apply=true` — in-place
+  address-space growth + new `agents` subnet, no destroy/recreate of existing
+  subnets. **Operator-run, NOT this PR.**
