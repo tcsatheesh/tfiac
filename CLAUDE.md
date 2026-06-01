@@ -18,8 +18,8 @@ follow this workflow without asking the user to confirm each step:
    `master`, and squash-merge it (delete the remote + local branch).
 4. **Roll out on master**: `git checkout master && git pull --ff-only`, then
    run `terraform plan` and `terraform apply` for the affected stack(s).
-   Restore any temporary infrastructure changes (e.g. state SA firewall) when
-   done.
+   Reach the private state SA (and every other private endpoint) via the
+   SOCKS proxy — **NEVER** open the tfstate storage-account firewall.
 
 ## Autonomy rules
 
@@ -59,9 +59,19 @@ follow this workflow without asking the user to confirm each step:
     explicitly in the spec/PR with the reason. Public exposure is never the
     default and is never enabled "for convenience".
 - Live-Azure operations (plan/apply against real subscriptions) are part of
-  step 4 and run automatically after merge. Restore the state SA firewall
-  (publicNetworkAccess=Disabled, defaultAction=Deny, remove temp IPs)
-  when finished.
+  step 4 and run automatically after merge.
+- **NEVER open the tfstate storage-account firewall.** The state SA
+  (`sttfsshdhubnpdswc001` / `rg-tfs-shd-hub-npd-swc-001`) MUST stay
+  `publicNetworkAccess=Disabled`, `defaultAction=Deny`, with no temporary IP
+  allow-rules — at all times. All Terraform backend traffic (and any other
+  access to private endpoints) goes through the **SOCKS proxy** over the
+  Bastion/SSH tunnel (`temp/bastun/`, `socks5h://127.0.0.1:1080`), so the
+  firewall never needs to be touched. Do NOT add the current IP, do NOT flip
+  `publicNetworkAccess` to `Enabled`/`defaultAction` to `Allow`, not even
+  temporarily "to unblock an apply". If a backend operation fails with a 403,
+  the fix is to ensure the SOCKS proxy is up and exported (e.g.
+  `ALL_PROXY`/`HTTPS_PROXY=socks5h://127.0.0.1:1080`), never to open the
+  firewall.
 - Only stop and ask when:
   - A destructive operation has no safe automatic recovery path (e.g.
     deleting a resource that holds irreplaceable data).
