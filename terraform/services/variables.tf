@@ -258,6 +258,13 @@ variable "dns_state_backend" {
     condition     = length([for s in var.services : s if s.type == "cosmosdb"]) == 0 || (var.vnet_state_backend != null && var.dns_state_backend != null)
     error_message = "selecting a 'cosmosdb' service requires both vnet_state_backend and dns_state_backend to be set (FR-032 — Cosmos DB is private-only)."
   }
+
+  # C-035 (FR-034): the storage private endpoint needs both the spoke VNet
+  # (subnet) and the hub DNS (blob zone) remote states.
+  validation {
+    condition     = !var.enable_storage_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "enable_storage_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+  }
 }
 
 # ----- C-019 (Amendment 2026-06-01) — Foundry Application Insights (FR-028) -----
@@ -270,6 +277,13 @@ variable "enable_aifoundry_application_insights" {
 # ----- C-020 (Amendment 2026-06-01) — Container registry private endpoint (FR-029) -----
 variable "enable_container_registry_private_endpoint" {
   description = "C-020: when true, every selected container_registry is deployed as Premium with public_network_access disabled and an Azure private endpoint (+ hub privatelink.azurecr.io DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the acr zone) and private_endpoint_subnet_role. Only meaningful when a 'container_registry' is selected (enforced by check.acr_pe_requires_registry). Default false preserves day-one (Standard, public) behaviour."
+  type        = bool
+  default     = false
+}
+
+# ----- C-035 (Amendment 2026-06-02) — Storage account private endpoint (FR-034) -----
+variable "enable_storage_private_endpoint" {
+  description = "C-035: when true, every selected storage account is deployed with public_network_access disabled and an Azure private endpoint (subresource 'blob', + hub privatelink.blob.core.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the blob zone) and private_endpoint_subnet_role. Only meaningful when a 'storage' is selected (enforced by check.storage_pe_requires_storage). Default false preserves day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO thread/file store stays private (FR-033)."
   type        = bool
   default     = false
 }
