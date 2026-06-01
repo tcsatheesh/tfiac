@@ -35,3 +35,25 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
 - [x] T010 Verify live: ACR `cruc1uc1sp01devswc001` (Premium, PNA Disabled)
   + PE; ACA env `cae-uc1-uc1-sp01-dev-swc-001` (Internal=True); spoke-owned
   ACA default-domain private DNS zone in the svc RG.
+
+## Phase FR-103-05 — Foundry Hosted-Agent injection light-up
+
+### Instance parameterization (agent-run)
+
+- [x] T-103-05-001 [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json): add `storage` + `cosmosdb` + `search` to `services[]` (the BYO Agent trio). (FR-103-05)
+- [x] T-103-05-002 tfvars: `enable_aifoundry_network_injection = true`. (FR-033 / FR-103-05)
+- [x] T-103-05-003 tfvars: `enable_storage_private_endpoint = true` + `enable_search_private_endpoint = true`. (FR-034/FR-035)
+- [x] T-103-05-004 tfvars: `enable_container_registry_private_endpoint = false` (VC-7 ACR public exception, documented). (FR-103-05)
+- [x] T-103-05-005 tfvars: pin `agent_subnet_role = agents`; keep `enable_aifoundry_private_endpoint = true`. (FR-103-05)
+- [x] T-103-05-006 Confirm NO engine edits — only `specs/103-*` + the tfvars change (`10n` MUST NOT alter `00n`). (FR-103-01)
+
+### Validation (local, no live state)
+
+- [x] T-103-05-007 `terraform fmt -recursive` clean; `terraform validate` OK; engine `terraform test` suites unchanged & green. (FR-103-05)
+- [x] T-103-05-008 JSON sanity of the tfvars (valid + every key a known engine variable). (FR-103-05)
+
+### Rollout (operator-run — VC-8/VC-9, NOT executed by the agent)
+
+- [ ] T-103-05-009 Operator: delete + **purge** the existing Foundry account `aif-uc1-uc1-sp01-dev-swc-001` + its `Agents` capability host (frees the name). (VC-8)
+- [ ] T-103-05-010 Operator: dispatch `deploy.yaml` (`service=services tenant=sp01 environment=dev action=apply apply=true`); watch to completion. (VC-9 / FR-103-04)
+- [ ] T-103-05-011 Operator: verify recreated Foundry has `networkInjections` on the `agents` subnet + `Agents` capability host with `agentstorage`/`agentcosmos`/`agentsearch`; Storage/Search/Cosmos all PNA-Disabled + PE; ACR PUBLIC (VC-7) + reachable; ACA Internal=True. (VC-9)
