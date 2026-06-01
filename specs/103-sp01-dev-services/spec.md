@@ -1,6 +1,6 @@
-# Feature 009 — sp01/dev services (instance of the 006-services engine)
+# Feature 103 — sp01/dev services (instance of the 006-services engine)
 
-**Feature Branch**: `007-instance-features-split`
+**Feature Branch**: `101-instance-numbering`
 
 **Created**: 2026-06-01
 
@@ -50,7 +50,7 @@ Cross-stack wiring:
 
 ## Dependencies / ordering
 
-- Depends on [008-sp01-npd-vnet](../008-sp01-npd-vnet/spec.md) (PE subnet +
+- Depends on [102-sp01-npd-vnet](../102-sp01-npd-vnet/spec.md) (PE subnet +
   container-apps subnet) and on the hub DNS stack. Rollout order:
   **hub vnet → sp01 spoke vnet → this services stack**.
 - Note: the services engine rejects `environment=npd` (FR-025), so the
@@ -59,15 +59,15 @@ Cross-stack wiring:
 
 ## Requirements
 
-- **FR-009-01**: Consume the 006-services engine unchanged — no engine code
+- **FR-103-01**: Consume the 006-services engine unchanged — no engine code
   is modified by this feature.
-- **FR-009-02**: All sp01/dev-specific selection (service list, toggles,
+- **FR-103-02**: All sp01/dev-specific selection (service list, toggles,
   overrides, remote-state backends) lives ONLY in the tfvars file.
-- **FR-009-03**: Every selected service that supports Private Link is
+- **FR-103-03**: Every selected service that supports Private Link is
   deployed private-by-default (PE + private DNS zone); no public network
   access. (Documented deviation: the ACA default-domain DNS zone is
   spoke-owned per 006-services C-021.)
-- **FR-009-04**: Live rollout MUST go through the GitHub `deploy` workflow
+- **FR-103-04**: Live rollout MUST go through the GitHub `deploy` workflow
   (`service=services tenant=sp01 environment=dev`); never `terraform apply`
   locally.
 

@@ -1,6 +1,6 @@
-# Feature 007 — hub/npd vnet (instance of the 004-vnet engine)
+# Feature 101 — hub/npd vnet (instance of the 004-vnet engine)
 
-**Feature Branch**: `007-instance-features-split`
+**Feature Branch**: `101-instance-numbering`
 
 **Created**: 2026-06-01
 
@@ -43,18 +43,18 @@ the engine via one tfvars file and a backend state key.
 ## Dependencies / ordering
 
 - This hub vnet is the **peering anchor**: spoke instances
-  (e.g. [008-sp01-npd-vnet](../008-sp01-npd-vnet/spec.md)) read this stack's
+  (e.g. [102-sp01-npd-vnet](../102-sp01-npd-vnet/spec.md)) read this stack's
   state via `terraform_remote_state` for peering + the hub firewall private
   IP. Therefore this stack rolls out **before** any spoke vnet.
 
 ## Requirements
 
-- **FR-007-01**: This instance MUST consume the 004-vnet engine unchanged —
+- **FR-101-01**: This instance MUST consume the 004-vnet engine unchanged —
   no engine code is modified by this feature.
-- **FR-007-02**: All hub/npd-specific values (CIDRs, subnet map,
+- **FR-101-02**: All hub/npd-specific values (CIDRs, subnet map,
   `firewall_sku_tier`, backend key) live ONLY in the tfvars file, never in
   engine code.
-- **FR-007-03**: Live rollout MUST go through the GitHub `deploy` workflow
+- **FR-101-03**: Live rollout MUST go through the GitHub `deploy` workflow
   (`service=vnet tenant=hub environment=npd`); never `terraform apply`
   locally (per CLAUDE.md).
 
