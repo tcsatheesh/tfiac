@@ -23,8 +23,12 @@ locals {
   # remote states. There is no toggle — selection implies private wiring.
   cosmosdb_selected = length([for s in var.services : s if s.type == "cosmosdb"]) > 0
 
+  # FR-033 (Amendment 2026-06-02) — Hosted-Agent network injection needs the
+  # spoke VNet remote state to resolve the dedicated agent subnet (by role).
+  agent_injection_enabled = var.enable_aifoundry_network_injection
+
   # Any feature that needs the spoke VNet remote state.
-  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.container_apps_active || (local.cosmosdb_selected && var.vnet_state_backend != null)
+  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.container_apps_active || local.agent_injection_enabled || (local.cosmosdb_selected && var.vnet_state_backend != null)
   # Any feature that needs the hub DNS remote state (PE zone ids).
   dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
 }
@@ -103,4 +107,12 @@ locals {
   cosmosdb_pe_zone_ids = local.cosmosdb_selected ? [
     data.terraform_remote_state.dns[0].outputs.zone_ids["cosmos-sql"]
   ] : []
+
+  # FR-033 — Hosted-Agent network injection: the dedicated agent subnet (by
+  # role, default 'agents') from the spoke VNet remote state. null when the
+  # injection toggle is off.
+  agent_subnet_id = local.agent_injection_enabled ? try(
+    data.terraform_remote_state.vnet[0].outputs.subnets[var.agent_subnet_role].id,
+    null,
+  ) : null
 }

@@ -176,3 +176,22 @@ check "cosmosdb_requires_backends" {
     error_message = "FR-032 — selecting a 'cosmosdb' service requires both vnet_state_backend (PE subnet) and dns_state_backend (cosmos-sql zone) to be set; Cosmos DB is private-only."
   }
 }
+
+# aifoundry_network_injection_prereqs (spec.md FR-033 / C-031..C-033): when
+# Hosted-Agent network injection is enabled, the capability host needs exactly
+# one each of aifoundry / storage / cosmosdb / search (the BYO trio + the
+# account) AND a private account. Fires at plan time, ahead of the module
+# precondition, with a friendly per-leg diagnostic. Defence-in-depth pair for
+# the module's FR-031 validators + the variable-level prereqs.
+check "aifoundry_network_injection_prereqs" {
+  assert {
+    condition = !var.enable_aifoundry_network_injection || (
+      var.enable_aifoundry_private_endpoint &&
+      length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
+      length([for s in var.services : s if s.type == "storage"]) == 1 &&
+      length([for s in var.services : s if s.type == "cosmosdb"]) == 1 &&
+      length([for s in var.services : s if s.type == "search"]) == 1
+    )
+    error_message = "FR-033 — enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true and EXACTLY ONE each of 'aifoundry', 'storage', 'cosmosdb', and 'search' selected (the Agents capability host needs one BYO Storage + Cosmos + Search leg)."
+  }
+}

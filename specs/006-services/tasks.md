@@ -762,3 +762,32 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-032.E — Rollout
 
 - [ ] T-FR032-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — additive engine type, no instance selects `cosmosdb` (C-027). (FR-032)
+
+---
+
+## Phase FR-033 — services-stack Hosted-Agent network-injection passthrough (engine, default-off)
+
+### FR-033.A — Stack variables
+
+- [x] T-FR033-001 [terraform/services/variables.tf](../../terraform/services/variables.tf): new `enable_aifoundry_network_injection` (bool, default false; validation requires `enable_aifoundry_private_endpoint`) + `agent_subnet_role` (string, default `"agents"`, 13-role allow-list). (FR-033 / C-031)
+- [x] T-FR033-002 [terraform/services/variables.tf](../../terraform/services/variables.tf): widen `private_endpoint_subnet_role` + `container_apps_subnet_role` allow-lists to 13 roles (add `agents`); add `vnet_state_backend` validation requiring it when injection on. (FR-033 / C-032)
+
+### FR-033.B — Resolution & wiring
+
+- [x] T-FR033-003 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): `agent_injection_enabled` flag; add to `vnet_state_required`; resolve `agent_subnet_id` from `subnets[var.agent_subnet_role]`. (FR-033 step 1)
+- [x] T-FR033-004 [terraform/services/main.tf](../../terraform/services/main.tf): `module "aifoundry"` block sets `network_injection_enabled`, `agent_subnet_id`, and three BYO inputs via `one([for k, v in module.<svc> : v.resource_id])` gated on the toggle. (FR-033 step 2 / C-033)
+- [x] T-FR033-005 [terraform/services/check.tf](../../terraform/services/check.tf): `check "aifoundry_network_injection_prereqs"` (injection ⇒ private account + exactly one each of aifoundry/storage/cosmosdb/search). (FR-033 step 3)
+
+### FR-033.C — Tests
+
+- [x] T-FR033-006 `terraform/services/tests/agent_injection_happy.tftest.hcl` — toggle on + BYO trio + private account + vnet/dns stubs ⇒ `agent_subnet_id` resolves by the `agents` role, one instance each leg. (FR-033)
+
+### FR-033.D — Verification gates (HARD)
+
+- [x] T-FR033-007 `terraform fmt -recursive` → no changes. (FR-033)
+- [x] T-FR033-008 `terraform -chdir=terraform/services test` → 16/16 pass. (FR-033)
+- [x] T-FR033-009 `terraform -chdir=modules/aifoundry test` → 15/15 pass (module unchanged). (FR-033)
+
+### FR-033.E — Rollout
+
+- [ ] T-FR033-010 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-031). (FR-033)

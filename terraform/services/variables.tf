@@ -199,9 +199,9 @@ variable "private_endpoint_subnet_role" {
     condition = contains([
       "development", "pre-production", "api-management", "buildsvr",
       "function-app", "logic-app", "preprod-func", "preprod-logic",
-      "container-apps", "bastion", "firewall", "firewall-mgmt",
+      "container-apps", "agents", "bastion", "firewall", "firewall-mgmt",
     ], var.private_endpoint_subnet_role)
-    error_message = "private_endpoint_subnet_role must be one of the 12 known network-stack subnet roles."
+    error_message = "private_endpoint_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
   }
 }
 
@@ -220,6 +220,13 @@ variable "vnet_state_backend" {
   validation {
     condition     = !var.enable_container_apps || var.vnet_state_backend != null
     error_message = "enable_container_apps = true requires vnet_state_backend to be set."
+  }
+
+  # C-031 (FR-033): Hosted-Agent network injection needs the spoke VNet remote
+  # state to resolve the agent subnet.
+  validation {
+    condition     = !var.enable_aifoundry_network_injection || var.vnet_state_backend != null
+    error_message = "enable_aifoundry_network_injection = true requires vnet_state_backend to be set (to resolve the agent subnet)."
   }
 }
 
@@ -283,8 +290,35 @@ variable "container_apps_subnet_role" {
     condition = contains([
       "development", "pre-production", "api-management", "buildsvr",
       "function-app", "logic-app", "preprod-func", "preprod-logic",
-      "container-apps", "bastion", "firewall", "firewall-mgmt",
+      "container-apps", "agents", "bastion", "firewall", "firewall-mgmt",
     ], var.container_apps_subnet_role)
-    error_message = "container_apps_subnet_role must be one of the 12 known network-stack subnet roles."
+    error_message = "container_apps_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
+  }
+}
+
+# ----- C-031/C-032 (Amendment 2026-06-02) — Hosted-Agent network injection passthrough (FR-033) -----
+variable "enable_aifoundry_network_injection" {
+  description = "FR-033 / C-031: when true, the selected aifoundry account is created with Hosted-Agent network injection — bound to the spoke agent subnet (var.agent_subnet_role) and wired to the BYO Storage + Cosmos DB + AI Search trio selected in this same stack. Requires enable_aifoundry_private_endpoint = true and exactly one each of aifoundry/storage/cosmosdb/search (enforced by check.aifoundry_network_injection_prereqs). Injection is creation-time only (VC-1) — flipping this on a live account requires an operator-approved recreate. Default false preserves the post-FR-032 behaviour."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_aifoundry_network_injection || var.enable_aifoundry_private_endpoint
+    error_message = "enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true (Hosted-Agent injection is only valid on a private Foundry account — FR-031 step 4 / VC-1)."
+  }
+}
+
+variable "agent_subnet_role" {
+  description = "FR-033 / C-032 / VC-5: spoke VNet subnet role (delegated to Microsoft.App/environments, the 004-vnet FR-226 'agents' role) the Foundry Hosted-Agent runtime is injected into. Looked up via the vnet remote state. Only consulted when enable_aifoundry_network_injection = true."
+  type        = string
+  default     = "agents"
+
+  validation {
+    condition = contains([
+      "development", "pre-production", "api-management", "buildsvr",
+      "function-app", "logic-app", "preprod-func", "preprod-logic",
+      "container-apps", "agents", "bastion", "firewall", "firewall-mgmt",
+    ], var.agent_subnet_role)
+    error_message = "agent_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
   }
 }
