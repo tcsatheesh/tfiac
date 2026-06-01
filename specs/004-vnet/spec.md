@@ -13,12 +13,12 @@
 >
 > | Instance feature | Tenant/env | Role | tfvars |
 > |---|---|---|---|
-> | [007-hub-npd-vnet](../007-hub-npd-vnet/spec.md) | hub/npd | hub | `variables/hub/npd/vnet.tfvars.json` |
-> | [008-sp01-npd-vnet](../008-sp01-npd-vnet/spec.md) | sp01/npd | spoke | `variables/sp01/npd/vnet.tfvars.json` |
+> | [101-hub-npd-vnet](../101-hub-npd-vnet/spec.md) | hub/npd | hub | `variables/hub/npd/vnet.tfvars.json` |
+> | [102-sp01-npd-vnet](../102-sp01-npd-vnet/spec.md) | sp01/npd | spoke | `variables/sp01/npd/vnet.tfvars.json` |
 >
 > **Adding a new spoke vnet is a new instance feature, not a change here.**
 > See the "Add another spoke" runbook in
-> [008-sp01-npd-vnet](../008-sp01-npd-vnet/spec.md). Touch this feature only
+> [102-sp01-npd-vnet](../102-sp01-npd-vnet/spec.md). Touch this feature only
 > when the *engine* itself changes (new subnet role, new toggle, peering
 > behaviour, etc.). The day-one CIDRs recorded below are retained for history;
 > they are now owned by the instance features above.

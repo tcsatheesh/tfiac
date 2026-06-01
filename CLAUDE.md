@@ -3,6 +3,17 @@
 For **any** new feature or change to an existing feature, you will **ALWAYS**
 follow this workflow without asking the user to confirm each step:
 
+> **NO EXCEPTIONS — every feature goes through the FULL speckit workflow.**
+> This applies to *all* feature types with no carve-outs: engine features
+> (`00n`), instance features (`10n`), amendments, and even docs-only or
+> "trivial" changes. There is no such thing as a feature that skips
+> `clarify → plan → tasks → analyze → implement`. If a change is worth a
+> feature folder, it is worth the full pipeline; if it is too small for the
+> pipeline, it is not a feature (fold it into an existing feature's amendment
+> and run that feature's pipeline). Never hand-author a bare `spec.md` and
+> stop — always produce the complete artifact set (`plan.md`, `tasks.md`,
+> and the `analyze` remediation pass) for every feature.
+
 1. **Create a working feature branch** off `master` (e.g. `NNN-short-slug` or
    `NNN-<feature>-<amendment>` for amendments to an existing feature). Ensure
    `feature.json` (and any related speckit metadata) is updated to reflect the
@@ -65,13 +76,27 @@ follow this workflow without asking the user to confirm each step:
     CIDRs, subnet map, service selection, toggles, backend key, CI path,
     rollout command) is an "instance feature" that pins exactly one
     `variables/<tenant>/<env>/<stack>.tfvars.json`. Examples:
-    `007-hub-npd-vnet`, `008-sp01-npd-vnet`, `009-sp01-dev-services`.
+    `101-hub-npd-vnet`, `102-sp01-npd-vnet`, `103-sp01-dev-services`.
+    - **Numbering convention (STRICT).** Engine features live in the
+      `00n`/`0nn` band (`000`–`099`): generic, reusable engines + foundational
+      platform primitives (`000-bootstrap`, `001-naming`, `002-private-dns`,
+      `003-log-analytics`, `004-vnet`, `005-buildsvr`, `006-services`).
+      Instance features live in the `10n`+ band (`100` onwards): every
+      concrete tenant/env deployment that only selects/parameterizes an
+      engine.
+    - **`10n` instance features MUST NOT alter `00n` engine features** (no
+      edits to engine `spec.md`/code/modules/`terraform/<stack>/`). An
+      instance feature may ONLY add its own `specs/10n-*/` folder + its
+      `variables/<tenant>/<env>/<stack>.tfvars.json` (+ a CI `paths:` line).
+      If a deployment needs something the engine can't yet express, that is an
+      ENGINE change (amend the `00n` feature first, separately), never an
+      edit smuggled into a `10n` instance feature.
     - **Adding a new spoke / new tenant-env deployment = a NEW instance
       feature**, NOT an amendment to the engine. Scaffold a new
-      `specs/NNN-<tenant>-<env>-<stack>/` folder + a new
+      `specs/10n-<tenant>-<env>-<stack>/` folder + a new
       `variables/<tenant>/<env>/<stack>.tfvars.json`; the engine code does
       NOT change. (See the "Add another spoke" runbook in
-      `specs/008-sp01-npd-vnet/spec.md`.)
+      `specs/102-sp01-npd-vnet/spec.md`.)
     - **Touch an engine feature ONLY when the engine itself changes** (new
       subnet role, new selectable service type, new toggle, topology/peering
       rule). Such changes are amendments to the engine feature AND, where they

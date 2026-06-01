@@ -1,6 +1,6 @@
-# Feature 008 — sp01/npd vnet (instance of the 004-vnet engine)
+# Feature 102 — sp01/npd vnet (instance of the 004-vnet engine)
 
-**Feature Branch**: `007-instance-features-split`
+**Feature Branch**: `101-instance-numbering`
 
 **Created**: 2026-06-01
 
@@ -42,17 +42,17 @@ the engine via one tfvars file and a backend state key.
 
 ## Dependencies / ordering
 
-- Depends on [007-hub-npd-vnet](../007-hub-npd-vnet/spec.md): the hub vnet
+- Depends on [101-hub-npd-vnet](../101-hub-npd-vnet/spec.md): the hub vnet
   stack MUST be applied first so this spoke can read peering + firewall IP
   from its state. Rollout order: **hub vnet → this spoke vnet → services**.
 
 ## Requirements
 
-- **FR-008-01**: Consume the 004-vnet engine unchanged — no engine code is
+- **FR-102-01**: Consume the 004-vnet engine unchanged — no engine code is
   modified by this feature.
-- **FR-008-02**: All sp01/npd-specific values (CIDRs, subnet map, the two
+- **FR-102-02**: All sp01/npd-specific values (CIDRs, subnet map, the two
   remote-state backends) live ONLY in the tfvars file.
-- **FR-008-03**: Live rollout MUST go through the GitHub `deploy` workflow
+- **FR-102-03**: Live rollout MUST go through the GitHub `deploy` workflow
   (`service=vnet tenant=sp01 environment=npd`); never `terraform apply`
   locally.
 
@@ -78,9 +78,10 @@ the engine via one tfvars file and a backend state key.
 This is the whole point of the engine/instance split: a brand-new spoke is a
 **new instance feature + one tfvars file**, with **zero** engine changes.
 
-1. **Scaffold a new instance feature** folder
-   `specs/NNN-sp02-npd-vnet/spec.md` (copy this file; swap `sp01`→`sp02` and
-   the CIDRs). No code in `terraform/vnet/` or `modules/network/` changes.
+1. **Scaffold a new instance feature** folder in the `10n` band
+   `specs/10n-sp02-npd-vnet/spec.md` (copy this file; swap `sp01`→`sp02` and
+   the CIDRs). No code in `terraform/vnet/` or `modules/network/` changes —
+   a `10n` instance feature MUST NOT alter the `00n` engine.
 2. **Create the tfvars** `variables/sp02/npd/vnet.tfvars.json`:
    - Set `tenant=sp02`, `environment=npd`, `role=spoke`, `usecase=shd`,
      `region=swc`.
@@ -100,7 +101,7 @@ This is the whole point of the engine/instance split: a brand-new spoke is a
    `gh workflow run deploy.yaml -f service=vnet -f tenant=sp02
    -f environment=npd -f action=apply -f apply=true` (hub vnet already
    exists). Then any `sp02` services instance as a separate
-   `009`-style services instance feature.
+   `10n`-style services instance feature.
 
 That's it — a new spoke touches: 1 new spec folder, 1 new tfvars file, 1 CI
 `paths:` line. The Terraform engine is untouched.

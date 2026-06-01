@@ -20,7 +20,7 @@
 >
 > | Instance feature | Tenant/env | Topology | tfvars |
 > |---|---|---|---|
-> | [009-sp01-dev-services](../009-sp01-dev-services/spec.md) | sp01/dev | spoke | `variables/sp01/dev/services.tfvars.json` |
+> | [103-sp01-dev-services](../103-sp01-dev-services/spec.md) | sp01/dev | spoke | `variables/sp01/dev/services.tfvars.json` |
 >
 > (`hub/prd` and `sp01/prd` service instances remain documented in this
 > engine spec's history and may be extracted to their own instance features
