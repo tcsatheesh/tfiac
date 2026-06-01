@@ -56,6 +56,28 @@
         multi-service PE feature. Defaults preserve C-017 behaviour. See
         `specs/006-services/spec.md` C-018 / FR-027.
 
+        ## Application Insights tracing (C-019 / FR-028)
+
+        One optional input adds an opt-in, workspace-based Application Insights
+        for the Foundry Tracing/monitoring feature:
+
+        - `application_insights_enabled` (bool, default `false`).
+
+        When enabled the wrapper emits a workspace-based
+        `azurerm_application_insights.tracing` anchored at the SHARED hub Log
+        Analytics workspace (`shared_log_analytics_workspace_id`, the same
+        C-014 hub LA) — so all Foundry trace/telemetry data lands in the hub LA
+        without a redundant diagnostic setting — and attaches it to the account
+        via an `azapi_resource.appinsights_connection`
+        (`Microsoft.CognitiveServices/accounts/connections`, category
+        `AppInsights`, name `appinsights`, `isSharedToAll = true`) that every
+        child project inherits. The App Insights connection string is supplied
+        via azapi `sensitive_body` so it never appears in plaintext state. The
+        App Insights name is derived in-module as `appi-${canonical_name}`; the
+        generic naming-engine `app_insights` row stays the path for a
+        standalone `app_insights` selection. Defaults preserve C-018 behaviour.
+        See `specs/006-services/spec.md` C-019 / FR-028.
+
         ## Defaults (CA-005)
 
         | Key | Default |

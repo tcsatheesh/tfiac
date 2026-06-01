@@ -227,6 +227,11 @@ module "aifoundry" {
   private_endpoint_enabled   = var.enable_aifoundry_private_endpoint
   private_endpoint_subnet_id = local.pe_subnet_id
   private_dns_zone_ids       = local.pe_zone_ids
+
+  # C-019 (Amendment 2026-06-01) — opt-in App Insights tracing (FR-028). The
+  # hub LA id is already supplied via shared_log_analytics_workspace_id above;
+  # default false preserves day-one behaviour.
+  application_insights_enabled = var.enable_aifoundry_application_insights
 }
 
 module "aifoundry_project" {

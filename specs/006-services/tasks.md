@@ -580,3 +580,44 @@ drops the legacy KV + SA fixtures. All tasks are post-implement.
 - [X] T-C018-022 `git checkout master && git pull --ff-only`; apply hub DNS so the new zone exists: dispatch `deploy.yaml` for `service=dns tenant=hub environment=npd` then `environment=prd` (`apply=true`). (FR-027 / C-018)
 - [X] T-C018-023 Dispatch `deploy.yaml` for `service=services tenant=sp01 environment=dev action=apply apply=true`. (FR-027 / C-018)
 - [X] T-C018-024 Verify `aif-uc1-uc1-sp01-dev-swc-001` shows `properties.publicNetworkAccess="Disabled"` and exactly one private endpoint `pep-aif-uc1-uc1-sp01-dev-swc-001` in the `development` subnet with a DNS zone group spanning `cogsvc`/`openai`/`aiservices`. Restore the state-SA firewall if temp-opened. (FR-027 / C-018)
+
+## Phase C-019 — Foundry Application Insights tracing (hub-LA anchored)
+
+Amendment delivering [spec.md C-019 / FR-028](spec.md#clarifications-amendment-2026-06-01-foundry-application-insights-tracing). Opt-in, default-preserving. Mirrors the C-018 embedded pattern.
+
+### Phase C-019.A — aifoundry wrapper App Insights support
+
+- [X] T-C019-001 Edit [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf) per [plan.md §C-019.1](plan.md): add `application_insights_enabled` (bool, default `false`). (FR-028 / C-019)
+- [X] T-C019-002 Edit [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf) per [plan.md §C-019.2](plan.md): add `appi_name = "appi-${var.canonical_name}"` and `defaults.application_insights_application_type = "web"`. (FR-028 / C-019)
+- [X] T-C019-003 Edit [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf) per [plan.md §C-019.3](plan.md): add count-gated `azurerm_application_insights.tracing` (`workspace_id = var.shared_log_analytics_workspace_id`) and `azapi_resource.appinsights_connection` (`Microsoft.CognitiveServices/accounts/connections@2025-09-01`, name `appinsights`, parent the account, `category="AppInsights"`, `authType="ApiKey"`, `isSharedToAll=true`, `metadata.ResourceId`+`target`=appi id, connection string via `sensitive_body.properties.credentials.key`). (FR-028 / C-019)
+- [X] T-C019-004 [P] Edit [modules/aifoundry/outputs.tf](../../modules/aifoundry/outputs.tf): add `application_insights_id` = `one(azurerm_application_insights.tracing[*].id)` and `application_insights_connection_id` = `one(azapi_resource.appinsights_connection[*].id)`. (FR-028 / C-019)
+- [X] T-C019-005 [P] Update [modules/aifoundry/README.md](../../modules/aifoundry/README.md) documenting the App Insights input and the in-module `appi-${canonical_name}` naming deviation (engine `app_insights` row stays the standalone path). (FR-028 / C-019)
+
+### Phase C-019.B — services stack wiring
+
+- [X] T-C019-006 Edit [terraform/services/variables.tf](../../terraform/services/variables.tf) per [plan.md §C-019.5](plan.md): add `enable_aifoundry_application_insights` (bool, default `false`). (FR-028 / C-019)
+- [X] T-C019-007 Edit [terraform/services/main.tf](../../terraform/services/main.tf) per [plan.md §C-019.6](plan.md): pass `application_insights_enabled = var.enable_aifoundry_application_insights` into `module.aifoundry`. (FR-028 / C-019)
+- [X] T-C019-008 Edit [terraform/services/check.tf](../../terraform/services/check.tf) per [plan.md §C-019.7](plan.md): add `check "aifoundry_appinsights_requires_account"`. (FR-028 / C-019)
+
+### Phase C-019.C — Day-one tfvars
+
+- [X] T-C019-009 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json) per [plan.md §C-019.8](plan.md): set `enable_aifoundry_application_insights=true`. (FR-028 / C-019)
+
+### Phase C-019.D — Tests
+
+- [X] T-C019-010 [P] Create [modules/aifoundry/tests/application_insights_positive.tftest.hcl](../../modules/aifoundry/tests/application_insights_positive.tftest.hcl): enabled emits one `azurerm_application_insights.tracing` (`workspace_id`=supplied hub LA) and one `azapi_resource.appinsights_connection` named `appinsights` parented by the account. (FR-028 / C-019)
+- [X] T-C019-011 [P] Create [modules/aifoundry/tests/application_insights_negative.tftest.hcl](../../modules/aifoundry/tests/application_insights_negative.tftest.hcl): default disabled emits zero App Insights and zero connection. (FR-028 / C-019)
+- [X] T-C019-012 [P] Create [terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl](../../terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl): `enable_aifoundry_application_insights=true` wires `application_insights_enabled=true` into `module.aifoundry`. (FR-028 / C-019)
+- [X] T-C019-013 [P] Create [terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl](../../terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl): toggle on, no `aifoundry` selected ⇒ `check.aifoundry_appinsights_requires_account` fails. (FR-028 / C-019)
+
+### Phase C-019.E — Verification gates (HARD)
+
+- [X] T-C019-014 `terraform fmt -recursive` from repo root → no changes. (FR-028 / C-019)
+- [X] T-C019-015 [P] `terraform -chdir=modules/aifoundry test` → 100% pass (existing + new App Insights tests). (FR-028 / C-019)
+- [X] T-C019-016 `terraform -chdir=terraform/services test` → 100% pass (existing fixtures unchanged + new App Insights tests). (FR-028 / C-019)
+
+### Phase C-019.F — Rollout
+
+- [ ] T-C019-017 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-028 / C-019)
+- [ ] T-C019-018 `git checkout master && git pull --ff-only`; apply the services stack (`service=services tenant=sp01 environment=dev action=apply apply=true`). (FR-028 / C-019)
+- [ ] T-C019-019 Verify `aif-uc1-uc1-sp01-dev-swc-001` has an `AppInsights` connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is workspace-based against the hub LA. Restore the state-SA firewall if temp-opened. (FR-028 / C-019)
