@@ -251,6 +251,8 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 - **FR-026**: Foundry account+project replaces ML Workspace Hub+Project pair. The `aifoundry` wrapper MUST emit `Microsoft.CognitiveServices/accounts` (kind=`AIServices`, `properties.allowProjectManagement=true`, `properties.customSubDomainName = var.canonical_name`, `properties.publicNetworkAccess="Enabled"`, `sku.name="S0"`, system-assigned identity) and MUST NOT require sibling `storage` or `keyvault` selections. The `aifoundry_project` wrapper MUST emit `Microsoft.CognitiveServices/accounts/projects` as a child of the parent account, taking `var.parent_account_id` in place of the legacy `var.hub_resource_id`. Both wrappers preserve the existing `var.canonical_name` / `var.engine_record` / diagnostic-settings contract. Pinned API versions: `Microsoft.CognitiveServices/accounts@2025-09-01`, `Microsoft.CognitiveServices/accounts/projects@2025-09-01`. The `aifoundry_project_requires_account` check (renamed from `aifoundry_project_requires_hub` per C-015 §4) enforces 1:1 project→account in the same stack; the `aifoundry_requires_hub_deps` check is REMOVED. The `aifp` catalogue row `azure_max` drops from 64 to 32 to match the Foundry projects RP hard limit. See C-017 for full rationale, migration, and out-of-scope items.
 - **FR-027**: When `var.enable_aifoundry_private_endpoint = true` (default `false`), the `aifoundry` wrapper MUST provision an `azurerm_private_endpoint` for the Cognitive Services account in a spoke subnet (resolved by role from the spoke VNet remote state), attach a `private_dns_zone_group` to the hub private DNS zones `privatelink.cognitiveservices.azure.com` (`cogsvc`), `privatelink.openai.azure.com` (`openai`), and `privatelink.services.ai.azure.com` (`aiservices`, newly added to the DNS catalogue), use subresource group ID `account`, and default `properties.publicNetworkAccess` to `"Disabled"` (override-able). With the default `false`, behaviour is identical to FR-026 (PE absent, `publicNetworkAccess="Enabled"`, no VNet/DNS remote-state reads). The services stack reads the spoke VNet and hub DNS via count-gated `data "terraform_remote_state"` blocks (`var.vnet_state_backend`, `var.dns_state_backend`) only when the toggle is on and an `aifoundry` is selected. The generic `services[*].private_endpoints` field of Assumption A4 stays reserved and hard-failed. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "aifoundry_pe_requires_account"`, and positive+negative tests. See C-018 for full rationale and rollout ordering.
 - **FR-028**: When `var.enable_aifoundry_application_insights = true` (default `false`), the `aifoundry` wrapper MUST (i) provision a workspace-based `azurerm_application_insights` resource anchored at the SHARED hub Log Analytics workspace (`workspace_id = var.shared_log_analytics_workspace_id`, the same C-014 hub LA) so all Foundry trace/telemetry data lands in the hub LA, and (ii) attach that App Insights to the Foundry Cognitive Services account as a tracing connection via `Microsoft.CognitiveServices/accounts/connections@2025-09-01` with `properties.category = "AppInsights"`, `properties.target` + `properties.metadata.ResourceId` = the App Insights resource ID, `properties.authType = "ApiKey"`, `properties.isSharedToAll = true`, and `properties.credentials.key` = the App Insights connection string (supplied via azapi `sensitive_body` so it never appears in plaintext state diff). With the default `false`, behaviour is identical to FR-026/FR-027 (no App Insights, no connection). The App Insights and the connection are count-gated; the connection's `parent_id` is the account `azapi_resource.this.id` so it is inherited by all projects. Enforcement is defence-in-depth: module variable validators (the always-required `shared_log_analytics_workspace_id` regex already guarantees a valid hub LA), root-stack `check "aifoundry_appinsights_requires_account"`, and positive+negative tests. See C-019 for full rationale and rollout ordering.
+- **FR-029**: When `var.enable_container_registry_private_endpoint = true` (default `false`), every selected `container_registry` wrapper instance MUST (i) set `sku = "Premium"` (Azure Private Link requires the Premium ACR SKU), (ii) set `public_network_access_enabled = false`, and (iii) provision an `azurerm_private_endpoint` (subresource group id `registry`) whose NIC lands in the spoke subnet resolved by role from the spoke VNet remote state and whose `private_dns_zone_group` registers A-records in the hub `privatelink.azurecr.io` (`acr`) private DNS zone. With the default `false`, behaviour is identical to the pre-amendment module (the engine-default `Standard` SKU, public access, no PE, no VNet/DNS remote-state reads). The services stack reuses the same count-gated `data "terraform_remote_state"` (`var.vnet_state_backend`, `var.dns_state_backend`) plumbing introduced by FR-027 (the gate is broadened to fire whenever ANY private endpoint — Foundry or ACR — is requested). Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "acr_pe_requires_registry"`, and positive+negative tests. See C-020 for full rationale and rollout ordering.
+- **FR-030**: A new spoke-eligible selectable type `container_app_environment` MUST be added to the v1 selectable inventory (and the engine catalogue, feature 001, as a top-level row `abbr = "cae"`, `shape = "hyphenated"`). Its wrapper (`modules/containerapps/`) MUST emit `azurerm_container_app_environment` as an **internal** (private) Managed Environment: `infrastructure_subnet_id` = a spoke subnet delegated to `Microsoft.App/environments` (resolved by role from the spoke VNet remote state), `internal_load_balancer_enabled = true` (no public ingress IP — this is the "public access denied" form), `log_analytics_workspace_id = var.shared_log_analytics_workspace_id` (the C-014 hub LA), and a `workload_profile` (`Consumption`). Because Azure Container Apps has **no** Azure Private Link / private-endpoint support, the wrapper MUST ALSO provision a private DNS zone named after the environment's `default_domain` with a wildcard `*` A-record pointing at the environment static IP, linked to the spoke VNet, so container apps in the environment resolve privately from the VNet. The internal environment + private default-domain zone together are the faithful equivalent of "private endpoint + public access denied" for a service type that cannot take a private endpoint; this documented exception is called out per the CLAUDE.md private-by-default mandate. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "container_app_env_requires_subnet"`, and positive+negative tests. See C-021 for full rationale and rollout ordering.
 
 ### Key Entities
 
@@ -1084,3 +1086,173 @@ connections; a fully generic per-service App Insights / monitoring
 framework (the A4 `diagnostic_settings` field stays reserved);
 attaching App Insights to any non-`aifoundry` service type;
 dashboards, alerts, or workbooks on the new component.
+
+## Clarifications Amendment 2026-06-01 (Container registry + Container Apps, private-by-default)
+
+This amendment also triggered a standing-policy change recorded in
+`CLAUDE.md`: **no public access for ANY service** (private-by-default
+mandate). Every service that supports a private endpoint MUST be
+deployed with public network access disabled and reached via a private
+endpoint + matching private DNS zone; any service that genuinely cannot
+take a private endpoint (e.g. Azure Container Apps — see C-021) is the
+only exception and MUST be called out explicitly with its reason.
+
+### C-020 — Container registry with a private endpoint + public access denied (extends FR-007/C-014; reuses the FR-027 PE plumbing)
+
+**Date:** 2026-06-01. **Status:** Resolved.
+
+Operator intent: `sp01/dev` needs a container registry, deployed with a
+private endpoint and public network access denied.
+
+Resolutions (encoded directly per CLAUDE.md autonomy rules; no operator
+interview):
+
+1. **Opt-in toggle, default preserves existing behaviour.** A new
+   stack-level boolean `var.enable_container_registry_private_endpoint`
+   (default `false`). With the default, the `cntreg` wrapper behaves
+   exactly as before (engine-default `Standard` SKU, `admin_enabled =
+   false`, public access, no PE). The day-one
+   `variables/sp01/dev/services.tfvars.json` selects a
+   `container_registry` AND sets the toggle `true`.
+
+2. **`modules/cntreg/` gains private-endpoint support (embedded —
+   mirrors the C-018 Foundry pattern).** Three new inputs:
+   `private_endpoint_enabled` (bool, default `false`),
+   `private_endpoint_subnet_id` (string, default `null`),
+   `private_dns_zone_ids` (list(string), default `[]`). When enabled
+   the wrapper: (i) forces `sku = "Premium"` (Azure Private Link
+   **requires** the Premium ACR SKU — a `Standard`/`Basic` registry
+   cannot host a private endpoint), (ii) sets
+   `public_network_access_enabled = false`, and (iii) provisions
+   `azurerm_private_endpoint.this` (count-gated) with a
+   `private_service_connection` targeting the registry with subresource
+   `registry` and a `private_dns_zone_group` registering into the hub
+   `privatelink.azurecr.io` (`acr`) zone. A `lifecycle.precondition`
+   requires a non-null subnet id and a non-empty zone-id list whenever
+   the toggle is on. The PE name is derived in-module as
+   `pep-${var.canonical_name}` (mirrors C-018).
+
+3. **Reuse the FR-027 remote-state plumbing.** The services stack already
+   reads the spoke VNet + hub DNS via count-gated
+   `data "terraform_remote_state"` blocks
+   (`terraform/services/data.vnetdns.tf`). The gate
+   `local.aifoundry_pe_required` is generalised to
+   `local.any_pe_required = enable_aifoundry_private_endpoint ||
+   enable_container_registry_private_endpoint ||
+   <container-app selection>` so a single pair of remote-state reads
+   serves all private endpoints. The ACR PE NIC lands in the subnet
+   named by `var.private_endpoint_subnet_role` (default `development`),
+   and its zone id is `data...dns.outputs.zone_ids["acr"]` (distinct
+   from the Foundry cogsvc/openai/aiservices set). No new state backends
+   are introduced — the existing `vnet_state_backend` /
+   `dns_state_backend` inputs are reused.
+
+4. **Defence-in-depth validation.** (i) `modules/cntreg/variables.tf`
+   validators on the three new inputs; (ii) the module
+   `lifecycle.precondition`; (iii)
+   `terraform/services/variables.tf` documents the new toggle; (iv) a
+   root-stack `check "acr_pe_requires_registry"` ensuring the toggle is
+   only meaningful when a `container_registry` is selected; (v)
+   `dns_state_backend`/`vnet_state_backend` non-null validation is
+   broadened so it fires for the ACR toggle too.
+
+5. **Tests.** New positive + negative coverage:
+   `modules/cntreg/tests/private_endpoint_positive.tftest.hcl`
+   (enabled ⇒ Premium SKU, `public_network_access_enabled = false`, one
+   PE with subresource `registry` + the acr zone),
+   `modules/cntreg/tests/private_endpoint_negative.tftest.hcl`
+   (default ⇒ Standard SKU, public, zero PE),
+   `terraform/services/tests/acr_pe_happy.tftest.hcl`, and
+   `terraform/services/tests/reject_acr_pe_without_registry.tftest.hcl`.
+
+6. **Rollout ordering.** The hub DNS stack (`hub/prd` dns, providing the
+   `acr` zone) and the spoke VNet (`sp01/npd`) are already applied.
+   Post-merge: apply `sp01/dev` services; verify the registry shows
+   `publicNetworkAccess = Disabled`, SKU `Premium`, and a private
+   endpoint resolving `…azurecr.io` to a `10.240.2.x` address.
+
+### C-021 — Azure Container Apps as the "container service", internal (private) environment (new selectable type; documented private-endpoint exception)
+
+**Date:** 2026-06-01. **Status:** Resolved.
+
+Operator intent: `sp01/dev` needs an "azure container service", deployed
+private with public access denied. Clarified (user-confirmed) to **Azure
+Container Apps**, an **internal Managed Environment**.
+
+Resolutions:
+
+1. **Container Apps has NO Azure Private Link / private-endpoint
+   support.** Unlike ACR or Cognitive Services, a Container Apps
+   Managed Environment cannot be fronted by an `azurerm_private_endpoint`.
+   Its private form is an **internal** environment: VNet-injected into a
+   delegated `infrastructure_subnet_id`, with
+   `internal_load_balancer_enabled = true` so its ingress is an
+   internal-only IP with no public endpoint. This is the documented
+   exception to the private-by-default "private endpoint" requirement
+   (CLAUDE.md mandate), and the equivalent "public access denied"
+   posture is achieved by the internal environment + the private
+   default-domain DNS zone below.
+
+2. **New selectable type `container_app_environment` + naming row.** A
+   new top-level engine catalogue row (feature 001
+   `modules/naming/catalogue/services.tf` AND
+   `specs/001-naming-convention-engine/spec.md` Naming Pattern Table,
+   kept in lockstep by `us6_catalogue_completeness` + the CI audit):
+   `abbr = "cae"`, `shape = "hyphenated"`, `azure_max = 32`,
+   `level = "top"`. The services-stack allowlist
+   (`v1_selectable_types`, the `variables.tf` validator, and
+   `type_short["container_app_environment"] = "cae"`) gains the type.
+
+3. **New delegated subnet in the spoke VNet (feature 004).** A new
+   subnet role `container-apps` (`abbr3 = "cae"`, `needs_nsg = true`,
+   `needs_route_table = false`, `delegation =
+   ["Microsoft.App/environments"]`) is added to
+   `modules/network/locals.tf::role_catalogue`. The `sp01/npd` VNet
+   tfvars carve a `/27` (`10.240.2.192/27`, from the previously-free
+   `10.240.2.192/26` block) for it — ACA workload-profile environments
+   require a dedicated ≥/27 infrastructure subnet delegated to
+   `Microsoft.App/environments`. `needs_route_table = false` avoids
+   forcing ACA's required platform egress through the hub firewall
+   during provisioning.
+
+4. **`modules/containerapps/` wrapper.** Emits
+   `azurerm_container_app_environment` (internal,
+   `log_analytics_workspace_id = var.shared_log_analytics_workspace_id`,
+   one `Consumption` workload profile) plus, for private name
+   resolution, `azurerm_private_dns_zone` named after the environment's
+   `default_domain`, an `azurerm_private_dns_a_record` (`name = "*"`,
+   pointing at `static_ip_address`), and an
+   `azurerm_private_dns_zone_virtual_network_link` to the spoke VNet.
+   The environment canonical name comes from the engine
+   (`cae-…`); the private DNS zone name is dynamic (only known after
+   apply) so it is taken from the environment's `default_domain`
+   attribute, not the engine.
+
+5. **Services-stack wiring.** New inputs:
+   `enable_container_apps` (bool, default `false`) and
+   `container_apps_subnet_role` (string, default `container-apps`,
+   validated against the role catalogue). When enabled the stack
+   resolves the delegated subnet id from the VNet remote state and the
+   spoke VNet id (for the DNS link) and threads them + the hub LA into
+   the `container_app_environment` module instances. A root-stack
+   `check "container_app_env_requires_subnet"` fails if a
+   `container_app_environment` is selected without `enable_container_apps`
+   (which supplies the subnet/vnet wiring).
+
+6. **Tests.** `modules/containerapps/tests/internal_env_positive.tftest.hcl`
+   (internal env: `internal_load_balancer_enabled = true`, subnet wired,
+   hub LA wired, private DNS zone + wildcard A record + vnet link),
+   plus services-stack happy + reject tests.
+
+7. **Rollout ordering.** (a) Apply the `sp01/npd` VNet first (adds the
+   delegated `container-apps` subnet). (b) Then apply `sp01/dev`
+   services. Verify the environment is internal (no public static IP,
+   `internal_load_balancer_enabled = true`) and the
+   `*.<default-domain>` private DNS zone resolves to the environment's
+   internal IP from within the VNet.
+
+Out of scope for this amendment: deploying actual Container Apps
+(workloads/images) into the environment — only the private platform
+(environment + ACR + DNS) is delivered; GitHub Actions / CD wiring to
+push images; Dapr components; custom domains/certs on the environment;
+KEDA scale rules.

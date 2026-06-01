@@ -21,34 +21,35 @@
 
 locals {
   services = {
-    # ----- Top-level resources (26 rows) -----
-    "resource_group"         = { abbr = "rg", shape = "rg_hyphenated", azure_max = 90, level = "top" }
-    "vnet"                   = { abbr = "vnet", shape = "hyphenated", azure_max = 64, level = "top" }
-    "nsg"                    = { abbr = "nsg", shape = "hyphenated", azure_max = 80, level = "top" }
-    "route_table"            = { abbr = "rt", shape = "hyphenated", azure_max = 80, level = "top" }
-    "public_ip"              = { abbr = "pip", shape = "hyphenated", azure_max = 80, level = "top" }
-    "log_analytics"          = { abbr = "log", shape = "hyphenated", azure_max = 63, level = "top" }
-    "app_insights"           = { abbr = "appi", shape = "hyphenated", azure_max = 260, level = "top" }
-    "storage"                = { abbr = "st", shape = "concatenated", azure_max = 24, level = "top" }
-    "keyvault"               = { abbr = "kv", shape = "concatenated", azure_max = 24, level = "top" }
-    "container_registry"     = { abbr = "cr", shape = "concatenated", azure_max = 50, level = "top" }
-    "user_assigned_identity" = { abbr = "id", shape = "hyphenated", azure_max = 128, level = "top" }
-    "vm"                     = { abbr = "vm", shape = "hyphenated", azure_max = 64, level = "top" }
-    "app_service_plan"       = { abbr = "asp", shape = "hyphenated", azure_max = 40, level = "top" }
-    "apim"                   = { abbr = "apim", shape = "hyphenated", azure_max = 50, level = "top" }
-    "vpn_gateway"            = { abbr = "vpng", shape = "hyphenated", azure_max = 80, level = "top" }
-    "expressroute_gateway"   = { abbr = "ergw", shape = "hyphenated", azure_max = 80, level = "top" }
-    "function_app"           = { abbr = "func", shape = "hyphenated", azure_max = 60, level = "top" }
-    "logic_app"              = { abbr = "logic", shape = "hyphenated", azure_max = 80, level = "top" }
-    "aml_workspace"          = { abbr = "mlw", shape = "hyphenated", azure_max = 33, level = "top" }
-    "openai"                 = { abbr = "oai", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry"              = { abbr = "aif", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry_project"      = { abbr = "aifp", shape = "hyphenated", azure_max = 32, level = "top" }
-    "language"               = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
-    "doc_intel"              = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
-    "search"                 = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }
-    "dns_zone"               = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
-    "private_dns_zone"       = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
+    # ----- Top-level resources (27 rows) -----
+    "resource_group"            = { abbr = "rg", shape = "rg_hyphenated", azure_max = 90, level = "top" }
+    "vnet"                      = { abbr = "vnet", shape = "hyphenated", azure_max = 64, level = "top" }
+    "nsg"                       = { abbr = "nsg", shape = "hyphenated", azure_max = 80, level = "top" }
+    "route_table"               = { abbr = "rt", shape = "hyphenated", azure_max = 80, level = "top" }
+    "public_ip"                 = { abbr = "pip", shape = "hyphenated", azure_max = 80, level = "top" }
+    "log_analytics"             = { abbr = "log", shape = "hyphenated", azure_max = 63, level = "top" }
+    "app_insights"              = { abbr = "appi", shape = "hyphenated", azure_max = 260, level = "top" }
+    "storage"                   = { abbr = "st", shape = "concatenated", azure_max = 24, level = "top" }
+    "keyvault"                  = { abbr = "kv", shape = "concatenated", azure_max = 24, level = "top" }
+    "container_registry"        = { abbr = "cr", shape = "concatenated", azure_max = 50, level = "top" }
+    "container_app_environment" = { abbr = "cae", shape = "hyphenated", azure_max = 32, level = "top" }
+    "user_assigned_identity"    = { abbr = "id", shape = "hyphenated", azure_max = 128, level = "top" }
+    "vm"                        = { abbr = "vm", shape = "hyphenated", azure_max = 64, level = "top" }
+    "app_service_plan"          = { abbr = "asp", shape = "hyphenated", azure_max = 40, level = "top" }
+    "apim"                      = { abbr = "apim", shape = "hyphenated", azure_max = 50, level = "top" }
+    "vpn_gateway"               = { abbr = "vpng", shape = "hyphenated", azure_max = 80, level = "top" }
+    "expressroute_gateway"      = { abbr = "ergw", shape = "hyphenated", azure_max = 80, level = "top" }
+    "function_app"              = { abbr = "func", shape = "hyphenated", azure_max = 60, level = "top" }
+    "logic_app"                 = { abbr = "logic", shape = "hyphenated", azure_max = 80, level = "top" }
+    "aml_workspace"             = { abbr = "mlw", shape = "hyphenated", azure_max = 33, level = "top" }
+    "openai"                    = { abbr = "oai", shape = "hyphenated", azure_max = 64, level = "top" }
+    "aifoundry"                 = { abbr = "aif", shape = "hyphenated", azure_max = 64, level = "top" }
+    "aifoundry_project"         = { abbr = "aifp", shape = "hyphenated", azure_max = 32, level = "top" }
+    "language"                  = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
+    "doc_intel"                 = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
+    "search"                    = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }
+    "dns_zone"                  = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
+    "private_dns_zone"          = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
 
     # ----- Child resources (8 rows) -----
     "subnet"             = { abbr = "snet", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "vnet" }

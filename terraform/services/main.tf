@@ -154,6 +154,42 @@ module "container_registry" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  # C-020 (Amendment 2026-06-01) — opt-in private endpoint (FR-029). Inputs
+  # resolve to inert defaults (false / null / []) unless
+  # enable_container_registry_private_endpoint is set, preserving day-one
+  # behaviour (Standard SKU, public access, no PE).
+  private_endpoint_enabled   = var.enable_container_registry_private_endpoint
+  private_endpoint_subnet_id = local.acr_pe_subnet_id
+  private_dns_zone_ids       = local.acr_pe_zone_ids
+}
+
+# C-021 (Amendment 2026-06-01) — internal (private) Container Apps environment
+# (FR-030). Reachable only from the spoke VNet; the delegated subnet + spoke
+# VNet id come from the vnet remote state (null when enable_container_apps is
+# false, but the type is then unselectable via check.container_app_env_requires_subnet).
+module "container_app_environment" {
+  source = "../../modules/containerapps"
+  # Only instantiate when the operator has explicitly enabled Container Apps and
+  # wired the spoke VNet remote state. When the type is selected without
+  # enable_container_apps, check.container_app_env_requires_subnet reports the
+  # misconfiguration instead of a deep module validation error.
+  for_each = {
+    for n, e in module.naming.names : n => e
+    if e.service_type == "container_app_environment" && var.enable_container_apps
+  }
+
+  canonical_name      = each.key
+  resource_group_name = azurerm_resource_group.svc.name
+  location            = azurerm_resource_group.svc.location
+  tags                = each.value.tags
+  engine_record       = each.value
+  overrides           = lookup(var.overrides, each.key, {})
+  # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
+  shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  infrastructure_subnet_id = local.container_apps_subnet_id
+  vnet_id                  = local.spoke_vnet_id
 }
 
 module "user_assigned_identity" {

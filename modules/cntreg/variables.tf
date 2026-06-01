@@ -72,3 +72,27 @@ variable "diagnostic_settings_enabled" {
   type        = bool
   default     = true
 }
+
+# ----- C-020 (Amendment 2026-06-01) — Private endpoint (FR-029) -----
+variable "private_endpoint_enabled" {
+  description = "C-020: when true, force sku = Premium (Azure Private Link requires the Premium ACR SKU), set public_network_access_enabled = false, and provision an azurerm_private_endpoint (subresource registry). Default false preserves the prior behaviour (engine-default Standard SKU, public access, no PE)."
+  type        = bool
+  default     = false
+}
+
+variable "private_endpoint_subnet_id" {
+  description = "C-020: resource ID of the subnet the private-endpoint NIC lands in. Required (non-null) when private_endpoint_enabled = true; ignored otherwise."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.private_endpoint_subnet_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Network/virtualNetworks/[^/]+/subnets/[^/]+$", var.private_endpoint_subnet_id))
+    error_message = "private_endpoint_subnet_id must be null or a full subnet resource ID of the form /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Network/virtualNetworks/<vnet>/subnets/<subnet>."
+  }
+}
+
+variable "private_dns_zone_ids" {
+  description = "C-020: hub private DNS zone resource IDs (privatelink.azurecr.io) the private endpoint registers A-records into. Required non-empty when private_endpoint_enabled = true."
+  type        = list(string)
+  default     = []
+}

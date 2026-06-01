@@ -30,7 +30,7 @@ run "catalogue_completeness" {
         # Top-level (27)
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
         "log_analytics", "app_insights", "storage", "keyvault",
-        "container_registry", "user_assigned_identity", "vm",
+        "container_registry", "container_app_environment", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
         "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
@@ -45,7 +45,7 @@ run "catalogue_completeness" {
       toset([
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
         "log_analytics", "app_insights", "storage", "keyvault",
-        "container_registry", "user_assigned_identity", "vm",
+        "container_registry", "container_app_environment", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
         "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
@@ -63,7 +63,7 @@ run "catalogue_completeness" {
       toset([
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
         "log_analytics", "app_insights", "storage", "keyvault",
-        "container_registry", "user_assigned_identity", "vm",
+        "container_registry", "container_app_environment", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
         "aifoundry", "aifoundry_project", "language", "doc_intel", "search",
@@ -77,7 +77,7 @@ run "catalogue_completeness" {
       toset([
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
         "log_analytics", "app_insights", "storage", "keyvault",
-        "container_registry", "user_assigned_identity", "vm",
+        "container_registry", "container_app_environment", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
         "aifoundry", "aifoundry_project", "language", "doc_intel", "search",

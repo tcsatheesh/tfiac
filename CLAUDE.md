@@ -49,6 +49,15 @@ follow this workflow without asking the user to confirm each step:
   - Validation lives at every input boundary (defence-in-depth).
   - Tests added for every new variable/code path (positive + negative).
   - `terraform fmt -recursive` + `terraform test` must be green before merge.
+  - **No public access for ANY service (private-by-default mandate).** Every
+    service that supports it MUST be deployed with `publicNetworkAccess`
+    disabled / public network rules set to `Deny`, and reached exclusively via
+    a private endpoint (plus the matching private DNS zone). This applies to
+    new services and, on next touch, to existing ones. Any service that
+    genuinely cannot use a private endpoint (e.g. a resource type with no
+    Private Link support) is the ONLY exception, and must be called out
+    explicitly in the spec/PR with the reason. Public exposure is never the
+    default and is never enabled "for convenience".
 - Live-Azure operations (plan/apply against real subscriptions) are part of
   step 4 and run automatically after merge. Restore the state SA firewall
   (publicNetworkAccess=Disabled, defaultAction=Deny, remove temp IPs)

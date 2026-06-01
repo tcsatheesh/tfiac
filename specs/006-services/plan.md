@@ -909,3 +909,101 @@ After squash-merge:
    against the hub LA.
 4. Restore the state-SA firewall on `sttfsshdhubnpdswc001` if it was
    temp-opened.
+
+## Phase C-020 / C-021 — Container registry (private endpoint) + Container Apps (internal env)
+
+Amendment 2026-06-01. Delivers FR-029 (ACR private endpoint + Premium +
+public access denied) and FR-030 (new `container_app_environment`
+selectable type, internal/private Managed Environment). Also records the
+`CLAUDE.md` private-by-default mandate. Opt-in toggles default to inert
+so all existing stacks/tests are byte-unchanged.
+
+### Technology / decisions
+
+- ACR Private Link **requires** the `Premium` SKU; the `cntreg` wrapper
+  forces `sku = "Premium"` + `public_network_access_enabled = false`
+  only when the PE toggle is on (default path keeps `Standard`/public).
+- Azure Container Apps has **no** Private Link; the private form is an
+  internal (`internal_load_balancer_enabled = true`) VNet-injected
+  Managed Environment + a private DNS zone for its `default_domain`.
+- Reuse the FR-027 `data.terraform_remote_state` plumbing: generalise
+  the gate `local.aifoundry_pe_required` → `local.any_pe_required`.
+- ACA infra subnet: a new `container-apps` role delegated to
+  `Microsoft.App/environments`, `10.240.2.192/27` in the `sp01/npd`
+  VNet (carved from the previously-free `/26`).
+
+### File-level edits
+
+1. **`modules/naming/catalogue/services.tf`** — add row
+   `"container_app_environment" = { abbr = "cae", shape = "hyphenated",
+   azure_max = 32, level = "top" }`. (FR-030 / C-021 §2)
+2. **`specs/001-naming-convention-engine/spec.md`** — add the matching
+   Naming Pattern Table row (kept in lockstep by
+   `us6_catalogue_completeness` + the CI audit). (C-021 §2)
+3. **`modules/network/locals.tf`** — add `container-apps` role to
+   `role_catalogue` (`abbr3 = "cae"`, `needs_nsg = true`,
+   `needs_route_table = false`, `delegation =
+   ["Microsoft.App/environments"]`). (C-021 §3)
+4. **`variables/sp01/npd/vnet.tfvars.json`** — add
+   `"container-apps": "10.240.2.192/27"` to `subnets`. (C-021 §3)
+5. **`modules/cntreg/{variables,locals,main,outputs}.tf`** — add
+   `private_endpoint_enabled` / `private_endpoint_subnet_id` /
+   `private_dns_zone_ids` inputs; in-module `pep-${canonical_name}`;
+   when enabled force `sku = "Premium"`,
+   `public_network_access_enabled = false`, and an
+   `azurerm_private_endpoint.this` (subresource `registry`, acr zone
+   group) with a `lifecycle.precondition`; outputs for the PE id.
+   (FR-029 / C-020 §2)
+6. **`modules/containerapps/`** (NEW) — `versions.tf`, `variables.tf`,
+   `locals.tf`, `main.tf`, `outputs.tf`, `README.md`. Emits
+   `azurerm_container_app_environment` (internal, hub LA, one
+   `Consumption` workload profile) + `azurerm_private_dns_zone`
+   (`= default_domain`), `azurerm_private_dns_a_record` (`*` →
+   `static_ip_address`), `azurerm_private_dns_zone_virtual_network_link`
+   to the spoke VNet. (FR-030 / C-021 §4)
+7. **`terraform/services/data.vnetdns.tf`** — generalise gate to
+   `local.any_pe_required`; add `local.acr_pe_zone_ids` =
+   `[zone_ids["acr"]]`; add `local.container_apps_subnet_id` +
+   `local.spoke_vnet_id` (from vnet remote state). (C-020 §3 / C-021 §5)
+8. **`terraform/services/locals.tf`** — add `container_app_environment`
+   to `v1_selectable_types` and `type_short` (`cae`). (C-021 §2)
+9. **`terraform/services/variables.tf`** — add
+   `enable_container_registry_private_endpoint` (bool, default false),
+   `enable_container_apps` (bool, default false),
+   `container_apps_subnet_role` (string, default `container-apps`,
+   role-catalogue validated); add `container_app_environment` to the
+   `services[*].type` allowlist; broaden the
+   `dns_state_backend`/`vnet_state_backend` non-null validation to fire
+   for the ACR + ACA toggles. (C-020 §4 / C-021 §5)
+10. **`terraform/services/main.tf`** — thread
+    `private_endpoint_enabled`/`private_endpoint_subnet_id`/
+    `private_dns_zone_ids` into `module.container_registry`; add
+    `module "container_app_environment"`. (FR-029/FR-030)
+11. **`terraform/services/check.tf`** — add
+    `check "acr_pe_requires_registry"` and
+    `check "container_app_env_requires_subnet"`. (C-020 §4 / C-021 §5)
+12. **`variables/sp01/dev/services.tfvars.json`** — add
+    `{ "type": "container_registry" }` +
+    `{ "type": "container_app_environment" }` to `services`; set
+    `enable_container_registry_private_endpoint = true` and
+    `enable_container_apps = true`. (C-020 §1 / C-021 §5)
+
+### Test impact
+
+- `modules/cntreg/tests/private_endpoint_{positive,negative}.tftest.hcl`.
+- `modules/containerapps/tests/internal_env_positive.tftest.hcl`.
+- `terraform/services/tests/acr_pe_happy.tftest.hcl`,
+  `reject_acr_pe_without_registry.tftest.hcl`,
+  `container_apps_happy.tftest.hcl`,
+  `reject_container_apps_without_subnet.tftest.hcl`.
+- `modules/naming` catalogue-completeness + `modules/network` fixtures
+  updated for the new rows.
+
+### Rollout (CLAUDE.md step 4)
+
+After squash-merge: (1) `git checkout master && git pull --ff-only`;
+(2) apply the `sp01/npd` VNet (adds the `container-apps` delegated
+subnet); (3) apply `sp01/dev` services; (4) verify ACR
+`publicNetworkAccess = Disabled` + Premium + PE, and the ACA
+environment is internal with a private default-domain DNS zone; (5)
+restore the state-SA firewall if temp-opened.

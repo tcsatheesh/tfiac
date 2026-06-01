@@ -103,9 +103,10 @@ variable "services" {
         "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
         "user_assigned_identity", "search", "openai", "aifoundry", "aifoundry_project",
         "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
+        "container_app_environment",
       ], s.type)
     ])
-    error_message = "services[*].type must be one of the 16 v1 selectable types (spec.md C-001 + C-015). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
+    error_message = "services[*].type must be one of the 17 v1 selectable types (spec.md C-001 + C-015 + C-021). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
   }
 
   validation {
@@ -198,9 +199,9 @@ variable "private_endpoint_subnet_role" {
     condition = contains([
       "development", "pre-production", "api-management", "buildsvr",
       "function-app", "logic-app", "preprod-func", "preprod-logic",
-      "bastion", "firewall", "firewall-mgmt",
+      "container-apps", "bastion", "firewall", "firewall-mgmt",
     ], var.private_endpoint_subnet_role)
-    error_message = "private_endpoint_subnet_role must be one of the 11 known network-stack subnet roles."
+    error_message = "private_endpoint_subnet_role must be one of the 12 known network-stack subnet roles."
   }
 }
 
@@ -213,6 +214,13 @@ variable "vnet_state_backend" {
     key                  = string
   })
   default = null
+
+  # C-021 (FR-030): the internal Container Apps environment needs the spoke VNet
+  # remote state (delegated subnet + vnet id for the DNS link).
+  validation {
+    condition     = !var.enable_container_apps || var.vnet_state_backend != null
+    error_message = "enable_container_apps = true requires vnet_state_backend to be set."
+  }
 }
 
 variable "dns_state_backend" {
@@ -229,6 +237,13 @@ variable "dns_state_backend" {
     condition     = !var.enable_aifoundry_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
     error_message = "enable_aifoundry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
   }
+
+  # C-020 (FR-029): the ACR private endpoint needs both the spoke VNet (subnet)
+  # and the hub DNS (acr zone) remote states.
+  validation {
+    condition     = !var.enable_container_registry_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "enable_container_registry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+  }
 }
 
 # ----- C-019 (Amendment 2026-06-01) — Foundry Application Insights (FR-028) -----
@@ -236,4 +251,33 @@ variable "enable_aifoundry_application_insights" {
   description = "C-019: when true, the aifoundry wrapper provisions a workspace-based Application Insights anchored at the SHARED hub Log Analytics workspace (the C-014 hub LA already wired via shared_log_analytics_workspace_id) and attaches it to the Foundry account as an AppInsights tracing connection. Only meaningful when an 'aifoundry' is selected (enforced by check.aifoundry_appinsights_requires_account). Default false preserves day-one behaviour."
   type        = bool
   default     = false
+}
+
+# ----- C-020 (Amendment 2026-06-01) — Container registry private endpoint (FR-029) -----
+variable "enable_container_registry_private_endpoint" {
+  description = "C-020: when true, every selected container_registry is deployed as Premium with public_network_access disabled and an Azure private endpoint (+ hub privatelink.azurecr.io DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the acr zone) and private_endpoint_subnet_role. Only meaningful when a 'container_registry' is selected (enforced by check.acr_pe_requires_registry). Default false preserves day-one (Standard, public) behaviour."
+  type        = bool
+  default     = false
+}
+
+# ----- C-021 (Amendment 2026-06-01) — Container Apps internal environment (FR-030) -----
+variable "enable_container_apps" {
+  description = "C-021: when true, every selected container_app_environment is deployed as an INTERNAL (private, VNet-injected) Managed Environment with a private default-domain DNS zone linked to the spoke VNet. Supplies the delegated subnet + vnet id from vnet_state_backend. Only meaningful when a 'container_app_environment' is selected (enforced by check.container_app_env_requires_subnet). Default false preserves prior behaviour (type unselectable end-to-end)."
+  type        = bool
+  default     = false
+}
+
+variable "container_apps_subnet_role" {
+  description = "C-021: spoke VNet subnet role (delegated to Microsoft.App/environments) the internal Container Apps environment is injected into. Looked up via the vnet remote state. Only consulted when enable_container_apps = true."
+  type        = string
+  default     = "container-apps"
+
+  validation {
+    condition = contains([
+      "development", "pre-production", "api-management", "buildsvr",
+      "function-app", "logic-app", "preprod-func", "preprod-logic",
+      "container-apps", "bastion", "firewall", "firewall-mgmt",
+    ], var.container_apps_subnet_role)
+    error_message = "container_apps_subnet_role must be one of the 12 known network-stack subnet roles."
+  }
 }

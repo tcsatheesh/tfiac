@@ -38,6 +38,7 @@ delegations:
 | `logic-app` | lgc | yes | yes | delegated to `Microsoft.Web/serverFarms` |
 | `preprod-func` | pfn | yes | yes | delegated to `Microsoft.Web/serverFarms` |
 | `preprod-logic` | plg | yes | yes | delegated to `Microsoft.Web/serverFarms` |
+| `container-apps` | cae | yes | no  | delegated to `Microsoft.App/environments` |
 | `bastion` | bas | yes | no  | literal name `AzureBastionSubnet` |
 | `firewall` | afw | no  | no  | literal name `AzureFirewallSubnet` |
 | `firewall-mgmt` | afm | no  | no  | literal name `AzureFirewallManagementSubnet` |
