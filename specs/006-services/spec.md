@@ -1618,3 +1618,96 @@ services-stack network-injection passthrough + `agents` subnet-role wiring,
 the spoke address-space expansion (102), the instance toggle flip / ACR
 exception (103), and the live destructive recreate (VC-8) remain dependent
 features per the (now 5-item) CA-013 program — not this amendment.
+
+## AMENDMENT 2026-06-02 — services-stack Hosted-Agent network-injection passthrough (FR-033)
+
+> **AMENDMENT NOTICE (2026-06-02).** This amendment delivers **item #3** of the
+> CA-013 program: the **services-stack passthrough** that lets a deployment
+> turn on the FR-031 `aifoundry` Hosted-Agent network injection by selecting
+> the BYO trio (`storage` + `cosmosdb` + `search`) and flipping one stack
+> toggle. It is **engine-only** and **default-off**: with the new
+> `enable_aifoundry_network_injection` toggle unset, the stack renders exactly
+> the post-FR-032 graph (no agent-subnet read, no BYO wiring, no injection on
+> the `aifoundry` module). No instance flips it here — that is the dependent
+> `103` feature (CA-013 #6) gated on the operator-approved live recreate.
+
+### Problem statement
+
+FR-031 made the `aifoundry` **module** capable of Hosted-Agent network
+injection (`network_injection_enabled` + `agent_subnet_id` + three BYO
+resource-ID inputs), and FR-032 added the `cosmosdb` selectable type for the
+BYO Cosmos leg. But nothing in the **services root stack** wired those
+together: there was no stack toggle, no agent-subnet resolution from the spoke
+VNet remote state, and no plumbing to thread the selected `storage` /
+`cosmosdb` / `search` sibling module resource IDs into the `aifoundry`
+module's BYO inputs. This amendment adds exactly that passthrough.
+
+### Functional requirement
+
+- **FR-033 — services-stack network-injection passthrough (engine,
+  default-off).** The services root stack MUST accept a new
+  `enable_aifoundry_network_injection` input (bool, default `false`) and a
+  new `agent_subnet_role` input (string, default `"agents"`, validated against
+  the network-stack role catalogue, which now includes the `agents` role from
+  004-vnet FR-226). With the default `false`, the stack's behaviour is
+  byte-for-byte identical to the post-FR-032 state (no agent-subnet read, the
+  `aifoundry` module receives `network_injection_enabled = false` and `null`
+  BYO inputs — its day-one form). When `true`, the stack MUST:
+  1. Resolve `agent_subnet_id` from the spoke VNet remote state
+     (`subnets[var.agent_subnet_role].id`), reusing the existing count-gated
+     `data.terraform_remote_state.vnet` (its gate is broadened to fire when
+     injection is on).
+  2. Thread the **single** selected `storage`, `cosmosdb`, and `search`
+     sibling module instances' `resource_id` outputs into the `aifoundry`
+     module's `agent_storage_account_id`, `agent_cosmosdb_account_id`, and
+     `agent_search_service_id` inputs respectively (via
+     `one([for k, v in module.<svc> : v.resource_id])`, which also enforces
+     exactly-one), and set `network_injection_enabled = true` +
+     `agent_subnet_id = local.agent_subnet_id`.
+  3. Enforce, defence-in-depth, that when
+     `enable_aifoundry_network_injection = true`: (a)
+     `enable_aifoundry_private_endpoint = true` (injection requires a private
+     account — VC-1/FR-031 step 4); (b) `vnet_state_backend != null` (to read
+     the agent subnet); and (c) **exactly one** of each of `aifoundry`,
+     `storage`, `cosmosdb`, and `search` is selected (the capability host
+     needs exactly one BYO of each leg — VC-3/VC-4). Enforcement: variable
+     validations on `enable_aifoundry_network_injection` /
+     `vnet_state_backend`, a root-stack `check
+     "aifoundry_network_injection_prereqs"`, and the `aifoundry` module's own
+     FR-031 validators/precondition. A positive plan test asserts the wiring;
+     the negative paths are covered by the module's FR-031 reject tests + the
+     check.
+
+### Clarifications — Session 2026-06-02 (FR-033)
+
+- **C-031 — Passthrough only; no new resources.** FR-033 adds NO new Azure
+  resources to the stack — it only wires existing module instances together
+  and flips the `aifoundry` module's pre-existing FR-031 inputs. The agent
+  subnet (004/102), the BYO Storage/Cosmos/Search (selected as ordinary
+  services), the live recreate (VC-8), and the ACR public exception (103) are
+  all outside this amendment.
+- **C-032 — `agents` added to the stack subnet-role allow-lists.** The
+  three stack subnet-role validators (`private_endpoint_subnet_role`,
+  `container_apps_subnet_role`, and the new `agent_subnet_role`) are widened
+  from 12 to **13** roles to include `agents` (the 004-vnet FR-226 role). The
+  agent subnet is resolved by the `agents` role by default.
+- **C-033 — Exactly-one BYO enforced by `one()` + check.** The BYO wiring uses
+  `one([for k, v in module.<svc> : v.resource_id])`, which errors if zero or
+  more than one instance of that service is selected. The root-stack `check`
+  gives the friendlier, earlier diagnostic; `one()` is the defence-in-depth
+  backstop. When injection is off, the BYO inputs are `null` (the `one()` call
+  is not evaluated — the ternary selects the `null` branch), so multi-instance
+  `storage`/`search` deployments are unaffected.
+- **C-034 — BYO Storage/Search privacy is the instance's concern.** FR-033
+  threads resource IDs only; it does not force the BYO Storage account or AI
+  Search service private. Making those private (their own private endpoints)
+  is the responsibility of the selecting `103` instance + any future
+  storage/search PE engine support, and is a tracked follow-up — NOT part of
+  this passthrough. The Cosmos BYO leg is already private-by-default (FR-032).
+
+### Out of scope for FR-033
+
+The spoke address-space expansion + agent subnet carve (102, CA-013 #4), the
+instance toggle flip / BYO selection / ACR public exception (103, CA-013 #6),
+the live destructive recreate (VC-8), and BYO Storage/Search PE-ification
+(C-034 follow-up) are all outside this engine passthrough.

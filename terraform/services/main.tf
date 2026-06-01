@@ -295,6 +295,18 @@ module "aifoundry" {
   # hub LA id is already supplied via shared_log_analytics_workspace_id above;
   # default false preserves day-one behaviour.
   application_insights_enabled = var.enable_aifoundry_application_insights
+
+  # C-031 (Amendment 2026-06-02) — opt-in Hosted-Agent network injection
+  # (FR-033). Default false leaves all four inputs inert (false / null), so the
+  # account body is identical to the post-FR-028 form. When enabled, bind the
+  # account to the spoke agent subnet and thread the single selected BYO
+  # Storage/Cosmos/Search instances; one(...) enforces exactly-one (C-033) and
+  # is only evaluated when injection is on.
+  network_injection_enabled = var.enable_aifoundry_network_injection
+  agent_subnet_id           = local.agent_subnet_id
+  agent_storage_account_id  = var.enable_aifoundry_network_injection ? one([for k, v in module.storage : v.resource_id]) : null
+  agent_cosmosdb_account_id = var.enable_aifoundry_network_injection ? one([for k, v in module.cosmosdb : v.resource_id]) : null
+  agent_search_service_id   = var.enable_aifoundry_network_injection ? one([for k, v in module.search : v.resource_id]) : null
 }
 
 module "aifoundry_project" {

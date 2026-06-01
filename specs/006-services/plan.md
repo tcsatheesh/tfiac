@@ -1110,3 +1110,40 @@ subnet/zone resolution + module wiring). Additive, engine-only, default-absent
 **Rollout.** None in this PR — additive engine type, no instance selects
 `cosmosdb`. Lighting it up (as the BYO Cosmos for FR-031) is the dependent
 103 instance feature. Merge-only.
+
+## Amendment plan — FR-033 services-stack Hosted-Agent network-injection passthrough
+
+**Scope.** Wire the FR-031 `aifoundry` module injection inputs from the
+services root stack (CA-013 #3): one stack toggle, agent-subnet resolution from
+the spoke VNet remote state, and BYO Storage/Cosmos/Search resource-ID
+threading. Engine-only, default-off (no instance flips it).
+
+**Files touched.**
+- `terraform/services/variables.tf` — new `enable_aifoundry_network_injection`
+  (bool, default false; validation: requires `enable_aifoundry_private_endpoint`)
+  + `agent_subnet_role` (string, default `"agents"`, 13-role allow-list);
+  widen `private_endpoint_subnet_role` + `container_apps_subnet_role` allow-lists
+  to 13 roles (add `agents`); add `vnet_state_backend` validation requiring it
+  when injection on.
+- `terraform/services/data.vnetdns.tf` — `agent_injection_enabled` flag; add to
+  `vnet_state_required`; resolve `agent_subnet_id` from
+  `subnets[var.agent_subnet_role]`.
+- `terraform/services/main.tf` — `module "aifoundry"` block: set
+  `network_injection_enabled`, `agent_subnet_id`, and the three BYO inputs via
+  `one([for k, v in module.<svc> : v.resource_id])` (gated on the toggle; `null`
+  when off).
+- `terraform/services/check.tf` — `check
+  "aifoundry_network_injection_prereqs"` (injection ⇒ private account + exactly
+  one each of aifoundry/storage/cosmosdb/search).
+- `terraform/services/tests/agent_injection_happy.tftest.hcl` — NEW: toggle on
+  + BYO trio + private account + vnet/dns stubs ⇒ `agent_subnet_id` resolves by
+  the `agents` role, one instance each of the four legs.
+
+**Verification (plan-level only — no apply).**
+- `terraform -chdir=terraform/services test` → 16/16 pass.
+- `terraform -chdir=modules/aifoundry test` → 15/15 pass (module unchanged).
+- `terraform fmt -recursive` clean; services `init -backend=false` + `validate` OK.
+
+**Rollout.** None in this PR — engine-only, default-off. The toggle is flipped
+only by the dependent 103 instance feature (CA-013 #6), gated on the
+operator-approved live recreate (VC-8). Merge-only.
