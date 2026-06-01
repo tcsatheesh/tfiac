@@ -1499,3 +1499,122 @@ The `cosmosdb` wrapper module + naming row (#2), the `agents` subnet role
 instance toggle flip / ACR exception (#6), and the live destructive recreate
 (VC-8) — all are dependent features tracked in CA-013, not this engine
 amendment.
+
+## AMENDMENT 2026-06-02 — `cosmosdb` private-by-default selectable service type (FR-032)
+
+> **AMENDMENT NOTICE (2026-06-02).** This amendment delivers **item #2** of the
+> CA-013 dependent-feature program: a brand-new `cosmosdb` selectable service
+> type + `modules/cosmosdb/` wrapper, plus the matching `cosmosdb` top-level
+> naming row in feature **001**. It is **additive and engine-only**: no current
+> instance selects `cosmosdb`, so day-one behaviour of every existing
+> deployment is byte-for-byte unchanged. The new type exists to supply the BYO
+> Cosmos DB account that the FR-031 Hosted-Agent capability host requires for
+> its `threadStorageConnections` leg (VC-3/VC-4). The existing `storage` and
+> `search` wrappers already satisfy the other two BYO legs.
+
+### Problem statement
+
+Foundry Hosted-Agent network injection (FR-031) mandates a customer-owned
+Azure Cosmos DB account for the `threadStorageConnections` connection list of
+the `Agents` capability host (VC-3/VC-4). The services engine had no
+`cosmosdb` selectable type, so there was no way to provision that BYO Cosmos
+account from this stack. This amendment adds it, built to the CLAUDE.md
+**private-by-default mandate** from day one.
+
+### Verified facts (drive this amendment)
+
+- **VF-1 — DNS zone already present.** The Cosmos SQL private DNS zone
+  `privatelink.documents.azure.com` ALREADY exists in the hub catalogue
+  (`modules/dnszones/catalogue.tf`, key `cosmos-sql`, feature 002). **No new
+  DNS feature is required** — this supersedes CA-013 #5, which is now a no-op
+  (the zone the program assumed was missing is in fact present). The services
+  stack resolves it from the hub DNS remote state via `zone_ids["cosmos-sql"]`.
+- **VF-2 — Private Link subresource.** An `azurerm_cosmosdb_account` of kind
+  `GlobalDocumentDB` is reached privately via a private endpoint whose
+  `subresource_names = ["Sql"]`, registered against the `cosmos-sql` zone.
+- **VF-3 — Naming.** Cosmos DB account names are hyphenated, lowercase, and
+  capped at **44** characters (Azure RP limit). The engine row is `abbr =
+  "cosmos"`, `shape = "hyphenated"`, `azure_max = 44`, `level = "top"`.
+
+### Functional requirement
+
+- **FR-032 — `cosmosdb` private-only selectable service type (engine,
+  additive).** A new spoke-eligible selectable type `cosmosdb` MUST be added
+  to the v1 selectable inventory (and to the feature-001 engine catalogue as a
+  top-level row `abbr = "cosmos"`, `shape = "hyphenated"`, `azure_max = 44`).
+  Its wrapper (`modules/cosmosdb/`) MUST emit `azurerm_cosmosdb_account`
+  (`offer_type = "Standard"`, `kind = "GlobalDocumentDB"`, a single
+  `geo_location` at `failover_priority = 0`, `Session` consistency by default)
+  built **private-by-default with NO public variant and NO enable toggle**:
+  1. `public_network_access_enabled = false` **always** (there is no public
+     form of this service — unlike the toggle-gated FR-027/FR-029 services,
+     Cosmos is private-only by construction).
+  2. `local_authentication_disabled = true` by default (AAD-only data plane;
+     override-able).
+  3. An **always-on** `azurerm_private_endpoint` (`subresource_names =
+     ["Sql"]`) whose NIC lands in the spoke subnet resolved by role from the
+     spoke VNet remote state, with a `private_dns_zone_group` registering
+     A-records in the hub `privatelink.documents.azure.com` (`cosmos-sql`)
+     zone. The PE has **no count gate** — selecting `cosmosdb` always creates
+     it.
+  4. A count-gated `azurerm_monitor_diagnostic_setting` shipping `allLogs` +
+     the `Requests` metric to the SHARED hub Log Analytics workspace
+     (`var.shared_log_analytics_workspace_id`, the C-014 hub LA), default-on.
+
+  Because Cosmos is private-only, **both** PE inputs are REQUIRED, non-null
+  module inputs (`private_endpoint_subnet_id` — a full subnet resource ID;
+  `private_dns_zone_ids` — a non-empty list). Consequently, **selecting**
+  `cosmosdb` (not a separate toggle) is what makes the services stack require
+  the spoke VNet **and** hub DNS remote-state backends: the stack gates
+  `vnet_state_required` / `dns_state_required` on `cosmosdb_selected &&
+  <backend> != null`, resolves `cosmosdb_pe_subnet_id` from
+  `subnets[var.private_endpoint_subnet_role]` and `cosmosdb_pe_zone_ids` from
+  `zone_ids["cosmos-sql"]`, and wires both into the wrapper. Enforcement is
+  defence-in-depth: module variable validators (canonical-name ≤44 regex,
+  PE-subnet-id regex, non-empty zone list), root-stack `var.dns_state_backend`
+  validation (both backends required when `cosmosdb` selected), root-stack
+  `check "cosmosdb_requires_backends"`, and module positive+negative tests +
+  a stack-level `cosmosdb_happy` plan test. With no `cosmosdb` entry selected,
+  no Cosmos module, no remote-state read, and no behaviour change occurs.
+
+### Clarifications — Session 2026-06-02 (FR-032)
+
+- **C-027 — Private-only, no toggle (deliberate divergence from FR-027/
+  FR-029).** Unlike the Foundry-PE and ACR-PE features (which default-off and
+  expose an `enable_*_private_endpoint` toggle because those services have a
+  legitimate public form), `cosmosdb` has **no public variant**:
+  `public_network_access_enabled = false` is hard-coded, the PE is always-on,
+  and both PE inputs are required. This is the strictest, most
+  mandate-compliant reading of "private-by-default" for a brand-new service
+  with full Private Link support — there is no convenience public path to
+  accidentally leave open. Selection alone (no toggle) drives the remote-state
+  requirement.
+- **C-028 — No stack-level backend reject test (matches FR-027/FR-029
+  precedent).** The "selecting `cosmosdb` requires both backends" rule is
+  covered by the `var.dns_state_backend` variable validation + the
+  `cosmosdb_requires_backends` check + the module's own negative tests
+  (null/malformed PE subnet, empty zone list). A dedicated stack-level reject
+  `tftest` is intentionally NOT added: with `cosmosdb` selected and backends
+  null, the module still instantiates (for_each over the selection) and emits
+  its own internal validation error, which `expect_failures` cannot target
+  cleanly — the same reason the FR-029 ACR backend-required validation has no
+  dedicated stack reject test. Negative coverage lives in
+  `modules/cosmosdb/tests/negative.tftest.hcl`.
+- **C-029 — Reuses existing DNS zone (CA-013 #5 retired).** Per VF-1 the
+  `cosmos-sql` zone already exists; CA-013 #5 ("add the Cosmos DNS zone") is
+  retired as already-satisfied. The Hosted-Agent program is therefore a
+  5-feature epic, not 6.
+- **C-030 — `agents` subnet role already landed (CA-013 #3 done).** Per the
+  004-vnet FR-226 amendment (PR #31), the dedicated `agents` subnet role
+  (delegated `Microsoft.App/environments`, distinct from `container-apps`)
+  already exists in the engine. CA-013 #3 is delivered; this FR-032 amendment
+  is #2 of the remaining work.
+
+### Out of scope for FR-032
+
+Threading the BYO Cosmos (and Storage/Search) resource IDs into the
+`aifoundry` module's FR-031 inputs (`agent_cosmosdb_account_id` et al.), the
+services-stack network-injection passthrough + `agents` subnet-role wiring,
+the spoke address-space expansion (102), the instance toggle flip / ACR
+exception (103), and the live destructive recreate (VC-8) remain dependent
+features per the (now 5-item) CA-013 program — not this amendment.

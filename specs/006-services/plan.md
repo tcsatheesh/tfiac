@@ -1055,3 +1055,58 @@ the post-FR-028 state. No services-stack instance lights it up here (CA-013 #1).
 The dependent program (CA-013 #2–#6 + the operator-approved live recreate, VC-8)
 ships as separate features/PRs and is the ONLY place a live apply / recreate
 happens. This PR is merge-only.
+
+## Amendment plan — FR-032 `cosmosdb` private-by-default selectable type
+
+**Scope.** Add a new `cosmosdb` selectable service type (CA-013 #2): a
+`modules/cosmosdb/` wrapper emitting a private-only `azurerm_cosmosdb_account`
++ always-on private endpoint, a `cosmosdb` top-level naming row in feature 001,
+and the services-stack selection plumbing (remote-state gating + PE
+subnet/zone resolution + module wiring). Additive, engine-only, default-absent
+(no instance selects it).
+
+**Files touched.**
+- `modules/naming/catalogue/services.tf` — new top-level row `"cosmosdb" = {
+  abbr = "cosmos", shape = "hyphenated", azure_max = 44, level = "top" }`.
+- `modules/naming/tests/us6_catalogue_completeness.tftest.hcl` — add
+  `"cosmosdb"` to the four hard-coded type lists; bump top-level count 27→28.
+- `specs/001-naming-convention-engine/spec.md` — add the `cosmosdb` row to the
+  Naming Pattern Table (top-level section) — see the 001 amendment note.
+- `modules/cosmosdb/{versions,variables,locals,main,outputs}.tf` — NEW wrapper:
+  `azurerm_cosmosdb_account` (`offer_type=Standard`, `kind=GlobalDocumentDB`,
+  `public_network_access_enabled=false` ALWAYS, `local_authentication_disabled`,
+  `Session` consistency, single `geo_location` failover 0); always-on
+  `azurerm_private_endpoint` (`subresource_names=["Sql"]`, DNS zone group);
+  count-gated `azurerm_monitor_diagnostic_setting` → hub LA. REQUIRED non-null
+  `private_endpoint_subnet_id` + non-empty `private_dns_zone_ids`.
+- `modules/cosmosdb/tests/{positive,negative}.tftest.hcl` — NEW: positive
+  asserts private-by-default (public=false, local-auth disabled, PE
+  subnet/Sql/zone, diag→hub LA); negative rejects empty/uppercase name,
+  malformed PE subnet, empty zone list.
+- `terraform/services/locals.tf` — add `cosmosdb` to `v1_selectable_types` +
+  `type_short.cosmosdb="cos"`.
+- `terraform/services/data.vnetdns.tf` — `cosmosdb_selected` flag; include in
+  `vnet_state_required`/`dns_state_required` (gated on backend non-null);
+  resolve `cosmosdb_pe_subnet_id` (by `private_endpoint_subnet_role`) +
+  `cosmosdb_pe_zone_ids` (`zone_ids["cosmos-sql"]`).
+- `terraform/services/main.tf` — `module "cosmosdb"` (for_each on
+  `type=="cosmosdb"`), wiring the PE subnet + zone ids.
+- `terraform/services/variables.tf` — add `cosmosdb` to the `services[*].type`
+  allow-list; `var.dns_state_backend` validation requiring both backends when
+  `cosmosdb` selected.
+- `terraform/services/check.tf` — `check "cosmosdb_requires_backends"`.
+- `terraform/services/tests/cosmosdb_happy.tftest.hcl` — NEW stack plan test:
+  selecting `cosmosdb` resolves PE subnet + `cosmos-sql` zone, one module
+  instance.
+
+**Verification (plan-level only — no apply).**
+- `terraform -chdir=modules/cosmosdb test` → 7/7 pass.
+- `terraform -chdir=modules/naming test` → 36/36 pass (catalogue completeness
+  CI script reports 37 service_types agree).
+- `terraform -chdir=terraform/services test` → 15/15 pass.
+- `terraform fmt -recursive` clean; services `init -backend=false` + `validate`
+  succeed.
+
+**Rollout.** None in this PR — additive engine type, no instance selects
+`cosmosdb`. Lighting it up (as the BYO Cosmos for FR-031) is the dependent
+103 instance feature. Merge-only.

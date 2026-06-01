@@ -161,3 +161,18 @@ check "container_app_env_requires_subnet" {
     error_message = "C-021 / FR-030 — selecting a 'container_app_environment' requires enable_container_apps = true (which supplies the delegated subnet + spoke VNet wiring via vnet_state_backend)."
   }
 }
+
+# cosmosdb_requires_backends (spec.md FR-032): Cosmos DB is private-only, so
+# selecting a 'cosmosdb' service requires both the spoke VNet remote state (PE
+# subnet) and the hub DNS remote state (cosmos-sql zone). Fires at plan time,
+# before any remote-state or provider call. Defence-in-depth pair for the
+# variable-level vnet/dns_state_backend requirement.
+check "cosmosdb_requires_backends" {
+  assert {
+    condition = !(
+      length([for s in var.services : s if s.type == "cosmosdb"]) > 0 &&
+      (var.vnet_state_backend == null || var.dns_state_backend == null)
+    )
+    error_message = "FR-032 — selecting a 'cosmosdb' service requires both vnet_state_backend (PE subnet) and dns_state_backend (cosmos-sql zone) to be set; Cosmos DB is private-only."
+  }
+}
