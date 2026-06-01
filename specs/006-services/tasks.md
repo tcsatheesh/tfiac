@@ -791,3 +791,35 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-033.E — Rollout
 
 - [ ] T-FR033-010 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-031). (FR-033)
+
+---
+
+## Phase FR-034 — storage account private endpoint (engine, opt-in, default-off)
+
+### FR-034.A — Module
+
+- [x] T-FR034-001 [modules/storage/variables.tf](../../modules/storage/variables.tf): `private_endpoint_enabled` (bool, default false) + `private_endpoint_subnet_id` (subnet-id regex) + `private_dns_zone_ids`. (FR-034 / C-035)
+- [x] T-FR034-002 [modules/storage/locals.tf](../../modules/storage/locals.tf): `pe_name = "pep-${canonical_name}"`. (FR-034)
+- [x] T-FR034-003 [modules/storage/main.tf](../../modules/storage/main.tf): `public_network_access_enabled = !private_endpoint_enabled`; count-gated `azurerm_private_endpoint` (subresource `blob` + DNS zone group + precondition). (FR-034 / C-036)
+- [x] T-FR034-004 [modules/storage/outputs.tf](../../modules/storage/outputs.tf): `private_endpoint_id` (null when off). (FR-034)
+
+### FR-034.B — Stack wiring
+
+- [x] T-FR034-005 [terraform/services/variables.tf](../../terraform/services/variables.tf): `enable_storage_private_endpoint` (default false) + backend validation. (FR-034 / C-038)
+- [x] T-FR034-006 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): `storage_pe_required` gate + `storage_pe_subnet_id` + `storage_pe_zone_ids` (`blob` zone). (FR-034 / C-037)
+- [x] T-FR034-007 [terraform/services/main.tf](../../terraform/services/main.tf): thread the three inputs into `module.storage`. (FR-034)
+- [x] T-FR034-008 [terraform/services/check.tf](../../terraform/services/check.tf): `check "storage_pe_requires_storage"`. (FR-034 / C-038)
+
+### FR-034.C — Tests
+
+- [x] T-FR034-009 `modules/storage/tests/private_endpoint_{positive,negative}.tftest.hcl` + `terraform/services/tests/storage_pe_happy.tftest.hcl` — NEW. (FR-034)
+
+### FR-034.D — Verification gates (HARD)
+
+- [x] T-FR034-010 `terraform fmt -recursive` → no changes. (FR-034)
+- [x] T-FR034-011 `terraform -chdir=modules/storage test` → 8/8 pass. (FR-034)
+- [x] T-FR034-012 `terraform -chdir=terraform/services test` → 17/17 pass. (FR-034)
+
+### FR-034.E — Rollout
+
+- [ ] T-FR034-013 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-035). (FR-034)

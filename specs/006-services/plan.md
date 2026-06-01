@@ -1147,3 +1147,38 @@ threading. Engine-only, default-off (no instance flips it).
 **Rollout.** None in this PR — engine-only, default-off. The toggle is flipped
 only by the dependent 103 instance feature (CA-013 #6), gated on the
 operator-approved live recreate (VC-8). Merge-only.
+
+## Amendment plan — FR-034 storage account private endpoint
+
+**Scope.** Give `modules/storage` + the services stack an opt-in private
+endpoint (subresource `blob`), mirroring the ACR FR-029/C-020 pattern, so the
+BYO Hosted-Agent thread/file store can be private (closes the storage half of
+the C-034 follow-up). Engine-only, default-off.
+
+**Files touched.**
+- `modules/storage/variables.tf` — `private_endpoint_enabled` (bool, default
+  false) + `private_endpoint_subnet_id` (subnet-id regex) + `private_dns_zone_ids`.
+- `modules/storage/locals.tf` — `pe_name = "pep-${canonical_name}"`.
+- `modules/storage/main.tf` — `public_network_access_enabled =
+  !private_endpoint_enabled`; count-gated `azurerm_private_endpoint`
+  (subresource `blob` + DNS zone group + precondition).
+- `modules/storage/outputs.tf` — `private_endpoint_id` (null when off).
+- `modules/storage/tests/private_endpoint_{positive,negative}.tftest.hcl` — NEW.
+- `terraform/services/variables.tf` — `enable_storage_private_endpoint` (default
+  false) + backend validation.
+- `terraform/services/data.vnetdns.tf` — `storage_pe_required` gate (added to
+  vnet+dns remote-state requirement); `storage_pe_subnet_id` +
+  `storage_pe_zone_ids` (the `blob` zone).
+- `terraform/services/main.tf` — thread the three inputs into `module.storage`.
+- `terraform/services/check.tf` — `check "storage_pe_requires_storage"`.
+- `terraform/services/tests/storage_pe_happy.tftest.hcl` — NEW.
+
+**Verification (plan-level only — no apply).**
+- `terraform -chdir=modules/storage test` → 8/8 pass.
+- `terraform -chdir=terraform/services test` → 17/17 pass.
+- `terraform fmt -recursive` clean; services validate OK.
+- `blob` zone already in 002 catalogue — no 002 change. CI `services.yml`
+  already includes `modules/storage`.
+
+**Rollout.** None in this PR — engine-only, default-off. The `103` instance
+(CA-013 #6) flips it on. Merge-only.

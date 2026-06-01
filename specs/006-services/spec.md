@@ -1711,3 +1711,61 @@ The spoke address-space expansion + agent subnet carve (102, CA-013 #4), the
 instance toggle flip / BYO selection / ACR public exception (103, CA-013 #6),
 the live destructive recreate (VC-8), and BYO Storage/Search PE-ification
 (C-034 follow-up) are all outside this engine passthrough.
+
+---
+
+## AMENDMENT 2026-06-02 — storage account private endpoint (FR-034)
+
+> **Why now.** FR-033 wired Hosted-Agent network injection but threaded the BYO
+> Storage account by resource ID only (C-034), leaving it on public network
+> access. The standing **private-by-default mandate** requires every service
+> that supports Private Link to disable public access and be reached via a
+> private endpoint — Azure Storage does support Private Link, so the BYO thread/
+> file store MUST be private. This amendment closes the first half of the C-034
+> follow-up by giving `modules/storage` + the services stack an opt-in private
+> endpoint, mirroring the ACR pattern (FR-029 / C-020). The search half is
+> FR-035 (a sibling amendment); the `103` instance then selects both fully
+> private (CA-013 #6).
+
+- **FR-034 — storage account private endpoint (engine, opt-in, default-off).**
+  `modules/storage` gains `private_endpoint_enabled` (bool, default false),
+  `private_endpoint_subnet_id`, and `private_dns_zone_ids`. When enabled, the
+  account sets `public_network_access_enabled = false` and provisions exactly
+  one `azurerm_private_endpoint` (subresource group id `blob`) into the supplied
+  subnet, registering A-records in the hub `privatelink.blob.core.windows.net`
+  zone. Default-off renders the account byte-for-byte as before (public, no PE).
+  The services stack gains `enable_storage_private_endpoint` (default false)
+  which, when true, resolves the PE subnet (by `private_endpoint_subnet_role`)
+  from the spoke VNet remote state + the `blob` zone from the hub DNS remote
+  state and threads them into every selected `storage` module instance.
+
+### Clarifications — Session 2026-06-02 (FR-034)
+
+- **C-035 — Opt-in toggle, mirror the ACR (C-020) precedent.** Rather than
+  forcing every existing storage account private (which would flip
+  `public_network_access` on already-deployed public accounts and could break
+  consumers), FR-034 follows the established repo convention: an opt-in
+  `enable_storage_private_endpoint` toggle, default false (day-one parity). The
+  private-by-default mandate is satisfied at the point of use — the `103`
+  instance turns it ON for the BYO agent store.
+- **C-036 — Subresource `blob`.** The Foundry Hosted-Agent capability host uses
+  blob storage for the thread/file store, so the private endpoint targets the
+  `blob` subresource + the `privatelink.blob.core.windows.net` zone. (Other
+  storage subresources/zones — file/queue/table — are out of scope; add them as
+  a future amendment if a consumer needs them.)
+- **C-037 — Reuses existing plumbing.** No new remote-state backends or subnet
+  roles: storage PE reuses `vnet_state_backend` + `dns_state_backend` +
+  `private_endpoint_subnet_role` (the same trio the ACR/Foundry PEs use). The
+  `blob` zone already exists in the 002 DNS catalogue
+  (`modules/dnszones/catalogue.tf`) — no 002 change.
+- **C-038 — Defence-in-depth.** `enable_storage_private_endpoint = true` is
+  guarded by (a) variable validation requiring both remote-state backends,
+  (b) `check.storage_pe_requires_storage` (a `storage` must be selected), and
+  (c) the module's own `lifecycle.precondition` (non-null subnet + non-empty
+  zone list).
+
+### Out of scope for FR-034
+
+Search private endpoint (FR-035, the sibling amendment), the `103` instance
+toggle flip + BYO selection (CA-013 #6), and any non-`blob` storage subresource
+(file/queue/table) PE support.

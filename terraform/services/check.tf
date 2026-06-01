@@ -147,6 +147,21 @@ check "acr_pe_requires_registry" {
   }
 }
 
+# storage_pe_requires_storage (spec.md C-035 / FR-034): enabling the storage
+# private endpoint only makes sense when a `storage` account is actually
+# selected in this stack. Fires at plan time, before any remote-state or
+# provider call. Defence-in-depth pair for the variable-level
+# vnet/dns_state_backend requirement.
+check "storage_pe_requires_storage" {
+  assert {
+    condition = !(
+      var.enable_storage_private_endpoint &&
+      length([for s in var.services : s if s.type == "storage"]) == 0
+    )
+    error_message = "C-035 / FR-034 — enable_storage_private_endpoint = true requires a 'storage' selection in this services stack."
+  }
+}
+
 # container_app_env_requires_subnet (spec.md C-021 / FR-030): selecting a
 # `container_app_environment` requires enable_container_apps = true so the
 # internal environment receives its delegated subnet + spoke VNet wiring from
