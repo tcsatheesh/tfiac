@@ -96,3 +96,10 @@ variable "private_dns_zone_ids" {
   type        = list(string)
   default     = []
 }
+
+# ----- C-019 (Amendment 2026-06-01) — Application Insights tracing (FR-028) -----
+variable "application_insights_enabled" {
+  description = "C-019: when true, provision a workspace-based azurerm_application_insights anchored at the SHARED hub Log Analytics workspace (var.shared_log_analytics_workspace_id) and attach it to the Foundry account as a Microsoft.CognitiveServices/accounts/connections of category \"AppInsights\" so the Foundry Tracing feature funnels telemetry into the hub LA. Default false preserves the C-018 day-one behaviour (no App Insights, no connection)."
+  type        = bool
+  default     = false
+}

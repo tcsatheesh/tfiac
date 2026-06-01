@@ -250,6 +250,7 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 - **FR-025**: The services stack rejects `environment ∈ {npd}` and accepts only `{dev, pre, prd}`; hub stacks (`terraform/log/`, `terraform/vnet/`, `terraform/dns/`) are unaffected and retain their `{npd, prd}` allowlist. Enforcement is defence-in-depth: (i) `terraform/services/variables.tf` `validation` block on `var.environment`; (ii) root-stack `check "environment_workload_only"` in `terraform/services/check.tf`; (iii) negative test `terraform/services/tests/reject_npd_environment.tftest.hcl`. See C-016 for rationale and full rollout decisions.
 - **FR-026**: Foundry account+project replaces ML Workspace Hub+Project pair. The `aifoundry` wrapper MUST emit `Microsoft.CognitiveServices/accounts` (kind=`AIServices`, `properties.allowProjectManagement=true`, `properties.customSubDomainName = var.canonical_name`, `properties.publicNetworkAccess="Enabled"`, `sku.name="S0"`, system-assigned identity) and MUST NOT require sibling `storage` or `keyvault` selections. The `aifoundry_project` wrapper MUST emit `Microsoft.CognitiveServices/accounts/projects` as a child of the parent account, taking `var.parent_account_id` in place of the legacy `var.hub_resource_id`. Both wrappers preserve the existing `var.canonical_name` / `var.engine_record` / diagnostic-settings contract. Pinned API versions: `Microsoft.CognitiveServices/accounts@2025-09-01`, `Microsoft.CognitiveServices/accounts/projects@2025-09-01`. The `aifoundry_project_requires_account` check (renamed from `aifoundry_project_requires_hub` per C-015 §4) enforces 1:1 project→account in the same stack; the `aifoundry_requires_hub_deps` check is REMOVED. The `aifp` catalogue row `azure_max` drops from 64 to 32 to match the Foundry projects RP hard limit. See C-017 for full rationale, migration, and out-of-scope items.
 - **FR-027**: When `var.enable_aifoundry_private_endpoint = true` (default `false`), the `aifoundry` wrapper MUST provision an `azurerm_private_endpoint` for the Cognitive Services account in a spoke subnet (resolved by role from the spoke VNet remote state), attach a `private_dns_zone_group` to the hub private DNS zones `privatelink.cognitiveservices.azure.com` (`cogsvc`), `privatelink.openai.azure.com` (`openai`), and `privatelink.services.ai.azure.com` (`aiservices`, newly added to the DNS catalogue), use subresource group ID `account`, and default `properties.publicNetworkAccess` to `"Disabled"` (override-able). With the default `false`, behaviour is identical to FR-026 (PE absent, `publicNetworkAccess="Enabled"`, no VNet/DNS remote-state reads). The services stack reads the spoke VNet and hub DNS via count-gated `data "terraform_remote_state"` blocks (`var.vnet_state_backend`, `var.dns_state_backend`) only when the toggle is on and an `aifoundry` is selected. The generic `services[*].private_endpoints` field of Assumption A4 stays reserved and hard-failed. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "aifoundry_pe_requires_account"`, and positive+negative tests. See C-018 for full rationale and rollout ordering.
+- **FR-028**: When `var.enable_aifoundry_application_insights = true` (default `false`), the `aifoundry` wrapper MUST (i) provision a workspace-based `azurerm_application_insights` resource anchored at the SHARED hub Log Analytics workspace (`workspace_id = var.shared_log_analytics_workspace_id`, the same C-014 hub LA) so all Foundry trace/telemetry data lands in the hub LA, and (ii) attach that App Insights to the Foundry Cognitive Services account as a tracing connection via `Microsoft.CognitiveServices/accounts/connections@2025-09-01` with `properties.category = "AppInsights"`, `properties.target` + `properties.metadata.ResourceId` = the App Insights resource ID, `properties.authType = "ApiKey"`, `properties.isSharedToAll = true`, and `properties.credentials.key` = the App Insights connection string (supplied via azapi `sensitive_body` so it never appears in plaintext state diff). With the default `false`, behaviour is identical to FR-026/FR-027 (no App Insights, no connection). The App Insights and the connection are count-gated; the connection's `parent_id` is the account `azapi_resource.this.id` so it is inherited by all projects. Enforcement is defence-in-depth: module variable validators (the always-required `shared_log_analytics_workspace_id` regex already guarantees a valid hub LA), root-stack `check "aifoundry_appinsights_requires_account"`, and positive+negative tests. See C-019 for full rationale and rollout ordering.
 
 ### Key Entities
 
@@ -965,3 +966,121 @@ hard-failed); private endpoints for any non-`aifoundry` service type;
 NSG/route-table changes on the PE subnet; private endpoints for the
 Foundry project child (projects share the parent account endpoint and
 need no separate PE); custom (non-catalogue) DNS zones for the PE.
+
+## Clarifications Amendment 2026-06-01 (Foundry Application Insights tracing)
+
+### C-019 — Application Insights for Foundry tracing + monitoring, anchored at the hub LA (extends C-014; lifts the "monitoring connection" portion deferred by C-017)
+
+**Date:** 2026-06-01. **Status:** Resolved.
+
+Operator intent: the Foundry Cognitive Services account
+`aif-uc1-uc1-sp01-dev-swc-001` MUST have an Application Insights
+resource attached for tracing and monitoring (agent runs, prompt
+traces, GenAI telemetry surfaced in the Foundry portal's Tracing
+tab), and that Application Insights MUST funnel its data into the
+SHARED hub Log Analytics workspace (the same C-014 hub LA), not a
+standalone classic instance. This amendment makes the `aifoundry`
+wrapper able to provision a workspace-based App Insights and wire it
+to the account as an `AppInsights` connection.
+
+Resolutions (encoded directly per CLAUDE.md autonomy rules; no
+operator interview):
+
+1. **Opt-in, defaults preserve existing behaviour (C-011 (ii)).** The
+   feature is gated by a stack-level boolean
+   `var.enable_aifoundry_application_insights` (default `false`). With
+   the default, the stack behaves exactly as it does post-C-018 (no
+   App Insights, no connection). The day-one
+   `variables/sp01/dev/services.tfvars.json` sets it to `true` to
+   satisfy the operator's tracing/monitoring intent.
+
+2. **`modules/aifoundry/` gains App Insights support (self-contained,
+   embedded — mirrors the C-018 embedded-PE pattern; no new generic
+   module).** One new input `application_insights_enabled` (bool,
+   default `false`). When `true` the wrapper:
+   - creates `azurerm_application_insights.tracing` (count-gated) with
+     `workspace_id = var.shared_log_analytics_workspace_id` (the
+     ALWAYS-required, already-validated C-014 hub LA id) so it is a
+     **workspace-based** App Insights writing into the hub LA —
+     satisfying "must connect to the hub Log Analytics" without a
+     redundant diagnostic-setting (a workspace-based component already
+     routes to its workspace). `application_type` defaults to `"web"`
+     (override-able via `var.overrides.application_insights_application_type`);
+   - creates `azapi_resource.appinsights_connection` (count-gated):
+     `Microsoft.CognitiveServices/accounts/connections@2025-09-01`,
+     `name = "appinsights"` (a fixed, pattern-valid connection name —
+     the connection-name RP pattern `^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$`
+     forbids the dots/length of the canonical name), `parent_id =
+     azapi_resource.this.id` (account-level so all projects inherit
+     it), `body.properties = { category = "AppInsights", target =
+     <appi id>, authType = "ApiKey", isSharedToAll = true, metadata =
+     { ApiType = "Azure", ResourceId = <appi id> } }`, and the
+     sensitive App Insights connection string supplied via azapi
+     `sensitive_body.properties.credentials.key` so it never appears
+     in plaintext state diff.
+   The App Insights canonical name is derived in-module as
+   `appi-${var.canonical_name}` (mirrors the C-018
+   `pep-${canonical_name}` deviation). The generic naming-engine
+   `app_insights` catalogue row stays the path for a STANDALONE
+   App Insights selection (`{ "type": "app_insights" }`); deriving the
+   dedicated Foundry-tracing component's name in-module keeps this
+   amendment self-contained and avoids threading a child engine record
+   per account. This deviation is documented in the wrapper
+   `README.md`.
+
+3. **Why a connection, not just a resource.** The Foundry portal's
+   Tracing feature reads an account/project **connection** of category
+   `AppInsights` to discover where to send/read traces. Provisioning
+   the App Insights alone (already possible via the `app_insights`
+   selectable type) does NOT attach it to the Foundry. The connection
+   resource is the attachment mechanism; `isSharedToAll = true` makes
+   the account-level connection visible to every child project.
+
+4. **Account-level, not project-level.** The connection is parented by
+   the account (`azapi_resource.this.id`), not an individual project,
+   so a single connection serves all current and future projects in
+   the account and the wrapper need not depend on the
+   `aifoundry_project` selection. This also keeps the `aifoundry` and
+   `aifoundry_project` wrappers decoupled.
+
+5. **Defence-in-depth validation (C-011 (iii)).** Enforced at every
+   boundary: (i) `modules/aifoundry/variables.tf` — the always-required
+   `shared_log_analytics_workspace_id` regex validator already
+   guarantees a valid hub LA id whenever App Insights is enabled (the
+   App Insights cannot be created without it); (ii)
+   `terraform/services/variables.tf` documents
+   `enable_aifoundry_application_insights`; (iii) a root-stack
+   `check "aifoundry_appinsights_requires_account"` ensuring the
+   toggle is only meaningful when an `aifoundry` is selected; (iv) the
+   existing A4 hard-fail on `services[*].diagnostic_settings` is
+   UNCHANGED.
+
+6. **Tests (C-011 (iv)).** New positive + negative coverage in the
+   same PR:
+   - `modules/aifoundry/tests/application_insights_positive.tftest.hcl`
+     — enabled emits one `azurerm_application_insights.tracing` with
+     `workspace_id` = the supplied hub LA id, and one
+     `azapi_resource.appinsights_connection` named `appinsights` with
+     `category = "AppInsights"` parented by the account.
+   - `modules/aifoundry/tests/application_insights_negative.tftest.hcl`
+     — default disabled emits zero App Insights and zero connection.
+   - `terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl`
+     — `enable_aifoundry_application_insights = true` wires
+     `application_insights_enabled = true` into `module.aifoundry`.
+   - `terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl`
+     — toggle on but no `aifoundry` selected ⇒
+     `check.aifoundry_appinsights_requires_account` fails.
+   `terraform fmt -recursive` and all affected `terraform test`
+   suites MUST be green before merge.
+
+7. **Rollout ordering.** The hub LA stack (`hub/npd`) is already
+   applied (C-014 prerequisite). Post-merge: apply the `sp01/dev`
+   services stack; verify the account shows an `AppInsights`
+   connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is
+   workspace-based against the hub LA.
+
+Out of scope for this amendment: project-level (per-project) tracing
+connections; a fully generic per-service App Insights / monitoring
+framework (the A4 `diagnostic_settings` field stays reserved);
+attaching App Insights to any non-`aifoundry` service type;
+dashboards, alerts, or workbooks on the new component.

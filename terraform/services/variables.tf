@@ -230,3 +230,10 @@ variable "dns_state_backend" {
     error_message = "enable_aifoundry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
   }
 }
+
+# ----- C-019 (Amendment 2026-06-01) — Foundry Application Insights (FR-028) -----
+variable "enable_aifoundry_application_insights" {
+  description = "C-019: when true, the aifoundry wrapper provisions a workspace-based Application Insights anchored at the SHARED hub Log Analytics workspace (the C-014 hub LA already wired via shared_log_analytics_workspace_id) and attaches it to the Foundry account as an AppInsights tracing connection. Only meaningful when an 'aifoundry' is selected (enforced by check.aifoundry_appinsights_requires_account). Default false preserves day-one behaviour."
+  type        = bool
+  default     = false
+}

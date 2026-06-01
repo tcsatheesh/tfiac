@@ -117,3 +117,18 @@ check "aifoundry_pe_requires_account" {
     error_message = "C-018 / FR-027 — enable_aifoundry_private_endpoint = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
   }
 }
+
+# aifoundry_appinsights_requires_account (spec.md C-019 / FR-028): enabling the
+# Foundry App Insights tracing connection only makes sense when an `aifoundry`
+# account is actually selected in this stack. Fires at plan time, before any
+# provider call, with a clear remediation message. Defence-in-depth pair for
+# the wrapper's always-required shared_log_analytics_workspace_id validator.
+check "aifoundry_appinsights_requires_account" {
+  assert {
+    condition = !(
+      var.enable_aifoundry_application_insights &&
+      length([for s in var.services : s if s.type == "aifoundry"]) == 0
+    )
+    error_message = "C-019 / FR-028 — enable_aifoundry_application_insights = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
+  }
+}

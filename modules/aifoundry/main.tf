@@ -86,3 +86,61 @@ resource "azurerm_private_endpoint" "this" {
     }
   }
 }
+
+# C-019 (Amendment 2026-06-01) — opt-in Application Insights for Foundry
+# tracing/monitoring (FR-028). When var.application_insights_enabled is true
+# the wrapper provisions a WORKSPACE-BASED App Insights anchored at the shared
+# hub Log Analytics workspace (so all trace/telemetry data lands in the hub LA
+# — no redundant diagnostic setting needed) and attaches it to the account via
+# an "AppInsights" connection that all child projects inherit
+# (isSharedToAll = true). Both resources resolve to inert (zero-count) defaults
+# unless the toggle is set, preserving day-one behaviour.
+resource "azurerm_application_insights" "tracing" {
+  count               = var.application_insights_enabled ? 1 : 0
+  name                = local.appi_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+  application_type    = local.config.application_insights_application_type
+  # Workspace-based mode: anchor at the SHARED hub LA (the always-required,
+  # already-validated C-014 workspace id) so telemetry routes to the hub LA.
+  workspace_id = var.shared_log_analytics_workspace_id
+}
+
+# C-019 — Foundry tracing connection. The Foundry portal's Tracing feature
+# reads an account/project connection of category "AppInsights" to discover
+# where to send/read traces; provisioning the App Insights alone does NOT
+# attach it. parent_id is the ACCOUNT so every current/future project inherits
+# the connection. The (sensitive) App Insights connection string is supplied
+# via sensitive_body so it never appears in plaintext state diff. The fixed
+# name "appinsights" satisfies the connection-name RP pattern
+# ^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$ (the canonical name's dots/length do not).
+resource "azapi_resource" "appinsights_connection" {
+  count     = var.application_insights_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
+  name      = "appinsights"
+  parent_id = azapi_resource.this.id
+
+  body = {
+    properties = {
+      category      = "AppInsights"
+      target        = azurerm_application_insights.tracing[0].id
+      authType      = "ApiKey"
+      isSharedToAll = true
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = azurerm_application_insights.tracing[0].id
+      }
+    }
+  }
+
+  sensitive_body = {
+    properties = {
+      credentials = {
+        key = azurerm_application_insights.tracing[0].connection_string
+      }
+    }
+  }
+
+  response_export_values = ["id"]
+}

@@ -811,3 +811,101 @@ After squash-merge:
    `cogsvc`/`openai`/`aiservices`.
 5. Restore the state-SA firewall on `sttfsshdhubnpdswc001` if it was
    temp-opened.
+
+## Phase C-019 — Foundry Application Insights tracing (hub-LA anchored)
+
+This phase is an **amendment** to feature 006-services delivering
+[spec.md C-019 / FR-028](spec.md#clarifications-amendment-2026-06-01-foundry-application-insights-tracing):
+add an opt-in, workspace-based Application Insights to the `aifoundry`
+Cognitive Services account and attach it as an `AppInsights`
+connection so the Foundry Tracing feature funnels telemetry into the
+SHARED hub Log Analytics workspace. Defaults preserve C-018 behaviour
+(no App Insights, no connection). The project wrapper, APIM, naming
+engine, PE wiring, and the generic `services[*].diagnostic_settings`
+field are **untouched**.
+
+**Pre-condition.** The hub LA stack (`hub/npd`) is already applied
+(C-014 prerequisite) and its workspace id is already resolved in the
+services stack as `local.shared_la_workspace_id`
+([data.log.tf](../../terraform/services/data.log.tf)); no new remote
+state is required.
+
+### File-level edits
+
+1. **`modules/aifoundry/variables.tf` — one new input.**
+   `application_insights_enabled` (bool, default `false`). No new
+   validator needed: the always-required, already-validated
+   `shared_log_analytics_workspace_id` regex guarantees a valid hub LA
+   id whenever App Insights is enabled.
+
+2. **`modules/aifoundry/locals.tf` — name + default.** Add
+   `appi_name = "appi-${var.canonical_name}"` and
+   `defaults.application_insights_application_type = "web"`
+   (override-able via `var.overrides`).
+
+3. **`modules/aifoundry/main.tf` — App Insights + connection.** Add
+   (count-gated on `var.application_insights_enabled`):
+   - `azurerm_application_insights.tracing` — `name = local.appi_name`,
+     `location`, `resource_group_name`, `tags`, `application_type =
+     local.config.application_insights_application_type`, and
+     `workspace_id = var.shared_log_analytics_workspace_id` (the hub LA
+     → workspace-based component).
+   - `azapi_resource.appinsights_connection` —
+     `Microsoft.CognitiveServices/accounts/connections@2025-09-01`,
+     `name = "appinsights"`, `parent_id = azapi_resource.this.id`,
+     `body.properties = { category = "AppInsights", target = <appi id>,
+     authType = "ApiKey", isSharedToAll = true, metadata = { ApiType =
+     "Azure", ResourceId = <appi id> } }`, and
+     `sensitive_body.properties.credentials.key =
+     azurerm_application_insights.tracing[0].connection_string`.
+   Document the in-module `appi-` naming deviation in
+   `modules/aifoundry/README.md` (engine `app_insights` row stays the
+   path for a standalone selection).
+
+4. **`modules/aifoundry/outputs.tf` — expose ids (optional).** Add
+   `output "application_insights_id"`
+   (`one(azurerm_application_insights.tracing[*].id)`) and
+   `output "application_insights_connection_id"`
+   (`one(azapi_resource.appinsights_connection[*].id)`).
+
+5. **`terraform/services/variables.tf` — stack input.**
+   `enable_aifoundry_application_insights` (bool, default `false`).
+
+6. **`terraform/services/main.tf` — wire the module.** Pass
+   `application_insights_enabled = var.enable_aifoundry_application_insights`
+   into `module.aifoundry` (the hub LA id is already passed via
+   `shared_log_analytics_workspace_id = local.shared_la_workspace_id`).
+
+7. **`terraform/services/check.tf` — guard.** Add
+   `check "aifoundry_appinsights_requires_account"`: if
+   `var.enable_aifoundry_application_insights` then an `aifoundry`
+   MUST be selected. Existing checks untouched.
+
+8. **`variables/sp01/dev/services.tfvars.json` — enable App Insights.**
+   Add `enable_aifoundry_application_insights = true`.
+
+### Test impact
+
+- `modules/aifoundry/tests/application_insights_positive.tftest.hcl`,
+  `modules/aifoundry/tests/application_insights_negative.tftest.hcl`.
+- `terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl`,
+  `terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl`.
+- Existing C-016/C-017/C-018 fixtures keep
+  `application_insights_enabled` / `enable_aifoundry_application_insights`
+  at the default `false`, so they need NO changes.
+
+### Rollout (CLAUDE.md step 4)
+
+After squash-merge:
+
+1. `git checkout master && git pull --ff-only`.
+2. Apply the services stack:
+   `terraform -chdir=terraform/services apply` against
+   `variables/sp01/dev/services.tfvars.json` (state key
+   `sp01/dev/services.tfstate`) with `-var subscription_id=883c9081-…`.
+3. Verify the account `aif-uc1-uc1-sp01-dev-swc-001` shows an
+   `AppInsights` connection and the
+   `appi-aif-uc1-uc1-sp01-dev-swc-001` component is workspace-based
+   against the hub LA.
+4. Restore the state-SA firewall on `sttfsshdhubnpdswc001` if it was
+   temp-opened.
