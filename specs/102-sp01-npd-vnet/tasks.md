@@ -53,3 +53,23 @@ against the shipped 004-vnet engine. Tasks `[x]` shipped on master.
   -f tenant=sp01 -f environment=npd -f action=apply -f apply=true` — in-place
   address-space growth + new `agents` subnet, no destroy/recreate of existing
   subnets. **Operator-run, NOT this PR.**
+
+## Phase FR-102-05 — revert the agent subnet (`/23` → `/24`)
+
+> Reverts FR-102-04 now that the Foundry injection program (legacy backend) is
+> decommissioned (feature 103 FR-103-06). MUST run AFTER the services teardown.
+
+- [ ] T016 [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json):
+  `address_space` `10.240.2.0/23` → `10.240.2.0/24`; remove subnet
+  `agents = 10.240.3.0/24` (surviving CIDRs unchanged). (FR-102-05 / C-102-05-01)
+- [ ] T017 Confirm NO engine edit — only `specs/102-*` + the one tfvars file.
+  `10n` MUST NOT alter `00n`. (C-102-05-04)
+- [ ] T018 Amend `specs/102-*/` spec/plan/tasks + `analyze.md` addendum. (C-102-05-04)
+- [ ] T019 CI: confirm `variables/sp01/npd/vnet.tfvars.json` already in
+  `vnet.yml` `paths:` (no edit needed).
+- [ ] T020 Validation (local, no live state): `terraform fmt -recursive` clean;
+  `modules/network` + `terraform/vnet` tests green (engine unchanged).
+- [ ] T021 Rollout (workflow only): `gh workflow run deploy.yaml -f service=vnet
+  -f tenant=sp01 -f environment=npd -f action=apply -f apply=true` — in-place
+  agent-subnet removal + address-space shrink, no destroy/recreate of surviving
+  subnets. **Operator-run.**
