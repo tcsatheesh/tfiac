@@ -67,4 +67,22 @@ run "default_off_no_injection" {
     condition     = length(azapi_resource.capability_host) == 0
     error_message = "FR-031: with injection disabled no capabilityHosts child must be emitted."
   }
+
+  # FR-040 (Amendment 2026-06-02) — day-one parity: with injection OFF the
+  # account keeps the GA API version and the body omits networkAcls +
+  # disableLocalAuth (those keys live only in the injection branch). VC-9/10/11.
+  assert {
+    condition     = azapi_resource.this.type == "Microsoft.CognitiveServices/accounts@2025-09-01"
+    error_message = "FR-040 / VC-9: with injection disabled the account must keep the 2025-09-01 GA API version."
+  }
+
+  assert {
+    condition     = !contains(keys(azapi_resource.this.body.properties), "networkAcls")
+    error_message = "FR-040 / VC-10: with injection disabled the account body must NOT contain networkAcls."
+  }
+
+  assert {
+    condition     = !contains(keys(azapi_resource.this.body.properties), "disableLocalAuth")
+    error_message = "FR-040 / VC-11: with injection disabled the account body must NOT contain disableLocalAuth."
+  }
 }

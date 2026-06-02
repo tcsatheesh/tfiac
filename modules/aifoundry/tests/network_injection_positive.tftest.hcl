@@ -116,4 +116,22 @@ run "network_injection_emitted" {
     condition     = local.config.public_network_access == "Disabled"
     error_message = "FR-031: an injected account must be private (publicNetworkAccess=Disabled)."
   }
+
+  # FR-040 (Amendment 2026-06-02) — injected-account body aligned with
+  # Microsoft's proven network-secured reference: preview API version (VC-9),
+  # explicit networkAcls (VC-10) and disableLocalAuth=false (VC-11).
+  assert {
+    condition     = azapi_resource.this.type == "Microsoft.CognitiveServices/accounts@2025-04-01-preview"
+    error_message = "FR-040 / VC-9: the injected account must use the 2025-04-01-preview API version."
+  }
+
+  assert {
+    condition     = azapi_resource.this.body.properties.networkAcls.defaultAction == "Deny" && azapi_resource.this.body.properties.networkAcls.bypass == "AzureServices"
+    error_message = "FR-040 / VC-10: the injected account body must set networkAcls.defaultAction=Deny + bypass=AzureServices."
+  }
+
+  assert {
+    condition     = azapi_resource.this.body.properties.disableLocalAuth == false
+    error_message = "FR-040 / VC-11: the injected account body must set disableLocalAuth=false."
+  }
 }
