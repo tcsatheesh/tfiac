@@ -26,6 +26,18 @@ resource "azapi_resource" "this" {
 
   response_export_values = ["id", "properties.endpoints"]
 
+  # C-043 (Amendment 2026-06-02) — Hosted-Agent network injection (FR-033)
+  # provisions a managed agent network behind the account and routinely takes
+  # longer than the azapi default 30-minute create deadline (observed ~30m+ →
+  # "context deadline exceeded"). Raise the create/update budget so the injected
+  # account can finish provisioning; the value is a harmless upper bound for the
+  # plain (non-injected) path, which still returns in a few minutes.
+  timeouts {
+    create = "90m"
+    update = "90m"
+    delete = "30m"
+  }
+
   # FR-031 step 4 (C-022..C-024) — when Hosted-Agent network injection is on,
   # the account MUST be private (injection is meaningless on a public account)
   # and all four agent inputs (subnet + the three BYO resource ids) MUST be
