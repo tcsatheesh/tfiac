@@ -1825,3 +1825,123 @@ toggle flip + BYO selection (CA-013 #6), and any non-`blob` storage subresource
 The `103` instance toggle flip + BYO selection + injection (CA-013 #6), the
 live destructive recreate (VC-8), and the ACR public exception (103) are all
 outside this engine amendment.
+
+## AMENDMENT 2026-06-02 — injected-account body alignment with Microsoft's proven reference (FR-040)
+
+> **Why now.** Two consecutive LIVE `103` services applies (the destructive
+> Foundry recreate of CA-013 #6) FAILED at the **account-create** step
+> (`module.aifoundry.azapi_resource.this`). The first hit the azapi default
+> 30-minute deadline (fixed by the C-043 90-minute timeout); the second ran the
+> full 90-minute budget and STILL failed — the ARM account write itself hangs
+> ~3h then settles `Failed` with a generic `ResourceProviderExtensionError`
+> (the `OpenAI`/`TextAnalytics` sub-kinds report `Succeeded`, but the overall
+> injected account write does not). More timeout does not help: the platform
+> write genuinely fails, so the divergence must be in the **account body**.
+>
+> Deep diagnosis cleared every networking suspect: the agent subnet
+> (`/24`, delegated `Microsoft.App/environments`, dedicated NSG with no custom
+> rules, no route table, no stale service-association-link), all required RPs
+> registered, and the `networkInjections` body shape exactly matches the
+> contract. The working internal ACA environment in the same spoke uses an
+> identical subnet shape. The remaining, decisive evidence is Microsoft's own
+> **network-secured Standard Agent** reference
+> (`microsoft-foundry/foundry-samples` ▸
+> `infrastructure/infrastructure-setup-bicep/15-private-network-standard-agent-setup`)
+> — the *exact* BYO-VNet injection scenario we deploy. Its account module
+> (`modules-network-secured/ai-account-identity.bicep`) creates the injected
+> account on a **different API version** and with **two body fields our wrapper
+> omits**:
+>
+> | account body | Microsoft reference (proven) | our wrapper (failing) |
+> |---|---|---|
+> | API version | `Microsoft.CognitiveServices/accounts@2025-04-01-preview` | `…@2025-09-01` |
+> | `networkInjections` | `[{ scenario:"agent", subnetArmId, useMicrosoftManagedNetwork:false }]` | identical ✅ |
+> | `networkAcls` | `{ defaultAction:"Deny", virtualNetworkRules:[], ipRules:[], bypass:"AzureServices" }` | **absent** |
+> | `disableLocalAuth` | `false` | absent |
+> | `publicNetworkAccess` | `"Disabled"` | `"Disabled"` ✅ |
+>
+> The reference **never** provisions a Key Vault — confirming Key Vault is NOT
+> an injection prerequisite (the portal wizard asks for it only as optional
+> secrets/observability). The two account-body divergences above are the only
+> material differences at the failing (account-create) stage, so this amendment
+> aligns the injected-account body byte-for-relevant-field with the proven
+> reference.
+
+- **FR-040 — injected-account body alignment (engine, injection-path only,
+  default-off parity).** When `network_injection_enabled = true`, the
+  `aifoundry` wrapper MUST create the account to match Microsoft's proven
+  network-secured reference:
+  1. **API version** — the `azapi_resource.this` type resolves to
+     `Microsoft.CognitiveServices/accounts@2025-04-01-preview` (the only
+     API version with a Microsoft-proven injection reference). With injection
+     OFF the type stays `…@2025-09-01` (no churn for any non-injected account).
+  2. **`networkAcls`** — `properties.networkAcls = { defaultAction = "Deny",
+     virtualNetworkRules = [], ipRules = [], bypass = "AzureServices" }` is
+     added to the account body (paired with `networkInjections`, exactly as the
+     reference does).
+  3. **`disableLocalAuth`** — `properties.disableLocalAuth = false` is set
+     explicitly (matches the reference; the BYO connections use `AAD` auth so
+     this is non-restrictive).
+  With injection OFF, the account body and type are **byte-for-byte identical**
+  to the post-FR-035 state (no `networkAcls`, no `disableLocalAuth`, GA API
+  version) — strict day-one parity for every existing deployment.
+
+### Clarifications — Session 2026-06-02 (FR-040)
+
+- **C-044 — Injection-path API version is `2025-04-01-preview`; the GA
+  `2025-09-01` is retained for the non-injected path.** The FR-031 design was
+  authored against the `2025-09-01` GA schema, but the *only* Microsoft-proven
+  injection reference (`15-private-network-standard-agent-setup`) creates the
+  injected account on `2025-04-01-preview`. Two live account-create failures on
+  `2025-09-01` (with an otherwise schema-correct body) plus a proven preview
+  reference make "match the reference" the defensible choice. The version is
+  selected by a `local.network_injection_enabled` ternary on the resource
+  `type`, so the preview API is scoped strictly to the injection path; every
+  non-injected account keeps the GA version (changing `type` would force-replace
+  — unacceptable for already-deployed public/private accounts, so it is gated).
+  Not exposed as a tfvar: the value is dictated by the Microsoft injection
+  contract, not an operator choice; if/when injection GAs on a stable API this
+  ternary is revisited as its own amendment.
+- **C-045 — `networkAcls` is added (with injection) to mirror the reference.**
+  Every Microsoft injection template pairs `networkInjections` with an explicit
+  `networkAcls { defaultAction = "Deny", …, bypass = "AzureServices" }`. Although
+  `publicNetworkAccess = "Disabled"` already blocks public inbound, the injected
+  managed-network provisioning path in the RP relies on the `networkAcls`
+  contract (notably `bypass = "AzureServices"`) being present; omitting it is the
+  leading suspect for the account-write hang. Added only when injection is on.
+- **C-046 — `disableLocalAuth = false` is explicit (with injection).** Matches
+  the reference. The three BYO connections authenticate via `AAD`
+  (`authType = "AAD"`), so a `false` here is non-restrictive and simply makes
+  the body match the proven shape rather than relying on an RP default.
+- **C-047 — Scope is the account-create stage only; RBAC + Cosmos RU/s are a
+  deferred, separate suspect.** Microsoft's reference also assigns the project
+  managed identity RBAC on the BYO resources (Storage Blob Data Contributor,
+  **Cosmos DB Operator** "before the caphost", AI Search roles) and requires the
+  Cosmos account to carry ≥ 3000 RU/s — but those are prerequisites of the
+  **capability-host** stage, which is *downstream* of the account create where
+  our applies actually fail. Folding cross-module RBAC + Cosmos-throughput
+  changes into this amendment would muddy the diagnostic signal of the next live
+  cycle and over-reach the observed failure. They are recorded here as the
+  explicit next suspect: if a future cycle clears the account create and then
+  fails at the caphost, a follow-up engine amendment (its own branch + full
+  pipeline) adds the pre-caphost role assignments + Cosmos RU/s floor.
+
+### Validation criteria (FR-040)
+
+- **VC-9 — Conditional API version.** With injection ON the
+  `azapi_resource.this` type is `…/accounts@2025-04-01-preview`; with injection
+  OFF it is `…/accounts@2025-09-01`.
+- **VC-10 — `networkAcls` present + correct on the injected account.**
+  `body.properties.networkAcls.defaultAction == "Deny"` and
+  `body.properties.networkAcls.bypass == "AzureServices"`; absent entirely when
+  injection is OFF.
+- **VC-11 — `disableLocalAuth` explicit on the injected account.**
+  `body.properties.disableLocalAuth == false` when injection ON; the key is
+  absent when injection OFF.
+
+### Out of scope for FR-040
+
+Cross-module RBAC role assignments and the Cosmos DB RU/s floor (deferred —
+C-047), any structural change to where connections/capability hosts are parented
+(the FR-031 account-level design stands), the live destructive recreate / rollout
+(CA-013 #6, executed via the `deploy` workflow), and all `103` instance changes.

@@ -1218,3 +1218,42 @@ default-off.
 
 **Rollout.** None in this PR — engine-only, default-off. The `103` instance
 (CA-013 #6) flips it on. Merge-only.
+
+## Amendment plan — FR-040 injected-account body alignment
+
+**Scope.** Align the injected-account body (`module.aifoundry.azapi_resource.this`)
+with Microsoft's proven network-secured Standard Agent reference, after two live
+`103` applies failed at the account-create step. Injection-path only; non-injected
+accounts byte-for-byte unchanged. Engine-only.
+
+**Files touched.**
+- `modules/aifoundry/main.tf` — `azapi_resource.this.type` becomes a
+  `local.network_injection_enabled` ternary: `…/accounts@2025-04-01-preview`
+  when injection ON, `…/accounts@2025-09-01` when OFF (C-044 / VC-9).
+- `modules/aifoundry/locals.tf` — extend the injection branch of
+  `account_properties` with `networkAcls = { defaultAction = "Deny",
+  virtualNetworkRules = [], ipRules = [], bypass = "AzureServices" }` and
+  `disableLocalAuth = false` (C-045 / C-046 / VC-10 / VC-11). Non-injection
+  branch unchanged.
+- `modules/aifoundry/tests/network_injection_positive.tftest.hcl` — add asserts
+  for the preview API version, `networkAcls` shape, and `disableLocalAuth`.
+- `modules/aifoundry/tests/network_injection_default_off.tftest.hcl` — add
+  asserts that the GA API version is retained and `networkAcls`/`disableLocalAuth`
+  are absent when injection is OFF (day-one parity).
+
+**Why these two fields (and not RBAC/Cosmos-RU).** The applies fail at the
+account create — *upstream* of the capability-host stage where RBAC + Cosmos RU/s
+matter. The reference's only account-body divergences at the failing stage are the
+API version + `networkAcls`/`disableLocalAuth`. RBAC + Cosmos RU/s are recorded as
+the deferred next suspect (C-047) for a follow-up amendment if a future cycle
+clears the account but fails at the caphost.
+
+**Verification (plan-level only — no apply).**
+- `terraform -chdir=modules/aifoundry test` → all pass (15 existing + new
+  asserts).
+- `terraform fmt -recursive` clean.
+
+**Rollout.** This PR is engine-only and merge-first, but it directly unblocks the
+stalled CA-013 #6 live recreate: after merge, purge the orphan
+`aif-uc1-uc1-sp01-dev-swc-001` account and re-dispatch the `103` `services` apply
+via the `deploy` workflow (never a local apply).

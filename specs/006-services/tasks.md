@@ -855,3 +855,26 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-035.E — Rollout
 
 - [ ] T-FR035-013 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-039). (FR-035)
+
+---
+
+## Phase FR-040 — injected-account body alignment with Microsoft's proven reference (engine, injection-path only)
+
+### FR-040.A — Module
+
+- [ ] T-FR040-001 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): make `azapi_resource.this.type` a `local.network_injection_enabled` ternary — `Microsoft.CognitiveServices/accounts@2025-04-01-preview` when injection ON, `…@2025-09-01` when OFF. (FR-040 / C-044 / VC-9)
+- [ ] T-FR040-002 [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): extend the injection branch of `account_properties` with `networkAcls = { defaultAction = "Deny", virtualNetworkRules = [], ipRules = [], bypass = "AzureServices" }` and `disableLocalAuth = false`; non-injection branch unchanged. (FR-040 / C-045 / C-046 / VC-10 / VC-11)
+
+### FR-040.B — Tests
+
+- [ ] T-FR040-003 [modules/aifoundry/tests/network_injection_positive.tftest.hcl](../../modules/aifoundry/tests/network_injection_positive.tftest.hcl): assert `azapi_resource.this.type` ends `@2025-04-01-preview`, `body.properties.networkAcls.defaultAction == "Deny"`, `…networkAcls.bypass == "AzureServices"`, and `body.properties.disableLocalAuth == false`. (FR-040 / VC-9/10/11)
+- [ ] T-FR040-004 [modules/aifoundry/tests/network_injection_default_off.tftest.hcl](../../modules/aifoundry/tests/network_injection_default_off.tftest.hcl): assert `azapi_resource.this.type` ends `@2025-09-01` and the body omits `networkAcls` + `disableLocalAuth` (day-one parity). (FR-040 / C-044)
+
+### FR-040.C — Verification gates (HARD)
+
+- [ ] T-FR040-005 `terraform fmt -recursive` → no changes. (FR-040)
+- [ ] T-FR040-006 `terraform -chdir=modules/aifoundry test` → all pass (15 existing + new asserts). (FR-040)
+
+### FR-040.D — Rollout
+
+- [ ] T-FR040-007 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Then purge orphan `aif-uc1-uc1-sp01-dev-swc-001` and re-dispatch the `103` `services` apply via the `deploy` workflow (never a local apply). (FR-040 / CA-013 #6)

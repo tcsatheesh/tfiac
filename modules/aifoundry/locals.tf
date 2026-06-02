@@ -50,15 +50,39 @@ locals {
     }
   ] : []
 
+  # FR-040 (Amendment 2026-06-02) — networkAcls added (with injection) to mirror
+  # Microsoft's proven network-secured reference (Deny + AzureServices bypass).
+  injection_network_acls = {
+    defaultAction       = "Deny"
+    virtualNetworkRules = []
+    ipRules             = []
+    bypass              = "AzureServices"
+  }
+
   # FR-031 step 1 — account properties, conditionally extended with
   # networkInjections only when the list is non-empty (attribute omitted
   # otherwise — NOT set to []).
+  #
+  # FR-040 (Amendment 2026-06-02) — when injection is on the body is further
+  # aligned with Microsoft's proven network-secured Standard Agent reference
+  # (`15-private-network-standard-agent-setup` ▸ ai-account-identity.bicep):
+  # an explicit `networkAcls` (Deny + AzureServices bypass) paired with
+  # `networkInjections`, and `disableLocalAuth = false`. Two live applies on
+  # the GA `2025-09-01` API WITHOUT these fields hung ~3h then failed at the
+  # account-create step; the reference creates the injected account with them
+  # (and on the `2025-04-01-preview` API — see main.tf). Each extra key is its
+  # own single-key conditional merge (the proven FR-031 networkInjections
+  # pattern) so the false branch stays an empty object — keeping the
+  # non-injected body byte-for-byte identical to the post-FR-035 state
+  # (VC-10 / VC-11 / parity).
   account_properties = merge(
     {
       allowProjectManagement = true
       customSubDomainName    = var.canonical_name
       publicNetworkAccess    = local.config.public_network_access
     },
-    local.network_injection_enabled ? { networkInjections = local.network_injections } : {}
+    local.network_injection_enabled ? { networkInjections = local.network_injections } : {},
+    local.network_injection_enabled ? { networkAcls = local.injection_network_acls } : {},
+    local.network_injection_enabled ? { disableLocalAuth = false } : {},
   )
 }

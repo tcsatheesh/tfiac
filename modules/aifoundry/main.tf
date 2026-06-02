@@ -8,7 +8,14 @@
 data "azurerm_subscription" "current" {}
 
 resource "azapi_resource" "this" {
-  type      = "Microsoft.CognitiveServices/accounts@2025-09-01"
+  # FR-040 (Amendment 2026-06-02) — the injection path pins the account to
+  # `2025-04-01-preview`, the only API version with a Microsoft-proven
+  # network-secured injection reference (sample 15 ▸ ai-account-identity.bicep);
+  # two live applies on the GA `2025-09-01` failed at account create. The
+  # version is gated on injection so every NON-injected account keeps the GA
+  # version (changing `type` force-replaces — unacceptable for already-deployed
+  # accounts; injection-on accounts are recreated by design, VC-1). VC-9.
+  type      = local.network_injection_enabled ? "Microsoft.CognitiveServices/accounts@2025-04-01-preview" : "Microsoft.CognitiveServices/accounts@2025-09-01"
   name      = var.canonical_name
   location  = var.location
   parent_id = "${data.azurerm_subscription.current.id}/resourceGroups/${var.resource_group_name}"
