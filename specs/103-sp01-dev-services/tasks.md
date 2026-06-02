@@ -57,3 +57,17 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
 - [ ] T-103-05-009 Operator: delete + **purge** the existing Foundry account `aif-uc1-uc1-sp01-dev-swc-001` + its `Agents` capability host (frees the name). (VC-8)
 - [ ] T-103-05-010 Operator: dispatch `deploy.yaml` (`service=services tenant=sp01 environment=dev action=apply apply=true`); watch to completion. (VC-9 / FR-103-04)
 - [ ] T-103-05-011 Operator: verify recreated Foundry has `networkInjections` on the `agents` subnet + `Agents` capability host with `agentstorage`/`agentcosmos`/`agentsearch`; Storage/Search/Cosmos all PNA-Disabled + PE; ACR PUBLIC (VC-7) + reachable; ACA Internal=True. (VC-9)
+
+## Phase FR-103-06 — decommission the live sp01/dev deployment
+
+> Teardown of the legacy-backend injection deployment. Repo artifacts
+> (spec/plan/tasks/tfvars) are RETAINED — only the live Azure deployment is
+> destroyed. MUST complete before the 102 agent-subnet revert.
+
+- [ ] T-103-06-001 Confirm NO repo selection/code change — only `specs/103-*`
+  amended; `variables/sp01/dev/services.tfvars.json` unchanged. (FR-103-06 / C-103-06-02)
+- [ ] T-103-06-002 Verify engine `terraform fmt -recursive -check` clean (engine + tfvars untouched). (FR-103-06)
+- [ ] T-103-06-003 Merge this decommission amendment PR to master. (FR-103-06)
+- [ ] T-103-06-004 Rollout (workflow only): `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true`; watch to completion. (FR-103-06 / C-103-06-01)
+- [ ] T-103-06-005 Post-destroy cleanup: delete + **purge** any soft-deleted Cognitive Services account `aif-uc1-uc1-sp01-dev-swc-001` left untracked. (C-103-06-03)
+- [ ] T-103-06-006 Verify RG `rg-svc-uc1-sp01-dev-swc-001` is gone/empty and no soft-deleted account remains in the region. (FR-103-06 acceptance 5)

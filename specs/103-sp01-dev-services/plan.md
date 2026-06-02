@@ -83,3 +83,35 @@ the stack; manual JSON sanity of the tfvars. **No local apply** (FR-103-04).
 purges the existing Foundry account + `Agents` capability host, THEN dispatches
 `deploy.yaml` (`service=services tenant=sp01 environment=dev action=apply
 apply=true`). The agent does NOT execute this. See the spec's operator runbook.
+
+## Amendment plan — FR-103-06 decommission the live sp01/dev deployment
+
+**Scope.** Operational teardown only. Destroy the live sp01/dev services
+deployment because the injection path targeted the **legacy** Hosted-Agent
+backend (see spec FR-103-06). **No repo selection/code change** — the tfvars
+and all 103 artifacts are retained for a future corrected redeploy.
+
+**Files touched.**
+- `specs/103-sp01-dev-services/` — this amendment (spec/plan/tasks/analyze).
+- **No change** to `variables/sp01/dev/services.tfvars.json` or any engine code.
+
+**Decisions (locked).**
+- A6. Teardown via `terraform destroy` through the `deploy` workflow
+  (`action=destroy`), not `az group delete` — state-consistent, no drift
+  (C-103-06-01).
+- A7. Retain feature 103 in the repo (C-103-06-02); contrast feature 104
+  (dropped).
+- A8. Follow-up operator delete+purge of any soft-deleted Cognitive Services
+  account left untracked by the failed creates (C-103-06-03).
+- A9. This teardown precedes the 102 agent-subnet revert (the services consume
+  the spoke subnets via remote state) (C-103-06-04).
+
+**Verification.**
+- Engine `terraform fmt`/`validate`/`test` remain green (engine + tfvars
+  unchanged).
+- Post-destroy: RG `rg-svc-uc1-sp01-dev-swc-001` gone/empty; no soft-deleted
+  `aif-uc1-uc1-sp01-dev-swc-001` in the region.
+
+**Rollout.** Operator-run via `deploy.yaml`
+(`service=services tenant=sp01 environment=dev action=destroy apply=true`),
+then the account purge. Never local; tfstate SA firewall never opened.
