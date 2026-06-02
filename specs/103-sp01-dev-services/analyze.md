@@ -48,3 +48,25 @@ Cross-artifact consistency pass (`spec.md` ↔ `plan.md` ↔ `tasks.md`).
 
 **Result (FR-103-05): no outstanding BLOCKER/MAJOR. Ready to merge; live
 recreate is operator-run.**
+
+---
+
+## Analyze addendum — FR-103-06 (decommission the live sp01/dev deployment)
+
+| ID | Severity | Finding | Resolution |
+|----|----------|---------|------------|
+| A-106-1 | MAJOR | Is the teardown state-consistent (no Terraform drift left behind)? | RESOLVED. `terraform destroy` via the `deploy` workflow (`action=destroy`) removes the stack-owned RG + every tracked resource; no `az group delete` shortcut. (C-103-06-01) |
+| A-106-2 | MAJOR | Engine/instance split — does this touch any `00n` engine artifact or even the tfvars? | RESOLVED. Only `specs/103-*` amended; engine 006 + the tfvars are byte-for-byte unchanged. (FR-103-01 / C-103-06-02) |
+| A-106-3 | MAJOR | The Foundry account previously could not be deleted (stuck `Creating`). Is it now removable, and is leftover soft-delete handled? | RESOLVED. Account is now terminal `Failed` (deletable). If the failed creates left it untracked in state, the operator delete+**purge** step removes it and frees the name. (C-103-06-03) |
+| A-106-4 | BLOCKER | Ordering vs the 102 agent-subnet revert — could shrinking the spoke vnet first strand the services? | RESOLVED. This teardown is sequenced FIRST; the services consume the spoke subnets via remote state, so they are destroyed before the vnet address space is shrunk. (C-103-06-04) |
+| A-106-5 | MINOR | Rollout — workflow only, no local apply, tfstate SA firewall untouched? | RESOLVED. FR-103-04 still governs; destroy runs via `deploy.yaml`; SA firewall never opened. |
+| A-106-6 | INFO | Feature retention vs feature 104 (dropped). | Consistent: 103 retained (operator said "delete the services"); 104 dropped (operator said "completely drop"). |
+
+## Constitution / standing-rule check (FR-103-06)
+- ✅ `10n` instance teardown; `00n` engine untouched; tfvars unchanged.
+- ✅ Destructive op is operator-authorized (explicit instruction) + run via the
+  `deploy` workflow only; never local; tfstate SA firewall never opened.
+- ✅ Ordering (services destroy → 102 vnet revert) explicit.
+
+**Result (FR-103-06): no outstanding BLOCKER/MAJOR. Ready to merge; live
+destroy is workflow-run.**

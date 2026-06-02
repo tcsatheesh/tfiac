@@ -90,6 +90,74 @@ Cross-stack wiring:
 
 ---
 
+## Amendment — FR-103-06 decommission the live sp01/dev services deployment
+
+**Created**: 2026-06-02. **Status**: Specified (instance-only; engine
+[006-services](../006-services/spec.md) unchanged).
+
+**Motivation.** The Foundry Hosted-Agent **network-injection** path that the
+FR-103-05 light-up + the 006 FR-031/033/040 engine work targeted is the
+**legacy** Hosted-Agent backend (Azure Container Apps; `azd ai agent`
+0.1.25-preview). Microsoft's current Hosted-Agent quickstart documents a
+**new backend** (`azd ai agent` 0.1.27-preview+) that provisions managed
+compute + ACR + the Foundry project, with **no** `networkInjections`, agent
+subnet delegation, BYO Storage/Cosmos/Search connections, or `capabilityHost`.
+The two failed injected-account creates (~3h hang → `Failed`) are consistent
+with hand-rolling the legacy backend in Terraform. The operator has therefore
+directed a **full teardown of the live sp01/dev services deployment** so the
+Foundry path can be re-approached against the new backend (researched
+separately).
+
+**Change (operational teardown — NO repo selection/code change).** This
+amendment **retains** feature 103's `spec`/`plan`/`tasks`/`tfvars` in the repo
+(the instance definition is preserved for a future, corrected redeploy); it
+only **destroys the live Azure deployment**. The deployable artifact
+[variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json)
+is **unchanged** by this amendment.
+
+**Why these clarifications (resolved, no user round-trip).**
+- **C-103-06-01** Teardown via `terraform destroy` of the 103 services stack
+  through the GitHub `deploy` workflow (`action=destroy`), NOT a manual
+  `az group delete`: the services stack owns `azurerm_resource_group.svc`, so a
+  state-consistent `destroy` removes the RG + every tracked resource and leaves
+  no drift. (FR-103-04 still applies — workflow only, never local.)
+- **C-103-06-02** Keep feature 103 in the repo (operator said "delete the
+  services", not "drop the feature"). Contrast feature 104, which the operator
+  explicitly directed to drop entirely.
+- **C-103-06-03** The previously-stuck Foundry account
+  `aif-uc1-uc1-sp01-dev-swc-001` is now terminal (`Failed`) and therefore
+  deletable. If `terraform destroy` does not remove it (the failed creates may
+  have left it untracked in state), the operator-run cleanup deletes **and
+  purges** the soft-deleted Cognitive Services account so the RG is fully
+  clean and the name is freed.
+- **C-103-06-04** Ordering: this teardown MUST complete **before** the
+  102 agent-subnet revert (FR-102-05) — the services stack consumes the spoke
+  subnets via remote state, so the services must be gone before the spoke vnet
+  address space is shrunk.
+
+### FR-103-06 (new requirement)
+
+The live sp01/dev services deployment (RG `rg-svc-uc1-sp01-dev-swc-001` and
+every resource in it, including the `Failed` Foundry account) MUST be fully
+destroyed via the GitHub `deploy` workflow (`service=services tenant=sp01
+environment=dev action=destroy`), with a follow-up operator delete+purge of any
+soft-deleted Cognitive Services account, while **retaining** feature 103's repo
+artifacts (spec/plan/tasks/tfvars) for a future corrected redeploy. No engine
+change; no tfvars change.
+
+### Acceptance (amendment)
+
+4. `deploy.yaml` dispatch (`service=services tenant=sp01 environment=dev
+   action=destroy apply=true`) plans + applies a destroy cleanly against
+   `sp01/dev/services.tfstate`. **Operator-run via the workflow.**
+5. RG `rg-svc-uc1-sp01-dev-swc-001` no longer exists (or is empty) and no
+   soft-deleted Cognitive Services account named
+   `aif-uc1-uc1-sp01-dev-swc-001` remains in the region.
+6. Feature 103's repo artifacts remain on master (only the live deployment is
+   torn down). Engine 006 untouched.
+
+---
+
 ## AMENDMENT 2026-06-02 — Foundry Hosted-Agent network injection light-up (FR-103-05)
 
 > **What.** Turn ON Azure AI Foundry **Hosted-Agent network injection** for the
