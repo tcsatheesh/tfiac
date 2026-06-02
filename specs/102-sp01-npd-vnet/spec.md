@@ -26,7 +26,8 @@ the engine via one tfvars file and a backend state key.
 
 ## Pinned parameters (source of truth: the tfvars file)
 
-- `address_space`: `["10.240.2.0/23"]` (expanded from `/24` — see FR-102-04)
+- `address_space`: `["10.240.2.0/24"]` (FR-102-04 expanded this to `/23` for the
+  agent subnet; **FR-102-05 reverted it back to `/24`** — see below)
 - Subnets (`{ role => cidr }`):
   - `development` → `10.240.2.0/26`
   - `pre-production` → `10.240.2.64/26`
@@ -35,8 +36,8 @@ the engine via one tfvars file and a backend state key.
   - `preprod-logic` → `10.240.2.160/28`
   - `preprod-func` → `10.240.2.176/28`
   - `container-apps` → `10.240.2.192/27` (delegated `Microsoft.App/environments`)
-  - `agents` → `10.240.3.0/24` (delegated `Microsoft.App/environments`, no shared
-    route table — see FR-102-04)
+  - (`agents` → `10.240.3.0/24` was added by FR-102-04 and **removed by
+    FR-102-05** — see below)
 - `hub_state_backend`: points at `hub/npd/vnet.tfstate` (peering + hub
   firewall private IP via `terraform_remote_state`).
 - `dns_state_backend`: points at `hub/prd/dns.tfstate` (private DNS zone
@@ -173,3 +174,59 @@ change to the 004-vnet engine and **no** renumbering of existing subnets.
    address-space growth + new `agents` subnet as in-place additions (no
    destroy/recreate of existing subnets) — **rollout is operator-run via the
    workflow, not by this PR**.
+
+---
+
+## Amendment — FR-102-05 revert the agent subnet (`/23` → `/24`)
+
+**Created**: 2026-06-02. **Status**: Specified (instance-only; engine 004-vnet
+unchanged).
+
+**Motivation.** FR-102-04 added the `agents` `/24` (and the `/23` expansion) to
+support Foundry Hosted-Agent **network injection** — the **legacy** Hosted-Agent
+backend (Azure Container Apps). The operator has decommissioned that injection
+program (the sp01/dev services deployment was torn down under feature 103
+FR-103-06) because the current Microsoft Hosted-Agent backend needs no injected
+agent subnet. With the injection deployment gone, the dedicated `agents`
+subnet + the `/23` expansion are now **dead allocations** and are reverted to
+the original pre-FR-102-04 footprint.
+
+**Change (instance re-parameterization — NO engine change).**
+- `variables/sp01/npd/vnet.tfvars.json`: `address_space` `10.240.2.0/23` →
+  `10.240.2.0/24`; **remove** subnet `agents = 10.240.3.0/24`.
+- Every other subnet CIDR is unchanged (development `.0/26`, pre-production
+  `.64/26`, logic-app `.128/28`, function-app `.144/28`, preprod-logic
+  `.160/28`, preprod-func `.176/28`, container-apps `.192/27`).
+
+**Why these clarifications (resolved, no user round-trip).**
+- **C-102-05-01** Revert to exactly the pre-FR-102-04 footprint (`/24`, no
+  `agents` subnet) rather than keeping the `/23` “just in case”: dead address
+  space + an unused delegated subnet is drift; the original `/24` is the
+  documented baseline and is reusable verbatim if a future (correct) backend
+  ever needs it.
+- **C-102-05-02** Ordering: this revert MUST run **after** the feature 103
+  services teardown (FR-103-06) — the services consumed the spoke subnets via
+  remote state, so the address space can only be shrunk once they are gone.
+- **C-102-05-03** Removing a subnet + shrinking the VNet address space are
+  in-place Azure ops on an otherwise-empty agent subnet (the injection
+  deployment that would have used it is already destroyed) — no
+  destroy/recreate of any surviving subnet.
+- **C-102-05-04** Amendment to feature 102 (same spoke), not a new `10n`
+  feature — append to the 102 artifacts + edit the one tfvars file.
+
+### FR-102-05 (new requirement)
+
+The sp01/npd spoke MUST be reverted to its pre-FR-102-04 footprint —
+`address_space = 10.240.2.0/24` with the `agents` subnet removed — by editing
+only `variables/sp01/npd/vnet.tfvars.json`, with **no** change to the 004-vnet
+engine and **no** renumbering of any surviving subnet.
+
+### Acceptance (FR-102-05)
+
+7. The tfvars `address_space` is `10.240.2.0/24` and `subnets` no longer
+   contains `agents`; all surviving subnet CIDRs are byte-for-byte unchanged.
+8. Engine `terraform fmt`/`validate`/`test` remain green (engine untouched).
+9. `deploy.yaml` dispatch (`service=vnet tenant=sp01 environment=npd
+   action=apply`) plans the agent-subnet removal + address-space shrink as
+   in-place changes (no destroy/recreate of surviving subnets) and applies
+   cleanly — **operator-run via the workflow**.

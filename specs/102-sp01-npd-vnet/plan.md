@@ -78,3 +78,36 @@ Hosted-Agent injection program (006 FR-031/FR-033). **No engine change.**
 **Rollout.** Operator-run via `deploy.yaml` (`service=vnet tenant=sp01
 environment=npd`) — in-place address-space growth + new subnet, no
 destroy/recreate of existing subnets. NOT executed by this PR.
+
+## Amendment plan — FR-102-05 revert the agent subnet (`/23` → `/24`)
+
+**Scope.** Instance re-parameterization only: revert the FR-102-04 expansion
+now that the Foundry injection program (legacy backend) is decommissioned
+(feature 103 FR-103-06). **No engine change.**
+
+**Files touched.**
+- `variables/sp01/npd/vnet.tfvars.json` — `address_space` `10.240.2.0/23` →
+  `10.240.2.0/24`; remove subnet `agents = 10.240.3.0/24`.
+- `specs/102-sp01-npd-vnet/` — this amendment (spec/plan/tasks) + `analyze.md`
+  addendum.
+
+**Decisions (locked).**
+- A8. Revert to exactly the pre-FR-102-04 footprint (`/24`, no `agents`);
+  dead address space + an unused delegated subnet is drift (C-102-05-01).
+- A9. Sequence AFTER the feature 103 services teardown (services consumed the
+  spoke subnets via remote state) (C-102-05-02).
+- A10. Removing the (now-empty) `agents` subnet + shrinking the VNet are
+  in-place ops; no surviving subnet is destroyed/recreated (C-102-05-03).
+- A11. Amendment to feature 102 (same spoke), not a new `10n` feature
+  (C-102-05-04).
+
+**Verification (no live apply).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=terraform/vnet test` + `terraform -chdir=modules/network
+  test` green (engine unchanged).
+- CI `vnet.yml` already watches `variables/sp01/npd/vnet.tfvars.json` — no CI
+  edit needed.
+
+**Rollout.** Operator-run via `deploy.yaml` (`service=vnet tenant=sp01
+environment=npd action=apply`) — in-place agent-subnet removal + address-space
+shrink, no destroy/recreate of surviving subnets.

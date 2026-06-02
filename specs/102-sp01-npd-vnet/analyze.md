@@ -32,3 +32,17 @@ Cross-artifact consistency pass (`spec.md` ↔ `plan.md` ↔ `tasks.md`).
 
 **Amendment result: no unresolved BLOCKER/MAJOR. Ready (rollout operator-run via
 workflow, not this PR).**
+
+## Amendment addendum — FR-102-05 revert the agent subnet (`/23` → `/24`)
+
+| ID | Severity | Finding | Resolution |
+|----|----------|---------|------------|
+| A12 | BLOCKER | Ordering vs the services teardown — can the spoke be shrunk while services still consume its subnets via remote state? | RESOLVED: this revert is sequenced AFTER feature 103 FR-103-06 (services destroyed first). (C-102-05-02) |
+| A13 | MAJOR | Does the revert require an engine change (would violate `10n` ⇏ `00n`)? | RESOLVED: NO. Only `variables/sp01/npd/vnet.tfvars.json` + `specs/102-*` change; the 004-vnet engine is untouched. (C-102-05-04) |
+| A14 | MAJOR | Does removing the subnet / shrinking the address space destroy or renumber any surviving subnet? | RESOLVED: NO. The `agents` subnet is already empty (its only consumer, the injection deployment, is destroyed); removing it + shrinking `/23`→`/24` are in-place ops. Every surviving subnet CIDR is byte-for-byte unchanged. (C-102-05-03) |
+| A15 | MINOR | New `10n` folder or amendment? | RESOLVED: amendment to the same sp01/npd spoke — append to 102 artifacts + edit the one tfvars file. (C-102-05-04) |
+| A16 | INFO | Spec FR-102-05, plan A8–A11, tasks T016–T021, tfvars all agree on `/24` + no `agents`. | Consistent. |
+| A17 | INFO | CI `vnet.yml` already watches the sp01/npd tfvars path; no CI edit. | Consistent. |
+
+**FR-102-05 result: no unresolved BLOCKER/MAJOR. Ready (rollout operator-run via
+workflow).**
