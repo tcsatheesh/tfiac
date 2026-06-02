@@ -21,7 +21,8 @@ variables {
   services = [
     { type = "apim" }
   ]
-  overrides = {}
+  overrides          = {}
+  private_by_default = false
 }
 
 mock_provider "azurerm" {

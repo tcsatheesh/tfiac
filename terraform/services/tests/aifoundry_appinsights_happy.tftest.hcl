@@ -17,6 +17,7 @@ variables {
     { type = "aifoundry_project" },
   ]
   overrides                             = {}
+  private_by_default                    = false
   enable_aifoundry_application_insights = true
 }
 

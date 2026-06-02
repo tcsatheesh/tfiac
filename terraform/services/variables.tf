@@ -183,11 +183,18 @@ variable "tfstate_container" {
   }
 }
 
+# ----- C-048 (Amendment 2026-06-03) — private-by-default master switch (FR-041) -----
+variable "private_by_default" {
+  description = "FR-041 / C-048: master switch. When true (the default), every Private-Link-capable selectable service is deployed with public network access disabled and a private endpoint enabled UNLESS its own per-service toggle is explicitly set. Each per-service toggle (enable_*_private_endpoint, enable_aifoundry_application_insights) is resolved as coalesce(<explicit>, var.private_by_default): an explicit true/false always wins; null (the new default) inherits this master. Set false to reproduce pre-FR-041 (public, opt-in) behaviour byte-for-byte (C-052). EXCLUDES enable_aifoundry_network_injection (destructive/creation-time — C-031/VC-1). Requires both remote-state backends when any PE-capable service is selected (C-049)."
+  type        = bool
+  default     = true
+}
+
 # ----- C-018 (Amendment 2026-05-31) — Foundry account private endpoint (FR-027) -----
 variable "enable_aifoundry_private_endpoint" {
-  description = "C-018: when true, attach an Azure private endpoint (+ hub private DNS) to the AI Foundry Cognitive Services account so it is reachable only from the spoke VNet, defaulting publicNetworkAccess to Disabled. Default false preserves day-one (public) behaviour."
+  description = "C-018 / FR-041: when true, attach an Azure private endpoint (+ hub private DNS) to the AI Foundry Cognitive Services account so it is reachable only from the spoke VNet, defaulting publicNetworkAccess to Disabled. null (default) inherits var.private_by_default (private). Explicit false forces day-one (public) behaviour even when the master is on."
   type        = bool
-  default     = false
+  default     = null
 }
 
 variable "private_endpoint_subnet_role" {
@@ -241,15 +248,15 @@ variable "dns_state_backend" {
   default = null
 
   validation {
-    condition     = !var.enable_aifoundry_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
-    error_message = "enable_aifoundry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+    condition     = !(coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default) && length([for s in var.services : s if s.type == "aifoundry"]) > 0) || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "a private AI Foundry endpoint (enable_aifoundry_private_endpoint = true, or inherited from private_by_default = true) with an 'aifoundry' selected requires both vnet_state_backend and dns_state_backend to be set."
   }
 
   # C-020 (FR-029): the ACR private endpoint needs both the spoke VNet (subnet)
   # and the hub DNS (acr zone) remote states.
   validation {
-    condition     = !var.enable_container_registry_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
-    error_message = "enable_container_registry_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+    condition     = !(coalesce(var.enable_container_registry_private_endpoint, var.private_by_default) && length([for s in var.services : s if s.type == "container_registry"]) > 0) || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "a private container registry endpoint (enable_container_registry_private_endpoint = true, or inherited from private_by_default = true) with a 'container_registry' selected requires both vnet_state_backend and dns_state_backend to be set."
   }
 
   # FR-032: Cosmos DB is private-only — selecting it requires both the spoke
@@ -262,44 +269,58 @@ variable "dns_state_backend" {
   # C-035 (FR-034): the storage private endpoint needs both the spoke VNet
   # (subnet) and the hub DNS (blob zone) remote states.
   validation {
-    condition     = !var.enable_storage_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
-    error_message = "enable_storage_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+    condition     = !(coalesce(var.enable_storage_private_endpoint, var.private_by_default) && length([for s in var.services : s if s.type == "storage"]) > 0) || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "a private storage endpoint (enable_storage_private_endpoint = true, or inherited from private_by_default = true) with a 'storage' selected requires both vnet_state_backend and dns_state_backend to be set."
   }
 
   # C-039 (FR-035): the search private endpoint needs both the spoke VNet
   # (subnet) and the hub DNS (search zone) remote states.
   validation {
-    condition     = !var.enable_search_private_endpoint || (var.vnet_state_backend != null && var.dns_state_backend != null)
-    error_message = "enable_search_private_endpoint = true requires both vnet_state_backend and dns_state_backend to be set."
+    condition     = !(coalesce(var.enable_search_private_endpoint, var.private_by_default) && length([for s in var.services : s if s.type == "search"]) > 0) || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "a private search endpoint (enable_search_private_endpoint = true, or inherited from private_by_default = true) with a 'search' selected requires both vnet_state_backend and dns_state_backend to be set."
+  }
+
+  # C-050 (FR-041): the Key Vault private endpoint needs both the spoke VNet
+  # (subnet) and the hub DNS (vault zone) remote states.
+  validation {
+    condition     = !(coalesce(var.enable_keyvault_private_endpoint, var.private_by_default) && length([for s in var.services : s if s.type == "keyvault"]) > 0) || (var.vnet_state_backend != null && var.dns_state_backend != null)
+    error_message = "a private Key Vault endpoint (enable_keyvault_private_endpoint = true, or inherited from private_by_default = true) with a 'keyvault' selected requires both vnet_state_backend and dns_state_backend to be set."
   }
 }
 
 # ----- C-019 (Amendment 2026-06-01) — Foundry Application Insights (FR-028) -----
 variable "enable_aifoundry_application_insights" {
-  description = "C-019: when true, the aifoundry wrapper provisions a workspace-based Application Insights anchored at the SHARED hub Log Analytics workspace (the C-014 hub LA already wired via shared_log_analytics_workspace_id) and attaches it to the Foundry account as an AppInsights tracing connection. Only meaningful when an 'aifoundry' is selected (enforced by check.aifoundry_appinsights_requires_account). Default false preserves day-one behaviour."
+  description = "C-019 / FR-041: when true, the aifoundry wrapper provisions a workspace-based Application Insights anchored at the SHARED hub Log Analytics workspace (the C-014 hub LA already wired via shared_log_analytics_workspace_id) and attaches it to the Foundry account as an AppInsights tracing connection. Only meaningful when an 'aifoundry' is selected (enforced by check.aifoundry_appinsights_requires_account). null (default) inherits var.private_by_default; explicit false disables it even when the master is on."
   type        = bool
-  default     = false
+  default     = null
 }
 
 # ----- C-020 (Amendment 2026-06-01) — Container registry private endpoint (FR-029) -----
 variable "enable_container_registry_private_endpoint" {
-  description = "C-020: when true, every selected container_registry is deployed as Premium with public_network_access disabled and an Azure private endpoint (+ hub privatelink.azurecr.io DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the acr zone) and private_endpoint_subnet_role. Only meaningful when a 'container_registry' is selected (enforced by check.acr_pe_requires_registry). Default false preserves day-one (Standard, public) behaviour."
+  description = "C-020 / FR-041: when true, every selected container_registry is deployed as Premium with public_network_access disabled and an Azure private endpoint (+ hub privatelink.azurecr.io DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the acr zone) and private_endpoint_subnet_role. Only meaningful when a 'container_registry' is selected (enforced by check.acr_pe_requires_registry). null (default) inherits var.private_by_default; explicit false forces day-one (Standard, public) behaviour."
   type        = bool
-  default     = false
+  default     = null
+}
+
+# ----- C-050 (Amendment 2026-06-03) — Key Vault private endpoint (FR-041) -----
+variable "enable_keyvault_private_endpoint" {
+  description = "C-050 / FR-041: when true, every selected key vault is deployed with public network access disabled (network_acls default_action = Deny, bypass = AzureServices) and an Azure private endpoint (subresource 'vault', + hub privatelink.vaultcore.azure.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the vault zone) and private_endpoint_subnet_role. Only meaningful when a 'keyvault' is selected (enforced by check.keyvault_pe_requires_keyvault). null (default) inherits var.private_by_default; explicit false forces public behaviour."
+  type        = bool
+  default     = null
 }
 
 # ----- C-035 (Amendment 2026-06-02) — Storage account private endpoint (FR-034) -----
 variable "enable_storage_private_endpoint" {
-  description = "C-035: when true, every selected storage account is deployed with public_network_access disabled and an Azure private endpoint (subresource 'blob', + hub privatelink.blob.core.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the blob zone) and private_endpoint_subnet_role. Only meaningful when a 'storage' is selected (enforced by check.storage_pe_requires_storage). Default false preserves day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO thread/file store stays private (FR-033)."
+  description = "C-035 / FR-041: when true, every selected storage account is deployed with public_network_access disabled and an Azure private endpoint (subresource 'blob', + hub privatelink.blob.core.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the blob zone) and private_endpoint_subnet_role. Only meaningful when a 'storage' is selected (enforced by check.storage_pe_requires_storage). null (default) inherits var.private_by_default; explicit false forces day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO thread/file store stays private (FR-033)."
   type        = bool
-  default     = false
+  default     = null
 }
 
 # ----- C-039 (Amendment 2026-06-02) — AI Search private endpoint (FR-035) -----
 variable "enable_search_private_endpoint" {
-  description = "C-039: when true, every selected search service is deployed with public_network_access disabled and an Azure private endpoint (subresource 'searchService', + hub privatelink.search.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the search zone) and private_endpoint_subnet_role. Only meaningful when a 'search' is selected (enforced by check.search_pe_requires_search). Default false preserves day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO vector store stays private (FR-033)."
+  description = "C-039 / FR-041: when true, every selected search service is deployed with public_network_access disabled and an Azure private endpoint (subresource 'searchService', + hub privatelink.search.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the search zone) and private_endpoint_subnet_role. Only meaningful when a 'search' is selected (enforced by check.search_pe_requires_search). null (default) inherits var.private_by_default; explicit false forces day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO vector store stays private (FR-033)."
   type        = bool
-  default     = false
+  default     = null
 }
 
 # ----- C-021 (Amendment 2026-06-01) — Container Apps internal environment (FR-030) -----
@@ -331,8 +352,8 @@ variable "enable_aifoundry_network_injection" {
   default     = false
 
   validation {
-    condition     = !var.enable_aifoundry_network_injection || var.enable_aifoundry_private_endpoint
-    error_message = "enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true (Hosted-Agent injection is only valid on a private Foundry account — FR-031 step 4 / VC-1)."
+    condition     = !var.enable_aifoundry_network_injection || coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default)
+    error_message = "enable_aifoundry_network_injection = true requires a private Foundry account (enable_aifoundry_private_endpoint = true, or inherited from private_by_default = true) — Hosted-Agent injection is only valid on a private Foundry account (FR-031 step 4 / VC-1)."
   }
 }
 

@@ -1,6 +1,8 @@
-# C-020 / FR-029 — enabling the ACR private endpoint without a
-# `container_registry` selection hard-fails at plan time via
-# check.acr_pe_requires_registry.
+# VC-17 / FR-042 — Foundry private with consistent private supporting services.
+# A private Foundry account (resolved via the master) is selected together with
+# storage / search / keyvault, all of which also resolve their private endpoint
+# from the master. The FR-042 guard (check.aifoundry_private_requires_private_deps)
+# is satisfied and the plan proceeds.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -11,12 +13,14 @@ variables {
   usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "openai" },
+    { type = "aifoundry" },
+    { type = "storage" },
+    { type = "search" },
+    { type = "keyvault" },
   ]
-  overrides                                  = {}
-  private_by_default                         = false
-  enable_container_registry_private_endpoint = true
-  private_endpoint_subnet_role               = "development"
+  overrides = {}
+  # private_by_default defaults true — Foundry + all deps resolve private.
+  private_endpoint_subnet_role = "development"
   vnet_state_backend = {
     resource_group_name  = "rg-tfs-shd-hub-npd-swc-001"
     storage_account_name = "sttfsshdhubnpdswc001"
@@ -72,7 +76,6 @@ override_data {
   target = data.terraform_remote_state.vnet[0]
   values = {
     outputs = {
-      vnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net-uc1-sp01-npd-swc-001/providers/Microsoft.Network/virtualNetworks/vnet-uc1-sp01-npd-swc-001"
       subnets = {
         development = {
           id             = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net-uc1-sp01-npd-swc-001/providers/Microsoft.Network/virtualNetworks/vnet-uc1-sp01-npd-swc-001/subnets/snet-dev-uc1-sp01-npd-swc-001"
@@ -89,15 +92,22 @@ override_data {
   values = {
     outputs = {
       zone_ids = {
-        acr = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
+        cogsvc     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com"
+        openai     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com"
+        aiservices = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com"
+        blob       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+        search     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net"
+        vault      = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net"
       }
     }
   }
 }
 
-run "rejects_acr_pe_without_registry" {
+run "foundry_private_deps_consistent" {
   command = plan
-  expect_failures = [
-    check.acr_pe_requires_registry,
-  ]
+
+  assert {
+    condition     = local.aifoundry_pe_required && local.storage_pe_required && local.search_pe_required && local.keyvault_pe_required
+    error_message = "VC-17: Foundry + all supporting services must resolve private under the master."
+  }
 }

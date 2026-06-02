@@ -18,11 +18,20 @@ variables {
     { type = "cosmosdb" },
     { type = "search" },
   ]
-  overrides                          = {}
+  overrides = {}
+  # Pin the pre-FR-041 master OFF so this legacy scenario keeps its day-one
+  # (public, no auto-PE) shape; private-by-default is exercised by the
+  # dedicated private_by_default_*/aifoundry_private_deps_* tests.
+  private_by_default                 = false
   enable_aifoundry_private_endpoint  = true
   enable_aifoundry_network_injection = true
-  private_endpoint_subnet_role       = "development"
-  agent_subnet_role                  = "agents"
+  # FR-033 / FR-042: the BYO Storage + Search backing the Agents capability host
+  # must be private when the Foundry account is private. (Cosmos DB is always
+  # private per FR-032.)
+  enable_storage_private_endpoint = true
+  enable_search_private_endpoint  = true
+  private_endpoint_subnet_role    = "development"
+  agent_subnet_role               = "agents"
   vnet_state_backend = {
     resource_group_name  = "rg-tfs-shd-hub-npd-swc-001"
     storage_account_name = "sttfsshdhubnpdswc001"
@@ -104,6 +113,8 @@ override_data {
         openai       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com"
         aiservices   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com"
         "cosmos-sql" = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.documents.azure.com"
+        blob         = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
+        search       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net"
       }
     }
   }

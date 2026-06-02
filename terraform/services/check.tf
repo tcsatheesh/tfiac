@@ -111,7 +111,7 @@ check "environment_workload_only" {
 check "aifoundry_pe_requires_account" {
   assert {
     condition = !(
-      var.enable_aifoundry_private_endpoint &&
+      var.enable_aifoundry_private_endpoint == true &&
       length([for s in var.services : s if s.type == "aifoundry"]) == 0
     )
     error_message = "C-018 / FR-027 — enable_aifoundry_private_endpoint = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
@@ -126,7 +126,7 @@ check "aifoundry_pe_requires_account" {
 check "aifoundry_appinsights_requires_account" {
   assert {
     condition = !(
-      var.enable_aifoundry_application_insights &&
+      var.enable_aifoundry_application_insights == true &&
       length([for s in var.services : s if s.type == "aifoundry"]) == 0
     )
     error_message = "C-019 / FR-028 — enable_aifoundry_application_insights = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
@@ -140,7 +140,7 @@ check "aifoundry_appinsights_requires_account" {
 check "acr_pe_requires_registry" {
   assert {
     condition = !(
-      var.enable_container_registry_private_endpoint &&
+      var.enable_container_registry_private_endpoint == true &&
       length([for s in var.services : s if s.type == "container_registry"]) == 0
     )
     error_message = "C-020 / FR-029 — enable_container_registry_private_endpoint = true requires a 'container_registry' selection in this services stack."
@@ -155,7 +155,7 @@ check "acr_pe_requires_registry" {
 check "storage_pe_requires_storage" {
   assert {
     condition = !(
-      var.enable_storage_private_endpoint &&
+      var.enable_storage_private_endpoint == true &&
       length([for s in var.services : s if s.type == "storage"]) == 0
     )
     error_message = "C-035 / FR-034 — enable_storage_private_endpoint = true requires a 'storage' selection in this services stack."
@@ -165,10 +165,69 @@ check "storage_pe_requires_storage" {
 check "search_pe_requires_search" {
   assert {
     condition = !(
-      var.enable_search_private_endpoint &&
+      var.enable_search_private_endpoint == true &&
       length([for s in var.services : s if s.type == "search"]) == 0
     )
     error_message = "C-039 / FR-035 — enable_search_private_endpoint = true requires a 'search' selection in this services stack."
+  }
+}
+
+# C-050 / FR-041 — keyvault_pe_requires_keyvault: enabling the Key Vault private
+# endpoint explicitly only makes sense when a `keyvault` is actually selected in
+# this stack. Fires only on explicit opt-in (the master switch does not require
+# a keyvault to exist). Defence-in-depth pair for the variable-level
+# vnet/dns_state_backend requirement.
+check "keyvault_pe_requires_keyvault" {
+  assert {
+    condition = !(
+      var.enable_keyvault_private_endpoint == true &&
+      length([for s in var.services : s if s.type == "keyvault"]) == 0
+    )
+    error_message = "C-050 / FR-041 — enable_keyvault_private_endpoint = true requires a 'keyvault' selection in this services stack."
+  }
+}
+
+# C-049 / FR-041 — private_by_default_requires_backends: when the
+# private-by-default master is on and ANY PE-capable service (aifoundry,
+# container_registry, storage, search, keyvault) is selected, both remote-state
+# backends MUST be supplied so the inherited private endpoints can resolve their
+# spoke subnet + hub DNS zone. Friendly aggregate companion to the per-variable
+# validations (which fire earlier, per service). Fires at plan time, before any
+# remote-state read.
+check "private_by_default_requires_backends" {
+  assert {
+    condition = !(
+      var.private_by_default &&
+      (local.aifoundry_selected || local.registry_selected || local.storage_selected || local.search_selected || local.keyvault_selected) &&
+      (var.vnet_state_backend == null || var.dns_state_backend == null)
+    )
+    error_message = "C-049 / FR-041 — private_by_default = true with a PE-capable service (aifoundry / container_registry / storage / search / keyvault) selected requires BOTH vnet_state_backend (PE subnet) and dns_state_backend (private DNS zones). Supply both backends, or set private_by_default = false (and opt into specific private endpoints individually)."
+  }
+}
+
+# C-053 / FR-042 — aifoundry_private_requires_private_deps: a PRIVATE Foundry
+# account (local.aifoundry_pe_required, i.e. an aifoundry selected with its PE
+# resolved on via the FR-041 master/toggle) must not sit beside a
+# selected-but-PUBLIC supporting service. Every SELECTED storage / search /
+# keyvault must have its resolved PE toggle true. cosmosdb is always private
+# (FR-032) and the Foundry App Insights is master-driven (FR-028), so neither
+# needs a check. Guard only — never auto-provisions an unselected service
+# (Principle II / C-053). Lists each public offender.
+check "aifoundry_private_requires_private_deps" {
+  assert {
+    condition = !local.aifoundry_pe_required || length(concat(
+      local.storage_selected && !local.storage_pe_required ? ["storage"] : [],
+      local.search_selected && !local.search_pe_required ? ["search"] : [],
+      local.keyvault_selected && !local.keyvault_pe_required ? ["keyvault"] : [],
+    )) == 0
+    error_message = format(
+      "C-053 / FR-042 — a private AI Foundry account requires its SELECTED supporting services to be private too, but the following are public: %s. Enable their private endpoints (remove the explicit enable_<svc>_private_endpoint = false, or set it true), or remove them from this stack. Cosmos DB is always private (FR-032).",
+      jsonencode(concat(
+        local.storage_selected && !local.storage_pe_required ? ["storage"] : [],
+        local.search_selected && !local.search_pe_required ? ["search"] : [],
+        local.keyvault_selected && !local.keyvault_pe_required ? ["keyvault"] : [],
+      )),
+    )
   }
 }
 
@@ -211,12 +270,37 @@ check "cosmosdb_requires_backends" {
 check "aifoundry_network_injection_prereqs" {
   assert {
     condition = !var.enable_aifoundry_network_injection || (
-      var.enable_aifoundry_private_endpoint &&
+      coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default) &&
       length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
       length([for s in var.services : s if s.type == "storage"]) == 1 &&
       length([for s in var.services : s if s.type == "cosmosdb"]) == 1 &&
       length([for s in var.services : s if s.type == "search"]) == 1
     )
     error_message = "FR-033 — enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true and EXACTLY ONE each of 'aifoundry', 'storage', 'cosmosdb', and 'search' selected (the Agents capability host needs one BYO Storage + Cosmos + Search leg)."
+  }
+}
+
+# private_by_default_unwired_types (spec.md FR-041 §4 / C-053): the master
+# private-by-default switch only flips the public-access + private-endpoint
+# surface for the service types that are already wired for it (aifoundry,
+# container_registry, storage, search, keyvault + the telemetry exception of
+# app_insights / log_analytics / Foundry-tracing). For every OTHER selectable
+# type that has its own private-link surface but is not yet wired to the
+# master, emit a plan-time WARNING (check blocks are non-blocking) so operators
+# know the master currently has NO effect on it and PE wiring is a tracked
+# follow-up. This intentionally never blocks a plan.
+check "private_by_default_unwired_types" {
+  assert {
+    condition = !(
+      var.private_by_default &&
+      length([
+        for s in var.services : s
+        if contains(
+          ["openai", "language", "doc_intel", "apim", "function_app", "logic_app", "aml_workspace"],
+          s.type
+        )
+      ]) > 0
+    )
+    error_message = "FR-041 §4 — private_by_default = true is selected together with one or more service types whose private-endpoint wiring is a tracked follow-up (any of: openai, language, doc_intel, apim, function_app, logic_app, aml_workspace). The master switch currently has NO public-access / private-endpoint effect on those types; deploy them with their own explicit network controls until the follow-up lands. (This is a WARNING; the plan is not blocked.)"
   }
 }

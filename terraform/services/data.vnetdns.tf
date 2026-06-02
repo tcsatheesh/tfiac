@@ -14,11 +14,24 @@
 # evaluable at count = 0.
 
 locals {
-  aifoundry_pe_required = var.enable_aifoundry_private_endpoint
-  acr_pe_required       = var.enable_container_registry_private_endpoint
-  storage_pe_required   = var.enable_storage_private_endpoint
-  search_pe_required    = var.enable_search_private_endpoint
+  # FR-041 (C-048) — private-by-default resolution. Each per-service PE toggle
+  # is optional (null = inherit); coalesce(<explicit>, var.private_by_default)
+  # lets an explicit true/false win while null inherits the master switch. Each
+  # is gated on the relevant service type being SELECTED so that turning on the
+  # master for a stack that selects no PE-capable service neither reads a remote
+  # state nor demands the backends (C-049 — backends are only required when a
+  # PE-capable service is actually selected).
+  aifoundry_pe_required = local.aifoundry_selected && coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default)
+  acr_pe_required       = local.registry_selected && coalesce(var.enable_container_registry_private_endpoint, var.private_by_default)
+  storage_pe_required   = local.storage_selected && coalesce(var.enable_storage_private_endpoint, var.private_by_default)
+  search_pe_required    = local.search_selected && coalesce(var.enable_search_private_endpoint, var.private_by_default)
+  keyvault_pe_required  = local.keyvault_selected && coalesce(var.enable_keyvault_private_endpoint, var.private_by_default)
   container_apps_active = var.enable_container_apps
+
+  # FR-041 (C-051) — Foundry Application Insights telemetry connection follows
+  # the master too (null = inherit); only meaningful when an aifoundry is
+  # selected.
+  appinsights_enabled = local.aifoundry_selected && coalesce(var.enable_aifoundry_application_insights, var.private_by_default)
 
   # FR-032 (Amendment 2026-06-02) — Cosmos DB is private-ONLY: selecting it
   # ALWAYS requires the spoke VNet (PE subnet) + hub DNS (cosmos-sql zone)
@@ -30,9 +43,9 @@ locals {
   agent_injection_enabled = var.enable_aifoundry_network_injection
 
   # Any feature that needs the spoke VNet remote state.
-  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.container_apps_active || local.agent_injection_enabled || (local.cosmosdb_selected && var.vnet_state_backend != null)
+  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || local.container_apps_active || local.agent_injection_enabled || (local.cosmosdb_selected && var.vnet_state_backend != null)
   # Any feature that needs the hub DNS remote state (PE zone ids).
-  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
+  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
 }
 
 data "terraform_remote_state" "vnet" {
@@ -107,6 +120,17 @@ locals {
 
   search_pe_zone_ids = local.search_pe_required ? [
     data.terraform_remote_state.dns[0].outputs.zone_ids["search"]
+  ] : []
+
+  # C-050 (FR-041) — Key Vault PE: same spoke subnet (by role) + the hub vault
+  # zone (privatelink.vaultcore.azure.net). null/empty when KV PE disabled.
+  keyvault_pe_subnet_id = local.keyvault_pe_required ? try(
+    data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
+    null,
+  ) : null
+
+  keyvault_pe_zone_ids = local.keyvault_pe_required ? [
+    data.terraform_remote_state.dns[0].outputs.zone_ids["vault"]
   ] : []
 
   # C-021 (FR-030) — Container Apps internal env: delegated subnet (by role) +

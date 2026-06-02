@@ -36,5 +36,11 @@ module "workspace" {
   log_analytics_workspace_retention_in_days = var.retention_in_days
   log_analytics_workspace_daily_quota_gb    = var.daily_quota_gb
 
+  # C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2). Default
+  # true preserves day-one behaviour; the services stack drives this false for
+  # the selectable log_analytics type under private-by-default.
+  log_analytics_workspace_internet_ingestion_enabled = var.internet_access_enabled
+  log_analytics_workspace_internet_query_enabled     = var.internet_access_enabled
+
   enable_telemetry = false
 }

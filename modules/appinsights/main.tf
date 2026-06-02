@@ -5,6 +5,11 @@ resource "azurerm_application_insights" "this" {
   tags                = var.tags
   application_type    = local.config.application_type
   retention_in_days   = local.config.retention_in_days
+  # C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2). When the
+  # services stack runs private-by-default, internet ingestion + query are
+  # disabled (App Insights has no classic PE; AMPLS is the tracked follow-up).
+  internet_ingestion_enabled = var.internet_access_enabled
+  internet_query_enabled     = var.internet_access_enabled
   # C-014 (Amendment 2026-05-31) — anchor the workspace-based AI resource at
   # the SHARED hub Log Analytics workspace (provisioned by terraform/log/).
   workspace_id = var.shared_log_analytics_workspace_id

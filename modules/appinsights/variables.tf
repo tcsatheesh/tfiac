@@ -72,3 +72,10 @@ variable "diagnostic_settings_enabled" {
   type        = bool
   default     = true
 }
+
+# ----- C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2) -----
+variable "internet_access_enabled" {
+  description = "C-051 / FR-041 §2: when false, set internet_ingestion_enabled = false and internet_query_enabled = false on the Application Insights component (the supported 'public access disabled' surface for this RP — App Insights has no classic private endpoint; full privacy is AMPLS, a tracked follow-up). Default true preserves day-one behaviour. The services stack drives this from var.private_by_default."
+  type        = bool
+  default     = true
+}

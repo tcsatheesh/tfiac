@@ -42,6 +42,8 @@ variables {
     { type = "apim" },
   ]
   overrides = {}
+  # Pre-FR-041 parity: this legacy all-types diag test keeps the master OFF.
+  private_by_default = false
 }
 
 mock_provider "azurerm" {

@@ -1,6 +1,8 @@
-# C-020 / FR-029 — enabling the ACR private endpoint without a
-# `container_registry` selection hard-fails at plan time via
-# check.acr_pe_requires_registry.
+# VC-18 / FR-042 — private Foundry with a PUBLIC supporting service hard-fails.
+# Foundry resolves private from the master, but enable_storage_private_endpoint
+# = false forces the selected storage account public. The FR-042 guard
+# (check.aifoundry_private_requires_private_deps) fires, naming the offending
+# supporting service.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -11,12 +13,13 @@ variables {
   usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "openai" },
+    { type = "aifoundry" },
+    { type = "storage" },
   ]
-  overrides                                  = {}
-  private_by_default                         = false
-  enable_container_registry_private_endpoint = true
-  private_endpoint_subnet_role               = "development"
+  overrides                       = {}
+  private_by_default              = true
+  enable_storage_private_endpoint = false
+  private_endpoint_subnet_role    = "development"
   vnet_state_backend = {
     resource_group_name  = "rg-tfs-shd-hub-npd-swc-001"
     storage_account_name = "sttfsshdhubnpdswc001"
@@ -72,7 +75,6 @@ override_data {
   target = data.terraform_remote_state.vnet[0]
   values = {
     outputs = {
-      vnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net-uc1-sp01-npd-swc-001/providers/Microsoft.Network/virtualNetworks/vnet-uc1-sp01-npd-swc-001"
       subnets = {
         development = {
           id             = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net-uc1-sp01-npd-swc-001/providers/Microsoft.Network/virtualNetworks/vnet-uc1-sp01-npd-swc-001/subnets/snet-dev-uc1-sp01-npd-swc-001"
@@ -89,15 +91,17 @@ override_data {
   values = {
     outputs = {
       zone_ids = {
-        acr = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
+        cogsvc     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com"
+        openai     = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.openai.azure.com"
+        aiservices = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.services.ai.azure.com"
       }
     }
   }
 }
 
-run "rejects_acr_pe_without_registry" {
+run "foundry_private_public_storage_fails" {
   command = plan
   expect_failures = [
-    check.acr_pe_requires_registry,
+    check.aifoundry_private_requires_private_deps,
   ]
 }
