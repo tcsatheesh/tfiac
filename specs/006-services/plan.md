@@ -1257,3 +1257,120 @@ clears the account but fails at the caphost.
 stalled CA-013 #6 live recreate: after merge, purge the orphan
 `aif-uc1-uc1-sp01-dev-swc-001` account and re-dispatch the `103` `services` apply
 via the `deploy` workflow (never a local apply).
+
+## Amendment plan — FR-041 private-by-default master switch
+
+**Scope.** Invert the day-one-parity convention so the stack is private-by-default:
+public network access disabled + private endpoint enabled for every
+Private-Link-capable selectable service, gated by one master switch. Add Key
+Vault PE support (the one named supporting service with no PE today). Engine-only.
+
+**Files touched.**
+- `terraform/services/variables.tf`
+  - NEW `private_by_default` (bool, default `true`).
+  - Change `enable_aifoundry_private_endpoint`,
+    `enable_container_registry_private_endpoint`,
+    `enable_storage_private_endpoint`, `enable_search_private_endpoint`,
+    `enable_aifoundry_application_insights` from `bool default false` to
+    `optional(bool, null)` (explicit value still wins; `null` ⇒ inherit master).
+  - NEW `enable_keyvault_private_endpoint` (`optional(bool, null)`).
+  - `enable_aifoundry_network_injection` UNCHANGED (`bool`, default `false`,
+    excluded from the master — C-031/VC-1).
+- `terraform/services/data.vnetdns.tf` — resolution layer (the single place the
+  `*_pe_required` locals are defined):
+  - `aifoundry_pe_required = coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default)`
+  - `acr_pe_required = coalesce(var.enable_container_registry_private_endpoint, var.private_by_default)`
+  - `storage_pe_required = coalesce(var.enable_storage_private_endpoint, var.private_by_default)`
+  - `search_pe_required = coalesce(var.enable_search_private_endpoint, var.private_by_default)`
+  - NEW `keyvault_pe_required = coalesce(var.enable_keyvault_private_endpoint, var.private_by_default)`
+  - NEW `appinsights_enabled = coalesce(var.enable_aifoundry_application_insights, var.private_by_default)`
+  - Extend `vnet_state_required` / `dns_state_required` with `keyvault_pe_required`.
+  - NEW `keyvault_pe_subnet_id` (by `private_endpoint_subnet_role`) +
+    `keyvault_pe_zone_ids = [ zone_ids["vault"] ]` (the `vaultcore` zone — C-050).
+- `terraform/services/main.tf` — switch module args from the raw `var.enable_*`
+  to the resolved `local.*_pe_required` (storage/search/ACR/Foundry) and the
+  resolved `local.appinsights_enabled`; add the keyvault module's PE args
+  (`private_endpoint_enabled = local.keyvault_pe_required`,
+  `private_endpoint_subnet_id = local.keyvault_pe_subnet_id`,
+  `private_dns_zone_ids = local.keyvault_pe_zone_ids`).
+- `terraform/services/check.tf`
+  - NEW `check "private_by_default_requires_backends"` (C-049 / VC-15): when
+    `private_by_default = true` and any PE-capable service is selected, both
+    remote-state backends MUST be non-null.
+  - NEW `check "keyvault_pe_requires_keyvault"` (mirror storage/search guards).
+- `terraform/services/variables.tf` preconditions — broaden the
+  "PE requires both backends" validations to fire on the resolved locals (so an
+  inherited-private toggle also demands backends).
+- `modules/keyvault/variables.tf` — NEW `private_endpoint_enabled` (bool,
+  default false), `private_endpoint_subnet_id`, `private_dns_zone_ids`
+  (mirror `modules/storage` exactly).
+- `modules/keyvault/locals.tf` — NEW `pe_name = "pep-${var.canonical_name}"`.
+- `modules/keyvault/main.tf` — set `public_network_access_enabled =
+  var.private_endpoint_enabled ? false : true` + `network_acls { default_action
+  = var.private_endpoint_enabled ? "Deny" : "Allow", bypass = "AzureServices" }`
+  on the vault; add count-gated `azurerm_private_endpoint` (subresource `vault`,
+  zone group → `var.private_dns_zone_ids`) with the same `lifecycle.precondition`
+  as storage.
+- `modules/appinsights/main.tf` + `modules/loganalytics/main.tf` — under a new
+  `var.internet_access_enabled` (bool, default true) set
+  `internet_ingestion_enabled` / `internet_query_enabled` to its value; the
+  stack passes `!local... (master)` (FR-041 §2). *(If the loganalytics wrapper
+  is AVM-backed, pass the equivalent AVM inputs.)*
+- `modules/aifoundry/*` — the App Insights child (FR-028) honours
+  `internet_ingestion/query = false` when the resolved telemetry toggle is on.
+
+**Tests.**
+- `terraform/services/tests/private_by_default_on.tftest.hcl` — NEW (VC-12): master
+  on, all toggles null ⇒ every PE-capable module gets `private_endpoint_enabled =
+  true`.
+- `terraform/services/tests/private_by_default_explicit_off.tftest.hcl` — NEW
+  (VC-13): master on + one explicit `false` ⇒ that service public, rest private.
+- `terraform/services/tests/private_by_default_master_off.tftest.hcl` — NEW
+  (VC-14): master off ⇒ zero PEs (pre-FR-041 parity; reuse the existing
+  all-public snapshot expectation).
+- `terraform/services/tests/private_by_default_missing_backend.tftest.hcl` — NEW
+  (VC-15): master on + PE-capable service + null backend ⇒ plan hard-fail.
+- `modules/keyvault/tests/private_endpoint_happy.tftest.hcl` — NEW (VC-16).
+- `modules/keyvault/tests/private_endpoint_default_off.tftest.hcl` — NEW (parity).
+
+**Verification (plan-level only — no apply).**
+- `terraform -chdir=modules/keyvault test`, `terraform -chdir=modules/appinsights
+  test`, `terraform -chdir=terraform/services test` all green.
+- `terraform fmt -recursive` clean; services validate OK.
+- `vault` + `blob` + `search` + `cosmos-sql` + `acr` zones already in the 002
+  catalogue — no 002 change. CI `services.yml` already covers
+  `modules/keyvault`, `modules/appinsights`, `terraform/services`.
+
+**Rollout.** Engine-only. Live effect lands when the `103` instance re-plans:
+private endpoints now default ON, so the rollout is via the `deploy` workflow
+(`service=services`, after `vnet`/`dns` are current). NEVER a local apply.
+
+## Amendment plan — FR-042 Foundry private-endpoint dependency bundle
+
+**Scope.** Make the supporting services a first-class dependency of a *private*
+Foundry account: a private `aifoundry` may not sit beside a selected-but-public
+Storage/Search/Key Vault. Guard-only (no auto-provision). Engine-only.
+
+**Files touched.**
+- `terraform/services/check.tf` — NEW `check
+  "aifoundry_private_requires_private_deps"` (C-053 / VC-18): when
+  `local.aifoundry_pe_required` and an `aifoundry` is selected, every SELECTED
+  supporting service (`storage` / `search` / `keyvault`) MUST have its resolved
+  PE toggle true; list each public offender. `cosmosdb` (always private) and the
+  Foundry App Insights (master-driven) need no check.
+- `terraform/services/locals.tf` — NEW helper sets: `storage_selected`,
+  `search_selected`, `keyvault_selected` (mirror `cosmosdb_selected`).
+
+**Tests.**
+- `terraform/services/tests/aifoundry_private_deps_consistent.tftest.hcl` — NEW
+  (VC-17): full private bundle plans clean.
+- `terraform/services/tests/aifoundry_private_deps_public_storage.tftest.hcl` —
+  NEW (VC-18): private Foundry + explicit public storage ⇒ hard-fail.
+- `terraform/services/tests/aifoundry_private_deps_master_off.tftest.hcl` — NEW
+  (VC-19): master off ⇒ no guard firing.
+
+**Verification.** `terraform -chdir=terraform/services test` green;
+`terraform fmt -recursive` clean.
+
+**Rollout.** Engine-only, guard-only; no new Azure resources. Same `deploy`
+workflow path as FR-041 when the `103` instance re-plans.

@@ -7,4 +7,8 @@ locals {
   }
 
   config = merge(local.defaults, var.overrides)
+
+  # C-050 (FR-041) — private endpoint name. `pep-${canonical_name}` is well
+  # within the PE name limit (key vault names are <= 24 chars).
+  pe_name = "pep-${var.canonical_name}"
 }

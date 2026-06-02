@@ -878,3 +878,79 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-040.D — Rollout
 
 - [ ] T-FR040-007 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Then purge orphan `aif-uc1-uc1-sp01-dev-swc-001` and re-dispatch the `103` `services` apply via the `deploy` workflow (never a local apply). (FR-040 / CA-013 #6)
+
+---
+
+## Phase FR-041 — private-by-default master switch (engine)
+
+### FR-041.A — Variables
+
+- [x] T-FR041-001 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `private_by_default` (bool, default `true`). (FR-041 / C-048)
+- [x] T-FR041-002 [terraform/services/variables.tf](../../terraform/services/variables.tf): change `enable_aifoundry_private_endpoint`, `enable_container_registry_private_endpoint`, `enable_storage_private_endpoint`, `enable_search_private_endpoint`, `enable_aifoundry_application_insights` to `optional(bool, null)`. (FR-041)
+- [x] T-FR041-003 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `enable_keyvault_private_endpoint` (`optional(bool, null)`); leave `enable_aifoundry_network_injection` as `bool` default `false`. (FR-041 / C-031 / VC-1)
+- [x] T-FR041-004 [terraform/services/variables.tf](../../terraform/services/variables.tf): broaden the existing "PE requires both backends" preconditions to fire on the resolved locals (inherited-private also demands backends). (FR-041 / C-049)
+
+### FR-041.B — Resolution + wiring
+
+- [x] T-FR041-005 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): resolve `aifoundry_pe_required`/`acr_pe_required`/`storage_pe_required`/`search_pe_required` via `coalesce(<explicit>, var.private_by_default)`; add `keyvault_pe_required` + `appinsights_enabled` the same way; extend `vnet_state_required`/`dns_state_required` with keyvault. (FR-041)
+- [x] T-FR041-006 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): add `keyvault_pe_subnet_id` (by `private_endpoint_subnet_role`) + `keyvault_pe_zone_ids = [ zone_ids["vault"] ]`. (FR-041 / C-050)
+- [x] T-FR041-007 [terraform/services/main.tf](../../terraform/services/main.tf): switch storage/search/ACR/Foundry PE args + Foundry app-insights arg from `var.enable_*` to the resolved `local.*`; wire keyvault PE args. (FR-041)
+
+### FR-041.C — Key Vault PE module
+
+- [x] T-FR041-008 [modules/keyvault/variables.tf](../../modules/keyvault/variables.tf): add `private_endpoint_enabled` (bool, default false), `private_endpoint_subnet_id`, `private_dns_zone_ids` (mirror modules/storage). (FR-041 / C-050)
+- [x] T-FR041-009 [modules/keyvault/locals.tf](../../modules/keyvault/locals.tf): add `pe_name = "pep-${var.canonical_name}"`. (FR-041)
+- [x] T-FR041-010 [modules/keyvault/main.tf](../../modules/keyvault/main.tf): set `public_network_access_enabled` + `network_acls { default_action / bypass }` driven by `private_endpoint_enabled`; add count-gated `azurerm_private_endpoint` (subresource `vault`, zone group, lifecycle precondition). (FR-041 / C-050)
+
+### FR-041.D — Telemetry internet flags
+
+- [x] T-FR041-011 [modules/appinsights/main.tf](../../modules/appinsights/main.tf) + [modules/loganalytics](../../modules/loganalytics): add `internet_access_enabled` (bool, default true) gating `internet_ingestion_enabled`/`internet_query_enabled`; stack drives it from the master (FR-041 §2, AMPLS-deferred exception). (FR-041 / C-051)
+- [x] T-FR041-012 [modules/aifoundry](../../modules/aifoundry): Foundry App Insights child honours the same internet flags when telemetry enabled. (FR-041 / FR-028)
+
+### FR-041.E — Checks
+
+- [x] T-FR041-013 [terraform/services/check.tf](../../terraform/services/check.tf): add `check "private_by_default_requires_backends"` + `check "keyvault_pe_requires_keyvault"`. (FR-041 / C-049 / VC-15)
+
+### FR-041.F — Tests
+
+- [x] T-FR041-014 `terraform/services/tests/private_by_default_on.tftest.hcl` (VC-12). (FR-041)
+- [x] T-FR041-015 `terraform/services/tests/private_by_default_explicit_off.tftest.hcl` (VC-13). (FR-041)
+- [x] T-FR041-016 `terraform/services/tests/private_by_default_master_off.tftest.hcl` (VC-14, parity). (FR-041 / C-052)
+- [x] T-FR041-017 `terraform/services/tests/private_by_default_missing_backend.tftest.hcl` (VC-15). (FR-041)
+- [x] T-FR041-018 `modules/keyvault/tests/private_endpoint_happy.tftest.hcl` (VC-16). (FR-041)
+- [x] T-FR041-019 `modules/keyvault/tests/private_endpoint_default_off.tftest.hcl` (parity). (FR-041)
+
+### FR-041.G — Verification gates (HARD)
+
+- [x] T-FR041-020 `terraform fmt -recursive` → no changes. (FR-041)
+- [x] T-FR041-021 `terraform -chdir=modules/keyvault test` → all pass. (FR-041)
+- [x] T-FR041-022 `terraform -chdir=modules/appinsights test` → all pass. (FR-041)
+- [x] T-FR041-023 `terraform -chdir=terraform/services test` → all pass. (FR-041)
+
+### FR-041.H — Rollout
+
+- [ ] T-FR041-024 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only; live effect lands on the next `103` `services` plan via the `deploy` workflow (never a local apply). (FR-041)
+
+---
+
+## Phase FR-042 — Foundry private-endpoint dependency bundle (engine, guard-only)
+
+### FR-042.A — Helper locals + check
+
+- [x] T-FR042-001 [terraform/services/locals.tf](../../terraform/services/locals.tf): add `storage_selected`/`search_selected`/`keyvault_selected` (mirror `cosmosdb_selected`). (FR-042)
+- [x] T-FR042-002 [terraform/services/check.tf](../../terraform/services/check.tf): add `check "aifoundry_private_requires_private_deps"` — when `local.aifoundry_pe_required` + an `aifoundry` is selected, every SELECTED storage/search/keyvault must have its resolved PE toggle true; list offenders. (FR-042 / C-053 / VC-18)
+
+### FR-042.B — Tests
+
+- [x] T-FR042-003 `terraform/services/tests/aifoundry_private_deps_consistent.tftest.hcl` (VC-17). (FR-042)
+- [x] T-FR042-004 `terraform/services/tests/aifoundry_private_deps_public_storage.tftest.hcl` (VC-18). (FR-042)
+- [x] T-FR042-005 `terraform/services/tests/aifoundry_private_deps_master_off.tftest.hcl` (VC-19). (FR-042)
+
+### FR-042.C — Verification gates (HARD)
+
+- [x] T-FR042-006 `terraform fmt -recursive` → no changes. (FR-042)
+- [x] T-FR042-007 `terraform -chdir=terraform/services test` → all pass. (FR-042)
+
+### FR-042.D — Rollout
+
+- [x] T-FR042-008 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, guard-only; same `deploy` workflow path as FR-041 (never a local apply). (FR-042)

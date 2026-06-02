@@ -1945,3 +1945,222 @@ Cross-module RBAC role assignments and the Cosmos DB RU/s floor (deferred —
 C-047), any structural change to where connections/capability hosts are parented
 (the FR-031 account-level design stands), the live destructive recreate / rollout
 (CA-013 #6, executed via the `deploy` workflow), and all `103` instance changes.
+
+---
+
+## AMENDMENT 2026-06-02 — private-by-default master switch (FR-041)
+
+> **Why now.** Every Private-Link toggle shipped so far (FR-027 Foundry,
+> FR-029 ACR, FR-034 storage, FR-035 search) defaults to **`false`** ("day-one
+> parity"), and the CLAUDE.md **private-by-default mandate** was satisfied only
+> *at the point of use* — each instance (`103`) had to remember to flip every
+> toggle ON. An audit of all `modules/<service>/` wrappers confirmed the
+> resulting gap: of the Private-Link-capable selectable types, only `cosmosdb`
+> (FR-032, hardcoded private) and `container_app_environment` (FR-030, internal)
+> are private without an explicit opt-in; everything else defaults to **public**
+> and Key Vault had no PE support at all. This inverts the convention to honour
+> the mandate by construction: **by default the stack deploys every
+> Private-Link-capable service with public network access DISABLED and a private
+> endpoint ENABLED**, while preserving an explicit per-service escape hatch and
+> strict opt-out parity for callers who deliberately want public.
+
+- **FR-041 — private-by-default master switch (engine).** The services stack
+  gains one master input `private_by_default` (bool, **default `true`**). Every
+  existing per-service private-endpoint toggle
+  (`enable_aifoundry_private_endpoint`, `enable_container_registry_private_endpoint`,
+  `enable_storage_private_endpoint`, `enable_search_private_endpoint`) and the
+  Foundry telemetry toggle (`enable_aifoundry_application_insights`) changes type
+  from `bool (default false)` to `optional(bool, null)` and is **resolved** as
+  `coalesce(<explicit>, var.private_by_default)`. With the shipped default
+  (`private_by_default = true`, every per-service toggle left `null`) the stack
+  is private-by-default for all of: Foundry account (PE + `publicNetworkAccess =
+  "Disabled"`), ACR (Premium + PE), storage account (PE + blob zone), AI Search
+  (PE + search zone), and Foundry App Insights telemetry. An operator who needs
+  a specific service public sets that one toggle to an **explicit `false`**
+  (explicit wins over the master). Setting `private_by_default = false` restores
+  the old all-public day-one behaviour wholesale.
+  1. **Key Vault private endpoint (new).** `modules/keyvault` gains
+     `private_endpoint_enabled` (bool, default false),
+     `private_endpoint_subnet_id`, and `private_dns_zone_ids`, mirroring the
+     storage/search/ACR pattern exactly. When enabled it sets
+     `public_network_access_enabled = false`, `network_acls { default_action =
+     "Deny", bypass = "AzureServices" }`, and provisions one
+     `azurerm_private_endpoint` (subresource group id `vault`) registering
+     A-records in the hub `privatelink.vaultcore.azure.net` zone. The stack gains
+     `enable_keyvault_private_endpoint` (`optional(bool, null)`, resolved against
+     the master) reusing the existing `vnet_state_backend` + `dns_state_backend`
+     + `private_endpoint_subnet_role` trio. Default-off (master false + null)
+     renders the vault byte-for-byte as before (public, no PE).
+  2. **Telemetry services public-access-off (Azure-Monitor form).** App Insights
+     and Log Analytics have **no classic private endpoint** — their private form
+     is Azure Monitor Private Link Scope (AMPLS). Under `private_by_default =
+     true` the Foundry App Insights resource (FR-028) and any standalone
+     `app_insights` / `log_analytics` wrapper set `internet_ingestion_enabled =
+     false` and `internet_query_enabled = false` (the supported "public access
+     disabled" surface for these RPs). Full AMPLS wiring is an explicit,
+     documented follow-up; these two RPs are the **called-out mandate
+     exception** (no Private Link) per CLAUDE.md.
+  3. **Network injection is NOT auto-enabled.**
+     `enable_aifoundry_network_injection` (FR-033) **stays `bool`, default
+     `false`** and is **excluded** from the master. Injection is a
+     creation-time-only, destructive operation (VC-1 / C-031) and must never be
+     turned on implicitly by a privacy default; an instance opts into injection
+     deliberately. Private-by-default gives a **private** Foundry account
+     (PE + public access disabled); injection is an orthogonal, explicit choice.
+  4. **Not-yet-wired selectable types (tracked follow-up).** The selectable
+     types whose wrappers have **no** Private-Link implementation today —
+     `openai`, `language`, `doc_intel` (standalone Cognitive accounts),
+     `apim`, `function_app`, `logic_app`, `aml_workspace` — are **not** silently
+     left public: selecting any of them while `private_by_default = true`
+     produces a **plan-time WARNING note** (via a `check` block) naming the type
+     and stating its PE wiring is a tracked follow-up, and the master has **no**
+     effect on them until that wiring lands (each is its own future engine
+     amendment + full pipeline). This keeps the mandate honest (no false sense
+     of privacy) without blocking the v1 selectable inventory.
+
+### Clarifications — Session 2026-06-02 (FR-041)
+
+- **C-048 — Master defaults to `true` (private), explicit per-service `false`
+  wins.** The resolution is `coalesce(explicit_toggle, private_by_default)`. The
+  shipped default flips the whole stack private; an operator keeps a single
+  service public by setting just that toggle to `false`. This is the
+  defensible reading of the user instruction "by default all services will be
+  deployed with public access disabled and private endpoint enabled" while
+  retaining a per-service escape hatch.
+- **C-049 — Private-by-default REQUIRES the remote-state backends.** Because a
+  private endpoint needs a spoke subnet (`vnet_state_backend`) and a hub DNS
+  zone (`dns_state_backend`), `private_by_default = true` with any PE-capable
+  service selected and **no** backends configured is a **plan-time hard-fail**
+  (`check.private_by_default_requires_backends`) naming the missing backend(s).
+  This is defence-in-depth on top of the existing per-toggle preconditions —
+  the privacy default cannot silently fall back to public for want of a backend.
+- **C-050 — Key Vault PE uses subresource `vault` + zone
+  `privatelink.vaultcore.azure.net`.** That zone already exists in the 002 DNS
+  catalogue (`modules/dnszones/catalogue.tf`) — **no 002 change**. The vault PE
+  reuses the same backend trio as storage/search/ACR; no new remote-state
+  backend, no new subnet role.
+- **C-051 — Telemetry RPs are the documented no-Private-Link exception.** App
+  Insights + Log Analytics get `internet_ingestion_enabled = false` /
+  `internet_query_enabled = false` under the master (their only public-access
+  control), with AMPLS tracked as a follow-up. This is the explicit
+  mandate-exception call-out CLAUDE.md requires for services that genuinely
+  cannot take a private endpoint.
+- **C-052 — Opt-out parity is exact.** `private_by_default = false` with every
+  per-service toggle left `null` reproduces the **pre-FR-041** behaviour
+  byte-for-byte (all public, no PE, Key Vault unchanged): the snapshot/idempotency
+  tests for the all-public reference input MUST remain green under that setting.
+  Existing live deployments that set explicit toggles are unaffected (explicit
+  values pass through `coalesce` unchanged).
+
+### Validation criteria (FR-041)
+
+- **VC-12 — Master-on default is private.** With `private_by_default = true`
+  (shipped default) and all per-service toggles `null`, a plan that selects
+  `aifoundry` + `storage` + `search` + `container_registry` + `keyvault`
+  provisions a private endpoint and `publicNetworkAccess`/`public_network_access_enabled
+  = Disabled/false` for each.
+- **VC-13 — Explicit per-service `false` overrides the master.**
+  `private_by_default = true` + `enable_storage_private_endpoint = false` leaves
+  the storage account public (no PE) while every other selected service stays
+  private.
+- **VC-14 — Master-off restores all-public.** `private_by_default = false` +
+  all toggles `null` yields zero private endpoints and public access on every
+  service (byte-for-byte the pre-FR-041 plan).
+- **VC-15 — Missing-backend hard-fail.** `private_by_default = true` + a
+  PE-capable service selected + `vnet_state_backend = null` (or
+  `dns_state_backend = null`) hard-fails at plan time naming the missing
+  backend.
+- **VC-16 — Key Vault PE shape.** With the vault PE enabled the module emits one
+  `azurerm_private_endpoint` (subresource `vault`) + `network_acls.default_action
+  = "Deny"` + `public_network_access_enabled = false`.
+
+### Out of scope for FR-041
+
+Full AMPLS wiring for App Insights / Log Analytics (tracked follow-up); PE
+implementation for `openai` / `language` / `doc_intel` / `apim` / `function_app`
+/ `logic_app` / `aml_workspace` (each a future engine amendment); enabling
+network injection by default (explicitly excluded — C-031/VC-1); and all `103`
+instance tfvars changes (the instance simply inherits the new private default —
+covered by the `103` feature's own pipeline, not this engine amendment).
+
+---
+
+## AMENDMENT 2026-06-02 — Foundry private-endpoint supporting-service dependency bundle (FR-042)
+
+> **Why now.** Microsoft's network-secured Standard Agent reference (researched
+> 2026-06-02) shows a private Foundry account does not stand alone: its
+> capability host depends on a **BYO trio** (Storage + Cosmos DB + AI Search),
+> all private, plus Key Vault for secrets and App Insights for telemetry. The
+> user instruction is explicit: *"ensure 006 Foundry is defaulted to private
+> endpoint with the supporting services also added as a dependency for Foundry
+> private endpoint like storage, search, cosmosdb, azure key vault and
+> application insights."* FR-041 makes the Foundry account private by default;
+> FR-042 makes the **supporting services a first-class dependency of the private
+> Foundry account** so a private Foundry can never silently sit alongside a
+> public dependency.
+
+- **FR-042 — Foundry private dependency bundle (engine).** When an `aifoundry`
+  is selected **and** its private endpoint is enabled (the FR-041 default), the
+  stack MUST enforce that every **supporting service that is also selected** is
+  private:
+  1. **Dependency set.** The supporting services are `storage`, `cosmosdb`,
+     `search`, `keyvault`, and the Foundry App Insights telemetry (FR-028).
+     `cosmosdb` is always private (FR-032) and `app_insights` follows FR-041 §2;
+     `storage`, `search`, and `keyvault` MUST have their resolved PE toggle
+     `true` (which they do under the FR-041 master default).
+  2. **Hard-fail guard.** A root-stack `check
+     "aifoundry_private_requires_private_deps"` hard-fails at plan time if a
+     private `aifoundry` is selected while any **selected** supporting service
+     (`storage` / `search` / `keyvault`) has its resolved private-endpoint toggle
+     `false`, listing each offending public dependency. (Unselected supporting
+     services are not forced into existence — the guard only fires on services
+     the operator actually selected; provisioning the full BYO trio is the
+     instance's selection choice, mirroring FR-033's injection prereq check.)
+  3. **Telemetry dependency on.** Under the FR-041 master,
+     `enable_aifoundry_application_insights` resolves `true`, so a private
+     Foundry account always lands its trace/telemetry in the hub Log Analytics
+     privately (FR-028), with `internet_ingestion/query` disabled per FR-041 §2.
+  4. **Day-one parity.** With `private_by_default = false` (or the Foundry PE
+     toggle explicitly `false`), the guard does **not** fire and behaviour is
+     byte-for-byte the pre-FR-042 state — the dependency bundle is strictly a
+     property of the *private* Foundry path.
+
+### Clarifications — Session 2026-06-02 (FR-042)
+
+- **C-053 — Guard, not auto-provision.** FR-042 does **not** silently create
+  Storage/Cosmos/Search/Key Vault the operator didn't select (that would violate
+  Principle II intent-only inputs and could surprise-bill). It enforces that any
+  supporting service the operator **does** select alongside a private Foundry is
+  itself private. The recommended full BYO selection lives in the `103`
+  instance's tfvars (its own pipeline); the engine guarantees consistency.
+- **C-054 — Key Vault is a supporting dependency, not an injection
+  prerequisite.** FR-040/C-047 established Key Vault is NOT required for
+  Hosted-Agent network injection. FR-042 adds Key Vault to the *private
+  dependency* set (for secret storage / connections) so that **if** a Key Vault
+  is selected with a private Foundry it is private too — it does not make Key
+  Vault mandatory for Foundry.
+- **C-055 — Cosmos + App Insights already satisfy the guard.** `cosmosdb` is
+  hardcoded private (FR-032) and the Foundry App Insights telemetry is
+  master-driven (FR-041 §2 / FR-028), so the only services the FR-042 guard can
+  flag are `storage`, `search`, and `keyvault` — each of which the FR-041 master
+  already flips private by default. In the shipped default the guard is
+  satisfied automatically; it exists to catch a *deliberate* public override of
+  a Foundry dependency.
+
+### Validation criteria (FR-042)
+
+- **VC-17 — Consistent private bundle passes.** `private_by_default = true` +
+  `aifoundry` + `storage` + `cosmosdb` + `search` + `keyvault` selected plans
+  clean (all private, guard satisfied).
+- **VC-18 — Public dependency hard-fails.** `private_by_default = true` +
+  `aifoundry` + `storage` with `enable_storage_private_endpoint = false`
+  hard-fails at plan time naming `storage` as a public Foundry dependency.
+- **VC-19 — Day-one parity.** `private_by_default = false` + the same selection
+  plans clean with no guard firing (pre-FR-042 behaviour).
+
+### Out of scope for FR-042
+
+Auto-provisioning unselected supporting services (rejected — C-053); the BYO
+RBAC role assignments + Cosmos RU/s floor (still deferred — C-047); the capability
+-host / network-injection wiring (FR-033/FR-040 own that, default-off); and all
+`103` instance tfvars selection (the instance's own pipeline).

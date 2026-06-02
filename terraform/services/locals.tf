@@ -99,3 +99,16 @@ locals {
     ]),
   )
 }
+
+# FR-041 / FR-042 (Amendment 2026-06-03) — per-type selection helpers. Used by
+# the private-by-default resolution (data.vnetdns.tf) to gate each PE toggle on
+# the relevant service actually being selected, and by the Foundry
+# private-endpoint dependency guard (check.tf) to enumerate selected supporting
+# services. Mirrors the existing local.cosmosdb_selected (data.vnetdns.tf).
+locals {
+  aifoundry_selected = length([for s in var.services : s if s.type == "aifoundry"]) > 0
+  registry_selected  = length([for s in var.services : s if s.type == "container_registry"]) > 0
+  storage_selected   = length([for s in var.services : s if s.type == "storage"]) > 0
+  search_selected    = length([for s in var.services : s if s.type == "search"]) > 0
+  keyvault_selected  = length([for s in var.services : s if s.type == "keyvault"]) > 0
+}

@@ -104,6 +104,13 @@ variable "application_insights_enabled" {
   default     = false
 }
 
+# ----- C-051 (Amendment 2026-06-03) — telemetry public-access surface (FR-041 §2) -----
+variable "telemetry_internet_access_enabled" {
+  description = "C-051 / FR-041 §2: when false, set internet_ingestion_enabled = false and internet_query_enabled = false on the Foundry-tracing Application Insights component (the supported 'public access disabled' surface — App Insights has no classic private endpoint; full privacy is AMPLS, a tracked follow-up). Default true preserves day-one behaviour. The services stack drives this from var.private_by_default. Only meaningful when application_insights_enabled = true."
+  type        = bool
+  default     = true
+}
+
 # ----- C-022..C-026 / FR-031 (Amendment 2026-06-02) — Hosted-Agent network injection -----
 variable "network_injection_enabled" {
   description = "FR-031 / C-022: when true, the Foundry account is created with Hosted-Agent network injection (properties.networkInjections scenario=agent bound to var.agent_subnet_id), three BYO account connections (Storage/Cosmos/Search), and an Agents capabilityHosts child. Injection is settable ONLY at account creation (VC-1) — flipping this on an existing account requires an operator-approved recreate. Default false preserves the post-FR-028 day-one behaviour (no networkInjections, no connections, no capability host)."

@@ -74,6 +74,16 @@ module "keyvault" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  # C-050 (Amendment 2026-06-03) — private endpoint (FR-041). Resolved from the
+  # private-by-default master (local.keyvault_pe_required): when on, the vault
+  # gets public network access disabled (network_acls Deny / AzureServices
+  # bypass) and a PE (subresource 'vault') into the spoke VNet + the hub
+  # privatelink.vaultcore.azure.net zone. Inert defaults (false / null / [])
+  # when off.
+  private_endpoint_enabled   = local.keyvault_pe_required
+  private_endpoint_subnet_id = local.keyvault_pe_subnet_id
+  private_dns_zone_ids       = local.keyvault_pe_zone_ids
 }
 
 module "storage" {
@@ -91,12 +101,12 @@ module "storage" {
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
 
-  # C-035 (Amendment 2026-06-02) — opt-in private endpoint (FR-034). Inputs
-  # resolve to inert defaults (false / null / []) unless
-  # enable_storage_private_endpoint is set, preserving day-one behaviour
-  # (public network access, no PE). Required so a Foundry Hosted-Agent BYO
-  # thread/file store stays private (FR-033).
-  private_endpoint_enabled   = var.enable_storage_private_endpoint
+  # C-035 (Amendment 2026-06-02) — private endpoint (FR-034). Resolved from the
+  # private-by-default master (local.storage_pe_required, FR-041): inert
+  # defaults (false / null / []) only when public is explicitly chosen.
+  # Required so a Foundry Hosted-Agent BYO thread/file store stays private
+  # (FR-033).
+  private_endpoint_enabled   = local.storage_pe_required
   private_endpoint_subnet_id = local.storage_pe_subnet_id
   private_dns_zone_ids       = local.storage_pe_zone_ids
 }
@@ -127,6 +137,11 @@ module "log_analytics" {
   # value derived from the canonical name so two reorder-equivalent inputs
   # produce identical wrapper invocations.
   workspace_key = "central"
+
+  # C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2). Under
+  # private-by-default the selectable Log Analytics workspace disables internet
+  # ingestion/query (no classic PE; AMPLS is the tracked follow-up).
+  internet_access_enabled = !var.private_by_default
 }
 # C-014 (Amendment 2026-05-31) — log_analytics wrapper is EXEMPT from
 # shared-LA diagnostic wiring: the wrapper IS the sink (a workspace cannot
@@ -147,6 +162,11 @@ module "app_insights" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  # C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2). Under
+  # private-by-default the selectable App Insights disables internet
+  # ingestion/query (no classic PE; AMPLS is the tracked follow-up).
+  internet_access_enabled = !var.private_by_default
 }
 
 module "container_registry" {
@@ -164,11 +184,11 @@ module "container_registry" {
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
 
-  # C-020 (Amendment 2026-06-01) — opt-in private endpoint (FR-029). Inputs
-  # resolve to inert defaults (false / null / []) unless
-  # enable_container_registry_private_endpoint is set, preserving day-one
-  # behaviour (Standard SKU, public access, no PE).
-  private_endpoint_enabled   = var.enable_container_registry_private_endpoint
+  # C-020 (Amendment 2026-06-01) — private endpoint (FR-029). Resolved from the
+  # private-by-default master (local.acr_pe_required, FR-041): when on the
+  # registry is Premium with public access disabled + a PE; inert defaults
+  # (false / null / []) only when public is explicitly chosen.
+  private_endpoint_enabled   = local.acr_pe_required
   private_endpoint_subnet_id = local.acr_pe_subnet_id
   private_dns_zone_ids       = local.acr_pe_zone_ids
 }
@@ -259,12 +279,11 @@ module "search" {
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
 
-  # C-039 (Amendment 2026-06-02) — opt-in private endpoint (FR-035). Inputs
-  # resolve to inert defaults (false / null / []) unless
-  # enable_search_private_endpoint is set, preserving day-one behaviour
-  # (public network access, no PE). Required so a Foundry Hosted-Agent BYO
-  # vector store stays private (FR-033).
-  private_endpoint_enabled   = var.enable_search_private_endpoint
+  # C-039 (Amendment 2026-06-02) — private endpoint (FR-035). Resolved from the
+  # private-by-default master (local.search_pe_required, FR-041): inert
+  # defaults (false / null / []) only when public is explicitly chosen.
+  # Required so a Foundry Hosted-Agent BYO vector store stays private (FR-033).
+  private_endpoint_enabled   = local.search_pe_required
   private_endpoint_subnet_id = local.search_pe_subnet_id
   private_dns_zone_ids       = local.search_pe_zone_ids
 }
@@ -302,17 +321,22 @@ module "aifoundry" {
   # C-017 (Amendment 2026-05-30) — the Cognitive Services Foundry account
   # manages its own storage/secrets; sibling KV/SA wiring removed.
 
-  # C-018 (Amendment 2026-05-31) — opt-in account private endpoint (FR-027).
-  # All three inputs resolve to inert defaults (false / null / []) unless
-  # enable_aifoundry_private_endpoint is set, preserving day-one behaviour.
-  private_endpoint_enabled   = var.enable_aifoundry_private_endpoint
+  # C-018 (Amendment 2026-05-31) — account private endpoint (FR-027). Resolved
+  # from the private-by-default master (local.aifoundry_pe_required, FR-041):
+  # inert defaults (false / null / []) only when public is explicitly chosen.
+  private_endpoint_enabled   = local.aifoundry_pe_required
   private_endpoint_subnet_id = local.pe_subnet_id
   private_dns_zone_ids       = local.pe_zone_ids
 
-  # C-019 (Amendment 2026-06-01) — opt-in App Insights tracing (FR-028). The
-  # hub LA id is already supplied via shared_log_analytics_workspace_id above;
-  # default false preserves day-one behaviour.
-  application_insights_enabled = var.enable_aifoundry_application_insights
+  # C-019 (Amendment 2026-06-01) — App Insights tracing (FR-028). Resolved from
+  # the private-by-default master (local.appinsights_enabled, FR-041). The hub
+  # LA id is already supplied via shared_log_analytics_workspace_id above.
+  application_insights_enabled = local.appinsights_enabled
+
+  # C-051 (Amendment 2026-06-03) — telemetry public-access surface (FR-041 §2).
+  # Under private-by-default the Foundry-tracing App Insights disables internet
+  # ingestion/query (no classic PE; AMPLS is the tracked follow-up).
+  telemetry_internet_access_enabled = !var.private_by_default
 
   # C-031 (Amendment 2026-06-02) — opt-in Hosted-Agent network injection
   # (FR-033). Default false leaves all four inputs inert (false / null), so the

@@ -1,6 +1,7 @@
-# C-020 / FR-029 — enabling the ACR private endpoint without a
-# `container_registry` selection hard-fails at plan time via
-# check.acr_pe_requires_registry.
+# VC-13 / FR-041 — explicit per-service OFF wins over the master.
+# private_by_default = true, but enable_storage_private_endpoint = false is set
+# explicitly. coalesce(false, true) => false, so storage_pe_required is FALSE
+# even though the master is on. The other selected services still resolve true.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -11,12 +12,13 @@ variables {
   usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "openai" },
+    { type = "storage" },
+    { type = "search" },
   ]
-  overrides                                  = {}
-  private_by_default                         = false
-  enable_container_registry_private_endpoint = true
-  private_endpoint_subnet_role               = "development"
+  overrides                       = {}
+  private_by_default              = true
+  enable_storage_private_endpoint = false
+  private_endpoint_subnet_role    = "development"
   vnet_state_backend = {
     resource_group_name  = "rg-tfs-shd-hub-npd-swc-001"
     storage_account_name = "sttfsshdhubnpdswc001"
@@ -72,7 +74,6 @@ override_data {
   target = data.terraform_remote_state.vnet[0]
   values = {
     outputs = {
-      vnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net-uc1-sp01-npd-swc-001/providers/Microsoft.Network/virtualNetworks/vnet-uc1-sp01-npd-swc-001"
       subnets = {
         development = {
           id             = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net-uc1-sp01-npd-swc-001/providers/Microsoft.Network/virtualNetworks/vnet-uc1-sp01-npd-swc-001/subnets/snet-dev-uc1-sp01-npd-swc-001"
@@ -89,15 +90,22 @@ override_data {
   values = {
     outputs = {
       zone_ids = {
-        acr = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.azurecr.io"
+        search = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net"
+        blob   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-dns-shd-hub-prd-swc-001/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"
       }
     }
   }
 }
 
-run "rejects_acr_pe_without_registry" {
+run "explicit_off_wins" {
   command = plan
-  expect_failures = [
-    check.acr_pe_requires_registry,
-  ]
+
+  assert {
+    condition     = local.storage_pe_required == false
+    error_message = "VC-13: explicit enable_storage_private_endpoint = false must win over the master (coalesce(false, true) => false)."
+  }
+  assert {
+    condition     = local.search_pe_required
+    error_message = "VC-13: search (no explicit flag) must still resolve true from the master."
+  }
 }

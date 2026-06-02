@@ -1,17 +1,20 @@
-# C-013 (Amendment 2026-05-31) — happy path: apim on a hub stack plans cleanly.
-# Mirrors reject_apim_spoke.tftest.hcl with topology=hub / tenant=hub so the
-# C-013 guards stay quiescent and the wrapper instantiates normally.
+# VC-19 / FR-042 — master OFF: the Foundry private-deps guard does NOT fire.
+# private_by_default = false makes Foundry public (no PE), so the FR-042 guard
+# (which only applies when the Foundry account is private) is inert even though
+# the supporting storage service is also public. Plan proceeds — parity with
+# pre-FR-041 behaviour.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
-  topology        = "hub"
-  tenant          = "hub"
+  topology        = "spoke"
+  tenant          = "sp01"
   environment     = "dev"
-  region          = "uks"
-  usecase         = "shd"
+  region          = "swc"
+  usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "apim" }
+    { type = "aifoundry" },
+    { type = "storage" },
   ]
   overrides          = {}
   private_by_default = false
@@ -54,16 +57,11 @@ override_data {
   }
 }
 
-run "apim_on_hub_plans_cleanly" {
+run "master_off_guard_inert" {
   command = plan
 
   assert {
-    condition     = length(keys(module.apim)) == 1
-    error_message = "happy_apim_hub: expected exactly one apim wrapper instance, got ${length(keys(module.apim))}."
-  }
-
-  assert {
-    condition     = output.shared_la_workspace_id == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-log-shd-hub-npd-swc-001/providers/Microsoft.OperationalInsights/workspaces/log-shd-shd-hub-npd-swc-001"
-    error_message = "happy_apim_hub: shared_la_workspace_id output did not resolve to the mocked terraform_remote_state value (C-014 wiring broken)."
+    condition     = local.aifoundry_pe_required == false
+    error_message = "VC-19: Foundry must be public (no PE) under master off, so the FR-042 guard is inert."
   }
 }

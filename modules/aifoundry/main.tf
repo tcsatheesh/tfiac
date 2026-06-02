@@ -134,6 +134,11 @@ resource "azurerm_application_insights" "tracing" {
   resource_group_name = var.resource_group_name
   tags                = var.tags
   application_type    = local.config.application_insights_application_type
+  # C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2). Disabled
+  # internet ingestion/query when the services stack runs private-by-default
+  # (App Insights has no classic PE; AMPLS is the tracked follow-up).
+  internet_ingestion_enabled = var.telemetry_internet_access_enabled
+  internet_query_enabled     = var.telemetry_internet_access_enabled
   # Workspace-based mode: anchor at the SHARED hub LA (the always-required,
   # already-validated C-014 workspace id) so telemetry routes to the hub LA.
   workspace_id = var.shared_log_analytics_workspace_id

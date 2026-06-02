@@ -59,3 +59,10 @@ variable "daily_quota_gb" {
     error_message = "daily_quota_gb must be -1 (unlimited) or a positive integer; got ${var.daily_quota_gb}."
   }
 }
+
+# ----- C-051 (Amendment 2026-06-03) — public-access surface (FR-041 §2) -----
+variable "internet_access_enabled" {
+  description = "C-051 / FR-041 §2: when false, set internet ingestion + query to disabled on the Log Analytics workspace (the supported 'public access disabled' surface for this RP — Log Analytics has no classic private endpoint; full privacy is AMPLS, a tracked follow-up). Default true preserves day-one behaviour (and keeps the shared hub LA deployed by terraform/log/ unchanged). The services stack drives this from var.private_by_default for the selectable log_analytics type."
+  type        = bool
+  default     = true
+}

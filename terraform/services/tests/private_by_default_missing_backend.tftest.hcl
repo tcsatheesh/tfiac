@@ -1,20 +1,23 @@
-# C-013 (Amendment 2026-05-31) — happy path: apim on a hub stack plans cleanly.
-# Mirrors reject_apim_spoke.tftest.hcl with topology=hub / tenant=hub so the
-# C-013 guards stay quiescent and the wrapper instantiates normally.
+# VC-15 / FR-041 — master ON with a PE-capable service but missing remote-state
+# backends hard-fails at plan time. private_by_default = true selects a storage
+# service (PE-capable) but supplies neither vnet_state_backend nor
+# dns_state_backend, so the variable-level requirement AND the
+# check.private_by_default_requires_backends guard fire.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
-  topology        = "hub"
-  tenant          = "hub"
+  topology        = "spoke"
+  tenant          = "sp01"
   environment     = "dev"
-  region          = "uks"
-  usecase         = "shd"
+  region          = "swc"
+  usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "apim" }
+    { type = "storage" },
   ]
   overrides          = {}
-  private_by_default = false
+  private_by_default = true
+  # vnet_state_backend / dns_state_backend intentionally omitted.
 }
 
 mock_provider "azurerm" {
@@ -54,16 +57,30 @@ override_data {
   }
 }
 
-run "apim_on_hub_plans_cleanly" {
+# Bypass the remote-state reads (the backends are intentionally null) so the
+# variable-level requirement is what surfaces as the catchable failure rather
+# than a raw backend "empty containerName" load error.
+override_data {
+  target = data.terraform_remote_state.vnet[0]
+  values = {
+    outputs = {
+      subnets = {}
+    }
+  }
+}
+
+override_data {
+  target = data.terraform_remote_state.dns[0]
+  values = {
+    outputs = {
+      zone_ids = {}
+    }
+  }
+}
+
+run "master_on_missing_backend_fails" {
   command = plan
-
-  assert {
-    condition     = length(keys(module.apim)) == 1
-    error_message = "happy_apim_hub: expected exactly one apim wrapper instance, got ${length(keys(module.apim))}."
-  }
-
-  assert {
-    condition     = output.shared_la_workspace_id == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-log-shd-hub-npd-swc-001/providers/Microsoft.OperationalInsights/workspaces/log-shd-shd-hub-npd-swc-001"
-    error_message = "happy_apim_hub: shared_la_workspace_id output did not resolve to the mocked terraform_remote_state value (C-014 wiring broken)."
-  }
+  expect_failures = [
+    var.dns_state_backend,
+  ]
 }
