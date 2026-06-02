@@ -929,7 +929,7 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 
 ### FR-041.H — Rollout
 
-- [ ] T-FR041-024 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only; live effect lands on the next `103` `services` plan via the `deploy` workflow (never a local apply). (FR-041)
+- [x] T-FR041-024 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only; live effect lands on the next `103` `services` plan via the `deploy` workflow (never a local apply). (FR-041)
 
 ---
 
