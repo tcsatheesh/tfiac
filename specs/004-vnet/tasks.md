@@ -434,3 +434,43 @@ firewall UDR.
 - [ ] T-FR229-019 Rollout SP01 (after hub teardown) via `deploy` workflow:
   confirm spoke `udr-defaultroute` removed + workload subnets lose RT
   association once hub firewall IP resolves null. (C31 / Rollout)
+
+## Phase FR-230 — Optional spoke NAT gateway egress
+
+- [x] T-FR230-001 In [modules/network/locals.tf](../../modules/network/locals.tf):
+  add `nat_gateway_active = var.role == "hub" ? var.enable_hub_nat_gateway :
+  var.enable_spoke_nat_gateway`; move the two NAT naming intents
+  (`public_ip` purpose `nat`, `nat_gateway`) out of the hub-only branch of
+  `local.engine_services` into the unconditional section so names exist for both
+  roles. (FR-230 / C36 / C37)
+- [x] T-FR230-002 In [modules/network/variables.tf](../../modules/network/variables.tf):
+  add `variable "enable_spoke_nat_gateway"` (bool, default `false`, ignored on
+  hub). (FR-230 / C33 / C39)
+- [x] T-FR230-003 In [modules/network/main.tf](../../modules/network/main.tf):
+  change `module.nat` `count` to `local.nat_gateway_active ? 1 : 0`; change the
+  subnet `nat_gateway` association predicate to `local.nat_gateway_active &&
+  local.role_catalogue[r].needs_route_table ? { id = module.nat[0].resource_id }
+  : null`. (FR-230 / C34 / C36)
+- [x] T-FR230-004 In [modules/network/outputs.tf](../../modules/network/outputs.tf):
+  update `subnet_nat_attached` to use `local.nat_gateway_active` (role-agnostic);
+  `nat_gateway_id` already role-agnostic (no change). (FR-230 / C36)
+- [x] T-FR230-005 In [terraform/vnet/variables.tf](../../terraform/vnet/variables.tf):
+  add `variable "enable_spoke_nat_gateway"` (bool, default `false`). (FR-230)
+- [x] T-FR230-006 In [terraform/vnet/main.tf](../../terraform/vnet/main.tf):
+  pass `enable_spoke_nat_gateway = var.enable_spoke_nat_gateway` to
+  `module.network`. (`nat_gateway_id` passthrough already exists.) (FR-230)
+- [x] T-FR230-007 In [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json):
+  add `"enable_spoke_nat_gateway": false` (explicit parity, sp01 stays no-egress).
+  (FR-230 / C38)
+- [x] T-FR230-008 [P] Add tests:
+  [modules/network/tests/optional_nat_gateway_spoke.tftest.hcl](../../modules/network/tests/optional_nat_gateway_spoke.tftest.hcl)
+  (run1 egress post-teardown, run2 coexistence, run3 default-off),
+  [terraform/vnet/tests/optional_nat_gateway_spoke.tftest.hcl](../../terraform/vnet/tests/optional_nat_gateway_spoke.tftest.hcl)
+  (default-off null + enabled wiring). (FR-230 / IV)
+- [x] T-FR230-009 `terraform fmt -recursive` → no changes. (X)
+- [x] T-FR230-010 `terraform -chdir=modules/naming test` → 100% pass (US6 parity,
+  no catalogue change). (IV / X)
+- [x] T-FR230-011 `terraform -chdir=modules/network test` → 100% pass. (IV / X)
+- [x] T-FR230-012 `terraform -chdir=terraform/vnet test` → 100% pass. (IV / X)
+- [ ] T-FR230-013 Push branch, open PR against master, squash-merge, delete
+  branch. (X)

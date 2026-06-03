@@ -874,3 +874,149 @@ Spoke egress redesign (C31 — none), removing/replacing the firewall in the sam
 apply (C30 — two separate phases), NAT gateway diagnostic settings / idle-timeout
 tuning (defaults are used), multiple NAT gateways or NAT on non-egress subnets
 (C27), and live applies (handled by the `deploy` workflow, hub only).
+
+## Amendment: Optional spoke NAT gateway egress (FR-230)
+
+**Status**: Amendment — appended to feature 004 (engine). Generalises the
+FR-229 NAT-gateway capability to the `spoke` role so a spoke can own a local,
+independent internet-egress path. Engine change: adds ONE new selectable toggle
+(`enable_spoke_nat_gateway`, default `false` = day-one parity, nothing created)
+and, when enabled on a spoke, associates a single Standard NAT gateway with
+exactly the spoke workload subnets that need egress. No existing role, name, or
+default behaviour changes when the toggle is left at its default. **No naming
+catalogue change** — the `nat_gateway` type and the `pip-nat` purpose were
+already added to the catalogue by FR-229; the canonical names are already
+tenant-parameterised, so a spoke automatically gets
+`ng-net-<usecase>-<tenant>-<env>-<region>-001` /
+`pip-nat-<usecase>-<tenant>-<env>-<region>-001` (e.g.
+`ng-net-shd-sp01-npd-swc-001`). FR-230 is therefore a pure 004-engine amendment
+(NOT a 001 amendment).
+
+### Background
+
+A NAT gateway is **not transitive over VNet peering**: a NAT gateway can only be
+associated with subnets in the *same* VNet. A spoke therefore cannot egress via
+the hub's NAT gateway (`ng-net-shd-hub-...`) the way it previously egressed via
+the hub *firewall* (a routable appliance reachable over peering through a
+`0.0.0.0/0 → <firewall IP>` UDR). Once the hub firewall is torn down
+(FR-227/FR-228), a spoke whose `udr-defaultroute` is removed (FR-228/C25) has
+**no internet egress at all** — which is the accepted post-teardown posture for
+`sp01` today (it does not currently need outbound). When a spoke *does* need
+egress in future, the correct, decoupled answer (the alternatives — turning the
+CI build server into an IP-forwarding NVA, or trying to share the hub NAT
+gateway over peering — are explicitly rejected: the former couples spoke
+connectivity to a build agent's lifecycle and opens a forwarding/SNAT security
+pivot, the latter is impossible because NAT gateway is not transitive) is to
+give the spoke its **own** NAT gateway in its own VNet. FR-230 makes that a
+single tfvars toggle so it "just works" when flipped to `true` and rolled out.
+
+### Requirements
+
+- **FR-230 — `enable_spoke_nat_gateway` toggle + subnet association.** The
+  network engine (`modules/network/` and the `terraform/vnet/` stack) MUST
+  expose a new boolean input `enable_spoke_nat_gateway`, default `false`. When
+  `role = "spoke"` and the toggle is `true`, the engine MUST create exactly ONE
+  Standard SKU NAT gateway plus exactly ONE Standard SKU zone-redundant static
+  public IP **in the spoke's own VNet/RG**, named via the naming engine
+  (`ng-net-<…tenant…>-001` / `pip-nat-<…tenant…>-001`), and MUST associate that
+  NAT gateway with every spoke workload subnet whose role has
+  `needs_route_table = true` (today on `sp01`: `development`, `pre-production`,
+  `function-app`, `logic-app`, `preprod-func`, `preprod-logic` — and NOT
+  `container-apps`/`agents`, which are `needs_route_table = false`). When the
+  toggle is `false` (default), the engine MUST NOT create the NAT gateway or its
+  PIP, and NO spoke subnet carries a `nat_gateway` association — byte-for-byte
+  the pre-amendment behaviour. The toggle is **ignored when `role = "hub"`** (the
+  hub uses `enable_hub_nat_gateway`); the two toggles are mutually
+  role-exclusive and never both apply in one deployment.
+
+  The NAT gateway association and any spoke firewall UDR are designed to
+  **coexist** exactly as on the hub (FR-229/C30): associating the NAT gateway
+  does NOT remove or alter the spoke's shared route table, its `udr-defaultroute`
+  entry, or any subnet's route-table association. While the hub firewall is
+  present and the spoke still routes `0.0.0.0/0 → <hub firewall IP>`, that UDR
+  wins on routing precedence and the spoke NAT gateway sits dormant; the moment
+  the firewall route is gone (post-teardown, `firewall_private_ip == null`), the
+  spoke subnets fall through to the already-associated spoke NAT gateway with no
+  egress interruption.
+
+### Clarifications — Session 2026-06-03 (resolved autonomously)
+
+- **C33 — Default is parity (default-off).** `enable_spoke_nat_gateway` defaults
+  to `false` so existing spokes and all module/stack tests are unchanged until an
+  instance opts in. Mirrors FR-229/C26 for the hub.
+- **C34 — Spoke NAT targets exactly the `needs_route_table` workload subnets.**
+  The spoke NAT gateway associates with the same subnet set the spoke shared
+  route table attaches to (`local.rt_attach_roles` = roles with
+  `needs_route_table = true`). Those are precisely the subnets that egress via
+  the (hub-firewall) default route today, so they are precisely the subnets that
+  need a local alternate egress path. `container-apps` and `agents`
+  (`needs_route_table = false`) do NOT get a NAT association (they manage their
+  own egress / must not carry one). Symmetric with FR-229/C27.
+- **C35 — Single Standard NAT gateway + single Standard zone-redundant static
+  PIP.** Identical sizing/SKU/zoning policy to the hub NAT gateway (FR-229/C28):
+  one regional (non-zonal) NAT gateway, one zone-redundant
+  (`zones = ["1","2","3"]`) Standard static PIP, no `FirstPartyUsage` ip_tag
+  (customer PIP). One NAT gateway is sufficient for all spoke workload subnets in
+  the one spoke VNet.
+- **C36 — Engine generalisation, not duplication.** Rather than a second NAT
+  module, the existing `module.nat` count and the subnet `nat_gateway`
+  association are generalised behind a single role-agnostic predicate
+  `local.nat_gateway_active` (`role == "hub" ? enable_hub_nat_gateway :
+  enable_spoke_nat_gateway`). The NAT naming intents (`public_ip` purpose `nat` +
+  `nat_gateway`) move from the hub-only branch of `local.engine_services` to be
+  emitted UNCONDITIONALLY (both roles), so the names exist in
+  `module.naming.names` for hub and spoke regardless of toggle — only the
+  *resources* are toggle-gated. This keeps the US6 catalogue-completeness test
+  and `check-naming-catalogue.sh` parity green (no catalogue change) and the
+  names stable across toggles. `output.nat_gateway_id` and
+  `output.subnet_nat_attached` are updated to use `local.nat_gateway_active` so
+  they report correctly for both roles.
+- **C37 — No new naming catalogue rows; NOT a 001 amendment.** FR-229 already
+  added the `nat_gateway` top-level type and the `pip-nat` purpose to the
+  catalogue (feature 001). Because the canonical names are tenant-parameterised,
+  the spoke names fall out for free. FR-230 touches ONLY feature 004; it does NOT
+  amend feature 001.
+- **C38 — Spoke instance application (sp01 stays off).** For `sp01` the toggle is
+  set to `false` now (explicit, in `variables/sp01/npd/vnet.tfvars.json`),
+  preserving its current no-egress posture. Turning egress on later is a pure
+  instance change: set `"enable_spoke_nat_gateway": true` in the sp01 tfvars and
+  roll out via the `deploy` workflow (plan → apply). With the hub firewall
+  already gone, the plan is purely additive (1 NAT gateway + 1 PIP + N subnet NAT
+  associations, no route/firewall churn) and egress begins immediately on apply —
+  "magically works".
+- **C39 — Mutual role-exclusivity, no hard cross-toggle validation.** Mirroring
+  the existing `enable_hub_*` toggles (which are documented as "ignored when
+  `role = spoke`" with no hard validation), `enable_spoke_nat_gateway` is simply
+  ignored when `role = "hub"`. Each role honours only its own NAT toggle via
+  `local.nat_gateway_active`, so the two can never both create a NAT gateway in a
+  single deployment; no additional validation rule is required.
+
+### Test plan (amendment)
+
+- `modules/network/tests/optional_nat_gateway_spoke.tftest.hcl` — a spoke plan
+  with `enable_spoke_nat_gateway = true`:
+  - **Run 1 (post-teardown egress, `hub_firewall_private_ip = null`):** asserts
+    `output.subnet_nat_attached` is `true` for every `needs_route_table` spoke
+    workload role (`development`, `pre-production`, `function-app`, `logic-app`,
+    `preprod-func`, `preprod-logic`) and `false` for a non-egress role; and that
+    `output.route_table_active == false` (no firewall route post-teardown) — i.e.
+    the spoke now egresses solely via its NAT gateway.
+  - **Run 2 (coexistence, `hub_firewall_private_ip` set):** asserts
+    `output.route_table_active == true` AND
+    `output.subnet_nat_attached["development"] == true` simultaneously (NAT
+    associated but dormant behind the firewall UDR).
+  - **Run 3 (default, toggle unset ⇒ false):** asserts `output.nat_gateway_id ==
+    null` and every `output.subnet_nat_attached` entry is `false` (parity /
+    nothing created).
+- `terraform/vnet/tests/optional_nat_gateway_spoke.tftest.hcl` — root-stack spoke
+  plan: with the toggle off (default) asserts `output.nat_gateway_id == null`
+  (the enabled path's resource id is only known post-apply, exercised by the
+  module test). A second run forwards `enable_spoke_nat_gateway = true` and
+  asserts the plan succeeds (end-to-end wiring).
+
+### Out of scope for FR-230
+
+Turning sp01 egress on (C38 — instance change, sp01 stays `false` here), spoke
+NAT diagnostic settings / idle-timeout tuning (defaults), multiple NAT gateways
+or NAT on non-egress subnets (C34), any hub behaviour change (FR-229 is
+untouched), and live applies (handled by the `deploy` workflow).

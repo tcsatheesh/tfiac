@@ -144,6 +144,12 @@ variable "enable_hub_nat_gateway" {
   default     = false
 }
 
+variable "enable_spoke_nat_gateway" {
+  description = "When role=spoke, deploy a Standard NAT gateway (+ its zone-redundant Standard static PIP) in the spoke's own VNet/RG and associate it with the spoke workload subnets that need egress (development, pre-production, function-app, logic-app, preprod-func, preprod-logic) (FR-230). Defaults to false (nothing created) for day-one parity. A NAT gateway is not transitive over peering, so a spoke needing internet egress must own one; flip to true + roll out and egress 'just works'. Ignored when role=hub."
+  type        = bool
+  default     = false
+}
+
 variable "hub_state_override" {
   description = "TEST-ONLY: synthesize hub remote-state outputs without contacting the backend. When non-null, the root stack skips data.terraform_remote_state.hub and uses these values directly. Production tfvars MUST leave this null."
   type = object({

@@ -119,6 +119,12 @@ variable "enable_hub_nat_gateway" {
   default     = false
 }
 
+variable "enable_spoke_nat_gateway" {
+  description = "When role=spoke, deploy a Standard NAT gateway (+ its zone-redundant Standard static PIP) IN THE SPOKE'S OWN VNET/RG and associate it with the spoke workload subnets that have needs_route_table=true (development, pre-production, function-app, logic-app, preprod-func, preprod-logic) (FR-230). Defaults to false (nothing created) for day-one parity. A NAT gateway is not transitive over peering, so a spoke that needs internet egress must own one; while the hub firewall UDR is still present it wins on routing precedence and this NAT gateway sits dormant, taking over the moment that route is gone. Ignored when role=hub (the hub uses enable_hub_nat_gateway)."
+  type        = bool
+  default     = false
+}
+
 variable "hub_subscription_id" {
   description = "Hub subscription id (spoke only). Required for the peering submodule's hub-side provider."
   type        = string

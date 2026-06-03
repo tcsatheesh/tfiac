@@ -133,6 +133,16 @@ locals {
     : var.hub_firewall_private_ip != null
   )
 
+  # ----- NAT gateway activation (FR-229 hub / FR-230 spoke) -----
+  # Role-agnostic predicate: each role honours only its own NAT toggle, so the
+  # two can never both create a NAT gateway in a single deployment (C39). Used
+  # for the module count, the subnet association, and the outputs.
+  nat_gateway_active = (
+    var.role == "hub"
+    ? var.enable_hub_nat_gateway
+    : var.enable_spoke_nat_gateway
+  )
+
   # ----- Engine intent -----
   engine_services = concat(
     [{ service_type = "resource_group", key = "rg", stack_purpose = "net" }],
@@ -145,14 +155,20 @@ locals {
         service_purpose = local.role_catalogue[r].abbr3
       }
     ],
+    # FR-229/FR-230 NAT gateway egress names — emitted UNCONDITIONALLY for both
+    # roles (like the hub firewall/bastion PIP names), so the names exist in
+    # module.naming.names regardless of role or toggle; only the *resources* are
+    # toggle-gated (C36). The canonical names are tenant-parameterised, so the
+    # hub gets ng-net-...-hub-... and a spoke gets ng-net-...-spXY-... for free
+    # (no naming-catalogue change — C37).
+    [
+      { service_type = "public_ip", key = "nat", service_purpose = "nat" },
+      { service_type = "nat_gateway", key = "nat", service_purpose = "net" },
+    ],
     var.role == "hub" ? [
       { service_type = "public_ip", key = "bas", service_purpose = "bas" },
       { service_type = "public_ip", key = "afw", service_purpose = "afw" },
       { service_type = "public_ip", key = "afm", service_purpose = "afm" },
-      # FR-229 NAT gateway egress (names emitted unconditionally on hub, like the
-      # firewall/bastion PIP names; only the resources are toggle-gated).
-      { service_type = "public_ip", key = "nat", service_purpose = "nat" },
-      { service_type = "nat_gateway", key = "nat", service_purpose = "net" },
     ] : [],
   )
 

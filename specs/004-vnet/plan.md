@@ -998,3 +998,66 @@ catalogue (also amends feature 001).
   confirm firewall + policy + 2 PIPs + `udr-defaultroute` destroyed, RT retained,
   subnets fall through to NAT, then `apply=true`. Verify continuous egress.
 Never local apply; never open the tfstate SA firewall.
+
+## Plan — Amendment FR-230 (optional spoke NAT gateway egress)
+
+**Spec**: [spec.md#amendment-optional-spoke-nat-gateway-egress-fr-230](spec.md) |
+**Status**: draft → implementation on branch `004-vnet-spoke-nat-gateway`
+
+**Goal.** Generalise the FR-229 hub NAT-gateway capability to `role = "spoke"`
+behind a new default-off toggle `enable_spoke_nat_gateway`, so a spoke can own a
+local, independent egress path. `sp01` ships with the toggle explicitly `false`
+(current no-egress posture preserved); flipping it to `true` later + rolling out
+is all that is needed for spoke egress to "just work".
+
+**Design (engine generalisation, no duplication — C36).**
+1. `modules/network/locals.tf`: introduce role-agnostic predicate
+   `nat_gateway_active = var.role == "hub" ? var.enable_hub_nat_gateway :
+   var.enable_spoke_nat_gateway`. Move the two NAT naming intents
+   (`public_ip` purpose `nat`, `nat_gateway`) out of the hub-only branch of
+   `local.engine_services` into the UNCONDITIONAL section so the names exist for
+   both roles (only resources are gated).
+2. `modules/network/main.tf`: change `module.nat` `count` to
+   `local.nat_gateway_active ? 1 : 0`; change the subnet `nat_gateway`
+   association predicate to `local.nat_gateway_active &&
+   local.role_catalogue[r].needs_route_table`.
+3. `modules/network/variables.tf`: add `variable "enable_spoke_nat_gateway"`
+   (bool, default `false`, ignored on hub).
+4. `modules/network/outputs.tf`: `nat_gateway_id` (already
+   `length(module.nat) > 0 ? … : null` — role-agnostic, unchanged);
+   `subnet_nat_attached` updated to use `local.nat_gateway_active` instead of the
+   hub-specific expression.
+5. `terraform/vnet/variables.tf` + `main.tf`: add + forward
+   `enable_spoke_nat_gateway` to `module.network`. (`nat_gateway_id` passthrough
+   already exists, role-agnostic.)
+6. `variables/sp01/npd/vnet.tfvars.json`: add `"enable_spoke_nat_gateway":
+   false` (explicit parity; instance feature `103`/`102` territory but set here
+   as the documented day-one default for the existing spoke).
+
+**Constitution gate review (FR-230).**
+
+| Gate | Result | Notes |
+|---|---|---|
+| I. Subscription pin | PASS | No change. |
+| II. Naming engine | PASS | NO catalogue change — `nat_gateway`/`pip-nat` already added by FR-229; names tenant-parameterised → spoke names free (C37). US6 parity untouched. |
+| III. Defence-in-depth validation | PASS | `bool` type; NAT only created on the matching role via `nat_gateway_active`; no NAT on non-egress subnets (C34). |
+| IV. Tests for every code path | PASS | New spoke tests: NAT-on post-teardown (egress), NAT-on coexistence (dormant behind firewall UDR), NAT-off (nothing created, null output), root-stack wiring. |
+| V. Runtime configurable | PASS | `enable_spoke_nat_gateway` wired through both boundaries; default `false` preserves behaviour. |
+| VII. State path | PASS | Backend unchanged; `module.nat` address reused (was already hub-conditional) → enabling on a spoke is purely additive, no state move. |
+| IX. AVM pins | PASS | Reuses existing `Azure/avm-res-network-natgateway/azurerm ~> 0.3` pin. |
+| X. fmt + test | PASS pre-merge | naming + network + vnet suites GREEN before merge. |
+
+**Verification (plan-level, mocked, `-backend=false`).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=modules/naming test` → 100% pass (US6 parity, no catalogue change).
+- `terraform -chdir=modules/network test` → 100% pass (existing + new spoke test).
+- `terraform -chdir=terraform/vnet test` → 100% pass (existing + new spoke test).
+
+**Rollout (live, GitHub `deploy` workflow ONLY).** None for this engine PR (the
+engine default is off and sp01 ships `false` = no behaviour change). Turning sp01
+egress on later is a separate instance change: set
+`"enable_spoke_nat_gateway": true` in `variables/sp01/npd/vnet.tfvars.json`, then
+`gh workflow run deploy.yaml -f service=vnet -f tenant=sp01 -f environment=npd -f
+action=apply -f apply=false` (confirm additive: 1 NAT gateway + 1 PIP + N subnet
+associations) → `apply=true`. Never local apply; never open the tfstate SA
+firewall.
