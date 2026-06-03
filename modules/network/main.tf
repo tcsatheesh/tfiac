@@ -63,12 +63,13 @@ module "vnet" {
         : null
       )
 
-      # FR-229: associate the hub NAT gateway with workload subnets that need
-      # egress (needs_route_table). Coexists with the firewall UDR (the UDR
-      # wins on routing precedence until removed). Gated on the toggle so
-      # module.nat[0] is never indexed when the list is empty.
+      # FR-229 (hub) / FR-230 (spoke): associate the NAT gateway with workload
+      # subnets that need egress (needs_route_table). Coexists with the firewall
+      # UDR (the UDR wins on routing precedence until removed). Gated on the
+      # role-agnostic predicate so module.nat[0] is never indexed when the list
+      # is empty.
       nat_gateway = (
-        var.role == "hub" && var.enable_hub_nat_gateway && local.role_catalogue[r].needs_route_table
+        local.nat_gateway_active && local.role_catalogue[r].needs_route_table
         ? { id = module.nat[0].resource_id }
         : null
       )
@@ -171,15 +172,17 @@ module "firewall" {
   firewall_sku_tier   = var.firewall_sku_tier
 }
 
-# ----- NAT gateway (hub only; FR-229) -----
+# ----- NAT gateway (hub: FR-229 / spoke: FR-230) -----
 # Standard, non-zonal (regional) NAT gateway with a single zone-redundant
 # Standard static PIP (self-created by the AVM module via public_ips). Provides
 # a firewall-independent egress path for the workload subnets it is associated
-# with (see the subnets map above). Default off (var.enable_hub_nat_gateway).
+# with (see the subnets map above), in whichever VNet/RG this module deploys
+# (the hub's or a spoke's). Default off; gated on local.nat_gateway_active
+# (= enable_hub_nat_gateway on the hub, enable_spoke_nat_gateway on a spoke).
 module "nat" {
   source  = "Azure/avm-res-network-natgateway/azurerm"
   version = "~> 0.3"
-  count   = var.role == "hub" && var.enable_hub_nat_gateway ? 1 : 0
+  count   = local.nat_gateway_active ? 1 : 0
 
   name             = local.natgw_canonical_name
   location         = local.region_full
