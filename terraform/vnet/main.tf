@@ -39,7 +39,11 @@ locals {
         vnet_id             = data.terraform_remote_state.hub[0].outputs.vnet_id
         vnet_name           = data.terraform_remote_state.hub[0].outputs.vnet_name
         resource_group_name = data.terraform_remote_state.hub[0].outputs.resource_group_name
-        firewall_private_ip = data.terraform_remote_state.hub[0].outputs.firewall_private_ip
+        # The hub's firewall_private_ip output is null once the hub firewall is
+        # torn down (FR-227), and Terraform omits null outputs from remote state
+        # entirely. Tolerate its absence so the spoke can still plan/apply (it
+        # then drops its dead default route, FR-228).
+        firewall_private_ip = try(data.terraform_remote_state.hub[0].outputs.firewall_private_ip, null)
       }
     )
   )
