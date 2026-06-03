@@ -149,6 +149,10 @@ locals {
       { service_type = "public_ip", key = "bas", service_purpose = "bas" },
       { service_type = "public_ip", key = "afw", service_purpose = "afw" },
       { service_type = "public_ip", key = "afm", service_purpose = "afm" },
+      # FR-229 NAT gateway egress (names emitted unconditionally on hub, like the
+      # firewall/bastion PIP names; only the resources are toggle-gated).
+      { service_type = "public_ip", key = "nat", service_purpose = "nat" },
+      { service_type = "nat_gateway", key = "nat", service_purpose = "net" },
     ] : [],
   )
 
@@ -202,10 +206,17 @@ locals {
   bastion_canonical_name  = format("bas-%s", local.vnet_parent_tuple)
   firewall_canonical_name = format("afw-%s", local.vnet_parent_tuple)
 
+  # FR-229 NAT gateway canonical name (hyphenated `ng` shape, purpose "net").
+  natgw_canonical_name = format(
+    "ng-net-%s-%s-%s-%s-001",
+    var.input.usecase, var.input.tenant, var.input.environment, var.input.region,
+  )
+
   pip_canonical_names = {
     bas = format("pip-bas-%s-%s-%s-%s-001", var.input.usecase, var.input.tenant, var.input.environment, var.input.region)
     afw = format("pip-afw-%s-%s-%s-%s-001", var.input.usecase, var.input.tenant, var.input.environment, var.input.region)
     afm = format("pip-afm-%s-%s-%s-%s-001", var.input.usecase, var.input.tenant, var.input.environment, var.input.region)
+    nat = format("pip-nat-%s-%s-%s-%s-001", var.input.usecase, var.input.tenant, var.input.environment, var.input.region)
   }
 
   # Subnet canonical names per role (child_purpose shape).

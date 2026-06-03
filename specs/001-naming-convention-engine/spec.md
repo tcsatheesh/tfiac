@@ -38,6 +38,7 @@ concatenated services use none.
 | `nsg`                    | `nsg`     | hyphenated    | `nsg-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
 | `route_table`            | `rt`      | hyphenated    | `rt-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
 | `public_ip`              | `pip`     | hyphenated    | `pip-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
+| `nat_gateway`            | `ng`      | hyphenated    | `ng-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 80 |
 | `log_analytics`          | `log`     | hyphenated    | `log-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 63 |
 | `app_insights`           | `appi`    | hyphenated    | `appi-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 260 |
 | `storage`                | `st`      | concatenated  | `st{p}{usecase}{tenant}{environment}{region}{instance}`       | 24 |

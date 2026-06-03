@@ -58,6 +58,7 @@ module "network" {
   firewall_sku_tier        = var.firewall_sku_tier
   enable_hub_default_route = var.enable_hub_default_route
   enable_hub_firewall      = var.enable_hub_firewall
+  enable_hub_nat_gateway   = var.enable_hub_nat_gateway
 
   hub_vnet_id             = var.role == "spoke" ? local.hub_outputs.vnet_id : null
   hub_firewall_private_ip = var.role == "spoke" ? local.hub_outputs.firewall_private_ip : null

@@ -368,3 +368,69 @@ in [plan.md](plan.md).
   `gh workflow run deploy.yaml -f service=vnet -f tenant=sp01 -f environment=npd -f action=apply -f apply=true`;
   watch to completion; confirm spoke `udr-defaultroute` removed + workload
   subnets lose RT association. (Rollout)
+
+## Phase FR-229 — optional hub NAT gateway egress (engine + naming 001)
+
+Goal: give the firewall-dependent hub workload subnets an alternate,
+firewall-independent egress path (NAT gateway) so the firewall (FR-227/FR-228)
+can be torn down with zero egress gap. Default OFF (parity). Coexists with the
+firewall UDR.
+
+- [x] T-FR229-001 Add `nat_gateway` row to
+  [modules/naming/catalogue/services.tf](../../modules/naming/catalogue/services.tf):
+  `"nat_gateway" = { abbr = "ng", shape = "hyphenated", azure_max = 80, level = "top" }`.
+  (FR-229 / C29)
+- [x] T-FR229-002 Add `nat_gateway` to BOTH setsubtract lists (top-level 28→29)
+  in [modules/naming/tests/us6_catalogue_completeness.tftest.hcl](../../modules/naming/tests/us6_catalogue_completeness.tftest.hcl)
+  and update the `# Top-level (28)` comment to `(29)`. (FR-229 / C29)
+- [x] T-FR229-003 Add `nat_gateway` to the Naming Pattern Table (Top-level
+  resources) in [specs/001-naming-convention-engine/spec.md](../001-naming-convention-engine/spec.md)
+  with an Amendment note. (FR-229 / C29)
+- [x] T-FR229-004 Add `variable "enable_hub_nat_gateway"` (bool, default
+  `false`, hub-only docstring) to
+  [modules/network/variables.tf](../../modules/network/variables.tf). (FR-229 / C26)
+- [x] T-FR229-005 In [modules/network/locals.tf](../../modules/network/locals.tf):
+  add `natgw_canonical_name` (`ng-net-…-001`) and `pip_canonical_names.nat`
+  (`pip-nat-…-001`); add the NAT PIP (`public_ip`, key `nat`, purpose `nat`) and
+  the `nat_gateway` (key `nat`, purpose `net`) to the hub branch of
+  `local.engine_services` (unconditional, like the firewall PIP names). (FR-229 / C28 / C29)
+- [x] T-FR229-006 In [modules/network/main.tf](../../modules/network/main.tf):
+  add `module.nat` (`Azure/avm-res-network-natgateway/azurerm ~> 0.3`,
+  `count = var.role == "hub" && var.enable_hub_nat_gateway ? 1 : 0`,
+  Standard SKU, zone-redundant PIP via `public_ips`/`public_ip_configuration`);
+  add `nat_gateway` key to the `module.vnet` subnets map
+  (`role == "hub" && enable_hub_nat_gateway && needs_route_table ? { id = module.nat[0].resource_id } : null`).
+  (FR-229 / C27 / C28)
+- [x] T-FR229-007 In [modules/network/outputs.tf](../../modules/network/outputs.tf):
+  add `nat_gateway_id` (`length(module.nat) > 0 ? module.nat[0].resource_id : null`)
+  and `subnet_nat_attached` (map role => `needs_route_table && role == hub-context
+  enabled`). (FR-229)
+- [x] T-FR229-008 In [terraform/vnet/variables.tf](../../terraform/vnet/variables.tf):
+  add `variable "enable_hub_nat_gateway"` (bool, default `false`). (FR-229)
+- [x] T-FR229-009 In [terraform/vnet/main.tf](../../terraform/vnet/main.tf):
+  pass `enable_hub_nat_gateway = var.enable_hub_nat_gateway` to `module.network`. (FR-229)
+- [x] T-FR229-010 In [terraform/vnet/outputs.tf](../../terraform/vnet/outputs.tf):
+  add `nat_gateway_id` passthrough. (FR-229)
+- [x] T-FR229-011 [P] Add tests:
+  [modules/network/tests/optional_nat_gateway_hub.tftest.hcl](../../modules/network/tests/optional_nat_gateway_hub.tftest.hcl),
+  [terraform/vnet/tests/optional_nat_gateway_hub.tftest.hcl](../../terraform/vnet/tests/optional_nat_gateway_hub.tftest.hcl).
+  (FR-229 / IV)
+- [x] T-FR229-012 `terraform fmt -recursive` → no changes. (X)
+- [x] T-FR229-013 `terraform -chdir=modules/naming test` → 100% pass (US6 parity). (IV / X)
+- [x] T-FR229-014 `terraform -chdir=modules/network test` → 100% pass. (IV / X)
+- [x] T-FR229-015 `terraform -chdir=terraform/vnet test` → 100% pass. (IV / X)
+- [ ] T-FR229-016 Push branch, open PR against master, squash-merge, delete branch. (X)
+- [ ] T-FR229-017 Rollout HUB Phase 1 (additive) via `deploy` workflow: set
+  `"enable_hub_nat_gateway": true` in
+  [variables/hub/npd/vnet.tfvars.json](../../variables/hub/npd/vnet.tfvars.json)
+  (separate PR); plan-only (`apply=false`) to confirm purely additive (1 NAT
+  gateway + 1 PIP + 3 subnet NAT associations, NO route/firewall churn), then
+  `apply=true`. Verify runner online + NAT provisioned. (C30 / C32 / Rollout)
+- [ ] T-FR229-018 Rollout HUB Phase 2 (teardown) via `deploy` workflow: set
+  `"enable_hub_firewall": false` (FR-227); plan-only to confirm firewall +
+  policy + 2 PIPs + `udr-defaultroute` destroyed, RT retained, subnets fall
+  through to NAT, then `apply=true`. Verify continuous egress, runner online,
+  firewall gone. (C30 / Rollout)
+- [ ] T-FR229-019 Rollout SP01 (after hub teardown) via `deploy` workflow:
+  confirm spoke `udr-defaultroute` removed + workload subnets lose RT
+  association once hub firewall IP resolves null. (C31 / Rollout)

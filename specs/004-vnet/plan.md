@@ -910,3 +910,91 @@ the workload subnets lose their `route_table` association (in-place subnet
 update); the RT resource itself persists with an empty `routes` map. Sp01: the
 spoke RT's `udr-defaultroute` route is removed and its workload subnets lose the
 RT association once the hub firewall IP resolves `null` from remote state.
+
+---
+
+## Amendment 2026-06-03 — FR-229 optional hub NAT gateway egress (engine)
+
+**Scope.** Add one boolean engine toggle `enable_hub_nat_gateway` (default
+`false` = parity, nothing created). When `role = "hub"` and the toggle is `true`,
+create exactly one Standard NAT gateway + one Standard static (zone-redundant)
+public IP and associate the NAT gateway with the hub workload subnets that have
+`needs_route_table = true` (`development`, `pre-production`, `buildsvr`). This
+gives the firewall-dependent CI runner an alternate, firewall-independent egress
+path so the hub firewall (FR-227/FR-228) can be torn down with zero egress gap.
+The NAT association coexists with the firewall UDR (the UDR wins on routing
+precedence until removed). Adds a new `nat_gateway` top-level type to the naming
+catalogue (also amends feature 001).
+
+**Approach.**
+- New engine var `enable_hub_nat_gateway` (bool, default `false`, hub-only).
+- New AVM module call `module.nat`
+  (`Azure/avm-res-network-natgateway/azurerm ~> 0.3`),
+  `count = role == "hub" && enable_hub_nat_gateway ? 1 : 0`. It self-creates its
+  PIP via `public_ips` + `public_ip_configuration` (Standard SKU, zone-redundant
+  PIP, non-zonal regional NAT gateway). Named via the engine: NAT gateway
+  `ng-net-…-001`, PIP `pip-nat-…-001`.
+- Subnet map in `module.vnet` gains a `nat_gateway` key:
+  `role == "hub" && enable_hub_nat_gateway && needs_route_table ? { id =
+  module.nat[0].resource_id } : null`. Created BEFORE/independently of the vnet
+  module via `module.rg` (NAT gateway only needs the RG); `module.vnet` references
+  `module.nat[0].resource_id`.
+- Naming additions: catalogue `nat_gateway` = `{ abbr = "ng", shape =
+  "hyphenated", azure_max = 80, level = "top" }`; reuse `public_ip` for the NAT
+  PIP (`service_purpose = "nat"`). Add to spec 001 Naming Pattern Table, the
+  catalogue completeness test list (top-level 28→29), and the engine intent
+  (`local.engine_services` hub branch, unconditional, like the firewall PIP
+  names).
+- New outputs: `nat_gateway_id` (`length(module.nat) > 0 ? … : null`);
+  `subnet_nat_attached` (map role => `needs_route_table && hub &&
+  enable_hub_nat_gateway`).
+
+**Files touched.**
+- `modules/naming/catalogue/services.tf` — new `nat_gateway` row.
+- `modules/naming/tests/us6_catalogue_completeness.tftest.hcl` — add
+  `nat_gateway` (top-level 28→29) to both setsubtract lists.
+- `specs/001-naming-convention-engine/spec.md` — add `nat_gateway` to the Naming
+  Pattern Table (Amendment note).
+- `modules/network/variables.tf` — new `enable_hub_nat_gateway` var.
+- `modules/network/locals.tf` — NAT canonical names (`natgw_canonical_name`,
+  `pip_canonical_names.nat`); add NAT PIP + `nat_gateway` to hub `engine_services`.
+- `modules/network/main.tf` — `module.nat` (count-gated); subnet `nat_gateway`
+  association.
+- `modules/network/outputs.tf` — `nat_gateway_id`, `subnet_nat_attached`.
+- `terraform/vnet/variables.tf` — `enable_hub_nat_gateway` var.
+- `terraform/vnet/main.tf` — pass `enable_hub_nat_gateway` to `module.network`.
+- `terraform/vnet/outputs.tf` — `nat_gateway_id` passthrough.
+- Tests: `modules/network/tests/optional_nat_gateway_hub.tftest.hcl`,
+  `terraform/vnet/tests/optional_nat_gateway_hub.tftest.hcl`.
+- `variables/hub/npd/vnet.tfvars.json` — `"enable_hub_nat_gateway": true`
+  (separate Phase-1 rollout PR; C32).
+
+**Constitution gate review.**
+
+| Gate | Result | Notes |
+|---|---|---|
+| I. Subscription pin | PASS | No change to `check.subscription_match`. |
+| II. Naming engine | PASS | New `nat_gateway` type added to the catalogue + spec 001 + completeness test in lock-step (US6 parity preserved). NAT names 100% engine-derived. |
+| III. Defence-in-depth validation | PASS | `bool` type rejects non-bool; NAT only created on `role == "hub"`; no NAT on non-egress subnets (C27). |
+| IV. Tests for every code path | PASS | New tests cover NAT-on (created + correct subnet set + firewall coexistence) and NAT-off (nothing created, null output) on module + root stack. |
+| V. Runtime configurable | PASS | `enable_hub_nat_gateway` wired through both boundaries; default `false` preserves behaviour. |
+| VII. State path | PASS | Backend unchanged; `module.nat` is additive (new address only when enabled) → no state move of existing resources. |
+| IX. AVM pins | PASS | New AVM pin `Azure/avm-res-network-natgateway/azurerm ~> 0.3`. |
+| X. fmt + test | PASS pre-merge | Both suites + naming suite GREEN before merge. |
+
+**Verification (plan-level, mocked, `-backend=false`).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=modules/naming test` → 100% pass (US6 parity).
+- `terraform -chdir=modules/network test` → 100% pass (existing + new).
+- `terraform -chdir=terraform/vnet test` → 100% pass (existing + new).
+
+**Rollout (live, GitHub `deploy` workflow ONLY) — two phases, hub only.**
+- Phase 1 (additive): set `enable_hub_nat_gateway = true` (firewall still on).
+  `gh workflow run deploy.yaml -f service=vnet -f tenant=hub -f environment=npd
+  -f action=apply -f apply=false` to confirm the plan is purely additive (1 NAT
+  gateway + 1 PIP + 3 subnet NAT associations, NO route/firewall churn), then
+  `apply=true`. Verify runner stays online + NAT provisioned.
+- Phase 2 (teardown): set `enable_hub_firewall = false` (FR-227). Plan-only to
+  confirm firewall + policy + 2 PIPs + `udr-defaultroute` destroyed, RT retained,
+  subnets fall through to NAT, then `apply=true`. Verify continuous egress.
+Never local apply; never open the tfstate SA firewall.
