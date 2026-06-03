@@ -120,6 +120,19 @@ locals {
   nsg_roles       = sort([for r in local.active_roles : r if try(local.role_catalogue[r].needs_nsg, false)])
   rt_attach_roles = sort([for r in local.active_roles : r if try(local.role_catalogue[r].needs_route_table, false)])
 
+  # ----- Route-table activation (FR-228) -----
+  # A workload subnet attaches the shared route table ONLY when a real 0.0.0.0/0
+  # default route actually exists in it. Hub: firewall present AND default route
+  # enabled. Spoke: hub firewall private IP supplied via remote state. When this
+  # is false the route table resource is still created (C22) but carries an
+  # empty routes map and no subnet associates with it ("if the firewall is not
+  # deployed then the route table is not set for the subnet").
+  route_table_active = (
+    var.role == "hub"
+    ? (var.enable_hub_firewall && var.enable_hub_default_route)
+    : var.hub_firewall_private_ip != null
+  )
+
   # ----- Engine intent -----
   engine_services = concat(
     [{ service_type = "resource_group", key = "rg", stack_purpose = "net" }],

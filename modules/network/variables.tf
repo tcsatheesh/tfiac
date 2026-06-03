@@ -107,6 +107,12 @@ variable "enable_hub_default_route" {
   default     = true
 }
 
+variable "enable_hub_firewall" {
+  description = "When role=hub, deploy the in-vnet Azure Firewall (+ policy + the two PIPs) (FR-227). Defaults to true for day-one parity. When false the firewall is NOT created, the firewall-derived outputs resolve null, the hub default route is suppressed, and (per FR-228) no workload subnet attaches the shared route table. Ignored when role=spoke."
+  type        = bool
+  default     = true
+}
+
 variable "hub_subscription_id" {
   description = "Hub subscription id (spoke only). Required for the peering submodule's hub-side provider."
   type        = string

@@ -230,3 +230,19 @@ engine and **no** renumbering of any surviving subnet.
    action=apply`) plans the agent-subnet removal + address-space shrink as
    in-place changes (no destroy/recreate of surviving subnets) and applies
    cleanly — **operator-run via the workflow**.
+
+## Amendment 2026-06-03 — spoke auto-adapts to hub firewall teardown (004 FR-227/FR-228)
+
+The hub firewall is being torn down (see
+[101-hub-npd-vnet](../101-hub-npd-vnet/spec.md) amendment + 004 FR-227). This
+spoke needs **NO tfvars change**: it reads `firewall_private_ip` from the hub
+vnet remote state. Once the hub firewall is gone, that output is `null`, so the
+engine's `route_table_active` (spoke = `hub_firewall_private_ip != null`)
+collapses to `false` and the spoke route table `rt-net-shd-sp01-npd-swc-001`
+retains its resource but drops the `udr-defaultroute` 0.0.0.0/0 entry and no
+workload subnet attaches it.
+
+Rollout ordering is mandatory: apply the **hub** vnet first (so its
+`firewall_private_ip` output is `null` in state), then dispatch the `deploy`
+workflow for this spoke (`service=vnet tenant=sp01 environment=npd
+action=apply`). Engine untouched by this instance.

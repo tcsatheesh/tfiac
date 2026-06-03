@@ -605,3 +605,129 @@ and a separate, dedicated agent subnet without a name/role collision.
 Address-space expansion / CIDR selection (CA-013 #4, the `102` instance), the
 Foundry account wiring that consumes the subnet id (006 FR-031, already
 merged), and any live apply.
+
+## Amendment: Optional hub Azure Firewall (FR-227, FR-228)
+
+**Status**: Amendment — appended to feature 004 (engine). Driven by the
+operational decision to tear down the hub Azure Firewall in `npd` while keeping
+the capability one tfvars flip away. Engine change: adds ONE new selectable
+toggle (`enable_hub_firewall`, default `true` = day-one parity) and makes the
+shared route-table *attachment* conditional on a real default route existing.
+No existing role, name, or default behaviour changes when the toggle is left at
+its default.
+
+### Background
+
+Today the hub always provisions an in-vnet Azure Firewall
+(`module.firewall` is force-created on `role = "hub"`), and every workload
+subnet whose role has `needs_route_table = true` is unconditionally attached to
+the shared hub route table `rt-net-<usecase>-<tenant>-<env>-<region>-001`. The
+spoke likewise attaches its workload subnets to its own route table whose
+`0.0.0.0/0` next-hop is the hub firewall private IP read from hub remote state.
+
+The hub firewall (even Basic SKU) carries a standing hourly cost and two public
+IPs. For the `npd` hub we want to remove it, but the engine must stay able to
+re-introduce it later by flipping a single tfvars key — and while it is absent,
+no subnet may carry a `0.0.0.0/0 → <missing firewall>` route (which would
+black-hole egress).
+
+### Requirements
+
+- **FR-227 — `enable_hub_firewall` toggle.** The network engine
+  (`modules/network/` and the `terraform/vnet/` stack) MUST expose a new
+  boolean input `enable_hub_firewall`, default `true`. When `role = "hub"` and
+  the toggle is `true`, behaviour is byte-for-byte the pre-amendment hub
+  (firewall + policy + two PIPs created; default route honoured per FR-210).
+  When `role = "hub"` and the toggle is `false`, the engine MUST NOT create
+  `module.firewall` (no firewall, no firewall policy, no firewall PIPs), and the
+  hub firewall-derived outputs (`firewall_private_ip`, `firewall_id`,
+  `firewall_pip_ip_tags`) MUST resolve to `null` (guarded by
+  `length(module.firewall) > 0`). The toggle is **ignored when `role =
+  "spoke"`** (a spoke never owns a firewall).
+
+- **FR-228 — No default route ⇒ no subnet route-table attachment.** A workload
+  subnet (`needs_route_table = true`) MUST attach the shared route table **only
+  when a real `0.0.0.0/0` default route is present** in it. Concretely, define
+  the engine-internal predicate `route_table_active`:
+
+  | Role | `route_table_active` |
+  |---|---|
+  | `hub` | `enable_hub_firewall && enable_hub_default_route` |
+  | `spoke` | `hub_firewall_private_ip != null` |
+
+  When `route_table_active` is `false`, NO subnet attaches the shared route
+  table (the subnet's `route_table` association is `null`), exactly mirroring
+  the requirement "if the firewall is not deployed then the route table is not
+  set for the subnet". The route table *resource* itself is still created (its
+  `routes` map is empty), preserving the engine catalogue (C12 / FR-202) and a
+  stable `route_table_id` / `route_table_name` — identical to the established
+  FR-210 / C15.9 opt-out semantics. On the spoke this is automatic: when the hub
+  firewall is torn down, the hub's `firewall_private_ip` output is `null`, so the
+  spoke reads `null` from remote state and `route_table_active` becomes `false`
+  with no instance-side change.
+
+### Clarifications — Session 2026-06-03 (resolved autonomously)
+
+- **C20 — Default is parity (default-on).** `enable_hub_firewall` defaults to
+  `true` so existing hubs and all module tests are unchanged until an instance
+  opts out. Day-one behaviour is preserved (Constitution "defaults preserve
+  existing behaviour").
+- **C21 — Firewall subnets stay reserved-but-empty; VNET-INV-10 is NOT
+  relaxed.** Disabling the firewall removes the firewall *resource*, NOT the
+  `firewall` / `firewall-mgmt` subnet roles. VNET-INV-10 still requires the hub
+  to declare `bastion` + `firewall` + `firewall-mgmt` subnets. Rationale: an
+  empty `AzureFirewallSubnet` / `AzureFirewallManagementSubnet` is free, and
+  keeping them reserved makes re-enabling the firewall a pure toggle flip with
+  zero subnet/CIDR churn (fully reversible). Relaxing a safety invariant to
+  allow dropping the subnets would be a one-way door and is explicitly rejected.
+- **C22 — Route table resource is always created; only attachment + routes
+  react.** `module.rt` is never count-gated. This avoids a Terraform address
+  change (`module.rt` → `module.rt[0]`) and the `moved` block / state-move churn
+  it would force, keeps `route_table_id` / `route_table_name` stable for any
+  consumer, and matches the existing `enable_hub_default_route = false` opt-out
+  (C15.9). The literal requirement ("route table is not set for the subnet") is
+  satisfied by removing the *subnet association*, which FR-228 does.
+- **C23 — Hub default route is suppressed transitively.** When
+  `enable_hub_firewall = false`, the hub `0.0.0.0/0 → module.firewall[0]`
+  route branch MUST be guarded so it never dereferences the empty
+  `module.firewall` list. `route_table_active` (hub) `= enable_hub_firewall &&
+  enable_hub_default_route` collapses to `false` regardless of
+  `enable_hub_default_route`, so the route is simply not emitted.
+- **C24 — Spoke precondition relaxed to firewall-optional.** The wrapper
+  `VNET-INV-spoke` precondition (`modules/network/check.tf`) previously required
+  both `hub_vnet_id != null` AND `hub_firewall_private_ip != null`. It MUST be
+  relaxed to require only `hub_vnet_id != null`; `hub_firewall_private_ip` is now
+  legitimately `null` when the hub firewall is disabled. The root stack's
+  `hub_state_override.firewall_private_ip` becomes `optional(string)` so tests
+  can synthesise a firewall-less hub.
+- **C25 — Instance application (hub teardown, spoke auto-adapts).** The
+  `101-hub-npd-vnet` instance sets `enable_hub_firewall = false` in its tfvars to
+  tear down the hub firewall; it keeps the firewall subnets (C21). The
+  `102-sp01-npd-vnet` instance needs NO tfvars change — its route table simply
+  stops attaching once the hub firewall IP resolves `null`. Rollout order is
+  **hub first, then sp01** (the spoke reads the hub firewall IP from remote
+  state), via the GitHub `deploy` workflow only.
+
+### Test plan (amendment)
+
+- `modules/network/tests/optional_firewall_hub.tftest.hcl` — a hub plan with
+  `enable_hub_firewall = false` asserts (a) `output.firewall_private_ip == null`,
+  `firewall_id == null`, `firewall_pip_ip_tags == null`; (b)
+  `output.route_table_active == false`; (c) every workload role in
+  `output.subnet_route_table_attached` is `false`; (d) `route_table_name` is
+  still the engine canonical (RT resource preserved). A second `run` with the
+  default (`enable_hub_firewall = true`) asserts firewall outputs are non-null,
+  `route_table_active == true`, and a workload subnet attaches (parity).
+- `modules/network/tests/optional_firewall_spoke.tftest.hcl` — a spoke plan
+  with `hub_firewall_private_ip = null` asserts `route_table_active == false`
+  and no workload subnet attaches; a second `run` with a non-null IP asserts the
+  opposite (parity / existing behaviour).
+- `terraform/vnet/tests/optional_firewall_hub.tftest.hcl` — root-stack hub plan
+  with `enable_hub_firewall = false` asserts `output.firewall_private_ip == null`
+  and `route_table_name` stable.
+
+### Out of scope for FR-227/FR-228
+
+Removing the firewall *subnets* (C21 keeps them), any alternative egress design
+(NAT gateway / forced tunnelling), spoke tfvars changes (C25 — none needed), and
+live applies (handled by the `deploy` workflow, hub then sp01).

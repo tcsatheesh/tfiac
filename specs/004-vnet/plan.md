@@ -833,3 +833,80 @@ existing `VNET-INV-5` precondition auto-validates the new role.
 
 **Rollout.** None — engine-only, no instance selects `agents` yet. Lighting it
 up is the `102-sp01-npd-vnet` address-space expansion (CA-013 #4). Merge-only PR.
+
+---
+
+## Amendment 2026-06-03 — FR-227/FR-228 optional hub Azure Firewall (engine)
+
+**Scope.** Add one boolean engine toggle `enable_hub_firewall` (default `true` =
+parity) and make the shared route-table *attachment* conditional on a real
+`0.0.0.0/0` default route existing. When the hub firewall is disabled the
+firewall resource/policy/PIPs are not created, the firewall-derived outputs
+resolve `null`, the hub default route is suppressed, and no workload subnet
+attaches the shared route table. The spoke auto-adapts when the hub firewall IP
+read from remote state is `null`.
+
+**Approach (mirrors the FR-210 / C15.9 opt-out shape).**
+- New engine-internal predicate `route_table_active` (locals): hub =
+  `enable_hub_firewall && enable_hub_default_route`; spoke =
+  `hub_firewall_private_ip != null`.
+- `module.firewall` count becomes `role == "hub" && enable_hub_firewall ? 1 : 0`.
+- The hub `0.0.0.0/0 → module.firewall[0].private_ip` route branch gains the
+  `enable_hub_firewall` guard (so it never indexes an empty list).
+- Subnet `route_table` association becomes
+  `needs_route_table && route_table_active ? { id = module.rt.resource_id } : null`.
+- `module.rt` stays ALWAYS created (C22 — no count, no `moved` block, stable
+  `route_table_id`/`route_table_name`).
+- Firewall outputs guarded with `length(module.firewall) > 0 ? … : null`.
+- `subnet_route_table_attached` output redefined as the EFFECTIVE attachment
+  (`needs_route_table && route_table_active`); new `route_table_active` output
+  added for direct assertion.
+- `VNET-INV-spoke` precondition relaxed to require only `hub_vnet_id != null`
+  (C24); `hub_state_override.firewall_private_ip` → `optional(string)`.
+
+**Files touched.**
+- `modules/network/variables.tf` — new `enable_hub_firewall` var.
+- `modules/network/locals.tf` — `route_table_active` local.
+- `modules/network/main.tf` — firewall count guard, route-branch guard, subnet
+  attachment guard.
+- `modules/network/outputs.tf` — guarded firewall outputs; `route_table_active`
+  output; redefined `subnet_route_table_attached`.
+- `modules/network/check.tf` — relaxed `VNET-INV-spoke`.
+- `terraform/vnet/variables.tf` — `enable_hub_firewall` var; `hub_state_override`
+  firewall IP optional.
+- `terraform/vnet/main.tf` — pass `enable_hub_firewall` to `module.network`.
+- `variables/hub/npd/vnet.tfvars.json` — `"enable_hub_firewall": false` (C25).
+- `variables/sp01/npd/vnet.tfvars.json` — no change (C25, auto-adapts).
+- Tests: `modules/network/tests/optional_firewall_hub.tftest.hcl`,
+  `modules/network/tests/optional_firewall_spoke.tftest.hcl`,
+  `terraform/vnet/tests/optional_firewall_hub.tftest.hcl`.
+
+**Constitution gate review.**
+
+| Gate | Result | Notes |
+|---|---|---|
+| I. Subscription pin | PASS | No change to `check.subscription_match`. |
+| II. Naming engine | PASS | No catalogue change; RT/firewall/PIP names unchanged. |
+| III. Defence-in-depth validation | PASS | `bool` type rejects non-bool; relaxed spoke precondition still enforces `hub_vnet_id`. |
+| IV. Tests for every code path | PASS | New tests cover firewall-on (parity) + firewall-off (no resource, null outputs, no RT attach) on hub and spoke + root stack. |
+| V. Runtime configurable | PASS | `enable_hub_firewall` wired through both boundaries; default preserves behaviour. |
+| VII. State path | PASS | Backend unchanged; `module.rt` not count-gated → no state move. |
+| IX. AVM pins | PASS | No AVM module added/bumped. |
+| X. fmt + test | PASS pre-merge | Both suites GREEN before merge. |
+
+**Verification (plan-level, mocked, `-backend=false`).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=modules/network test` → 100% pass (existing + new).
+- `terraform -chdir=terraform/vnet test` → 100% pass (existing + new).
+
+**Rollout (live, GitHub `deploy` workflow ONLY).** Hub first, then sp01:
+`gh workflow run deploy.yaml -f service=vnet -f tenant=hub -f environment=npd
+-f action=apply -f apply=true`, watch to completion, then `tenant=sp01`. Never
+local apply; never open the tfstate SA firewall.
+
+**Live plan expectation.** Hub: `module.network.module.firewall[0]` (firewall +
+policy + 2 PIPs) and the `udr-defaultroute` entry on `module.rt` are destroyed;
+the workload subnets lose their `route_table` association (in-place subnet
+update); the RT resource itself persists with an empty `routes` map. Sp01: the
+spoke RT's `udr-defaultroute` route is removed and its workload subnets lose the
+RT association once the hub firewall IP resolves `null` from remote state.

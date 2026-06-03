@@ -132,13 +132,19 @@ variable "enable_hub_default_route" {
   default     = true
 }
 
+variable "enable_hub_firewall" {
+  description = "When role=hub, deploy the in-vnet Azure Firewall (+ policy + the two PIPs) (FR-227). Defaults to true for day-one parity. When false the firewall is torn down, the firewall outputs resolve null, the hub default route is suppressed, and no workload subnet attaches the shared route table (FR-228). Ignored when role=spoke."
+  type        = bool
+  default     = true
+}
+
 variable "hub_state_override" {
   description = "TEST-ONLY: synthesize hub remote-state outputs without contacting the backend. When non-null, the root stack skips data.terraform_remote_state.hub and uses these values directly. Production tfvars MUST leave this null."
   type = object({
     vnet_id             = string
     vnet_name           = string
     resource_group_name = string
-    firewall_private_ip = string
+    firewall_private_ip = optional(string)
   })
   default = null
 }
