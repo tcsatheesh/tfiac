@@ -43,6 +43,11 @@ output "firewall_id" {
   value       = module.network.firewall_id
 }
 
+output "nat_gateway_id" {
+  description = "NAT gateway resource id (hub only; null when enable_hub_nat_gateway is false). FR-229."
+  value       = module.network.nat_gateway_id
+}
+
 output "bastion_id" {
   description = "Bastion resource id (hub only)."
   value       = module.network.bastion_id

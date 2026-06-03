@@ -113,6 +113,12 @@ variable "enable_hub_firewall" {
   default     = true
 }
 
+variable "enable_hub_nat_gateway" {
+  description = "When role=hub, deploy a Standard NAT gateway (+ its zone-redundant Standard static PIP) and associate it with the hub workload subnets that have needs_route_table=true (development, pre-production, buildsvr) (FR-229). Defaults to false (nothing created) for day-one parity. Provides a firewall-independent egress path so the hub firewall can be torn down with zero egress gap; the NAT association coexists with the firewall UDR (the UDR wins on routing precedence until removed). Ignored when role=spoke."
+  type        = bool
+  default     = false
+}
+
 variable "hub_subscription_id" {
   description = "Hub subscription id (spoke only). Required for the peering submodule's hub-side provider."
   type        = string

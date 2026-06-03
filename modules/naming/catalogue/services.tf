@@ -21,12 +21,15 @@
 
 locals {
   services = {
-    # ----- Top-level resources (27 rows) -----
-    "resource_group"            = { abbr = "rg", shape = "rg_hyphenated", azure_max = 90, level = "top" }
-    "vnet"                      = { abbr = "vnet", shape = "hyphenated", azure_max = 64, level = "top" }
-    "nsg"                       = { abbr = "nsg", shape = "hyphenated", azure_max = 80, level = "top" }
-    "route_table"               = { abbr = "rt", shape = "hyphenated", azure_max = 80, level = "top" }
-    "public_ip"                 = { abbr = "pip", shape = "hyphenated", azure_max = 80, level = "top" }
+    # ----- Top-level resources (30 rows) -----
+    "resource_group" = { abbr = "rg", shape = "rg_hyphenated", azure_max = 90, level = "top" }
+    "vnet"           = { abbr = "vnet", shape = "hyphenated", azure_max = 64, level = "top" }
+    "nsg"            = { abbr = "nsg", shape = "hyphenated", azure_max = 80, level = "top" }
+    "route_table"    = { abbr = "rt", shape = "hyphenated", azure_max = 80, level = "top" }
+    "public_ip"      = { abbr = "pip", shape = "hyphenated", azure_max = 80, level = "top" }
+    # nat_gateway (Amendment 2026-06-03, FR-229) — Azure NAT Gateway. CAF abbr
+    # `ng`; hyphenated shape. Provides firewall-independent subnet egress.
+    "nat_gateway"               = { abbr = "ng", shape = "hyphenated", azure_max = 80, level = "top" }
     "log_analytics"             = { abbr = "log", shape = "hyphenated", azure_max = 63, level = "top" }
     "app_insights"              = { abbr = "appi", shape = "hyphenated", azure_max = 260, level = "top" }
     "storage"                   = { abbr = "st", shape = "concatenated", azure_max = 24, level = "top" }

@@ -731,3 +731,146 @@ black-hole egress).
 Removing the firewall *subnets* (C21 keeps them), any alternative egress design
 (NAT gateway / forced tunnelling), spoke tfvars changes (C25 — none needed), and
 live applies (handled by the `deploy` workflow, hub then sp01).
+
+## Amendment: Optional hub NAT gateway egress (FR-229)
+
+**Status**: Amendment — appended to feature 004 (engine). Driven by the
+operational requirement to provide an alternate, firewall-independent internet
+egress path for the hub workload subnets *before* the hub Azure Firewall is torn
+down (FR-227/FR-228), so the in-VNet self-hosted CI runner
+(`vm-bld-shd-hub-npd-swc-001`, `buildsvr` subnet) never loses outbound
+connectivity during the teardown. Engine change: adds ONE new selectable toggle
+(`enable_hub_nat_gateway`, default `false` = day-one parity, nothing created)
+and, when enabled, associates a single Standard NAT gateway with exactly the hub
+workload subnets that need egress. No existing role, name, or default behaviour
+changes when the toggle is left at its default.
+
+### Background
+
+Azure retired **default outbound access** for new-style deployments on
+2025-09-30. A VM with no instance public IP, no NAT gateway, and no
+load-balancer outbound rule now has **no implicit internet egress**. The hub
+`buildsvr` subnet (which hosts the self-hosted GitHub Actions runner that runs
+`terraform apply`) currently reaches the internet *only* via the shared hub
+route table's `0.0.0.0/0 → <firewall private IP>` UDR. This was proven the hard
+way: an earlier live attempt to tear the firewall down (which removed
+`udr-defaultroute`) knocked the runner offline mid-apply and required emergency
+recovery. Therefore the firewall is **load-bearing for CI egress** and cannot be
+removed from the firewall-dependent runner without first establishing an
+alternate egress path.
+
+A NAT gateway provides exactly that: an explicit, Microsoft-recommended outbound
+SNAT path that does not depend on the firewall or on the retired default-outbound
+behaviour. Routing precedence makes a seamless, zero-gap cutover possible: a UDR
+`0.0.0.0/0 → VirtualAppliance` (the firewall route) takes **routing precedence
+over** a subnet's NAT gateway association. So while the firewall route exists,
+egress continues through the firewall and the NAT gateway sits dormant; the
+moment the firewall route is removed (teardown), traffic falls through to the
+already-associated NAT gateway with no egress interruption.
+
+### Requirements
+
+- **FR-229 — `enable_hub_nat_gateway` toggle + subnet association.** The network
+  engine (`modules/network/` and the `terraform/vnet/` stack) MUST expose a new
+  boolean input `enable_hub_nat_gateway`, default `false`. When `role = "hub"`
+  and the toggle is `true`, the engine MUST create exactly ONE Standard SKU NAT
+  gateway plus exactly ONE Standard SKU static public IP (named via the naming
+  engine — see naming additions below), and MUST associate that NAT gateway with
+  every hub workload subnet whose role has `needs_route_table = true` (today:
+  `development`, `pre-production`, `buildsvr` — i.e. the exact subnets that
+  currently egress via the firewall route). When the toggle is `false` (default),
+  the engine MUST NOT create the NAT gateway or its PIP, and NO subnet carries a
+  `nat_gateway` association — byte-for-byte the pre-amendment behaviour. The
+  toggle is **ignored when `role = "spoke"`** (a spoke owns no hub egress
+  infrastructure; spokes egress transitively via the hub).
+
+  The NAT gateway association and the firewall UDR are designed to **coexist**:
+  associating the NAT gateway does NOT remove or alter the shared route table,
+  its `udr-defaultroute` entry, or any subnet's route-table association.
+  Enabling the NAT gateway on a hub whose firewall is still present is therefore
+  a purely additive change (the NAT gateway is created and associated but dormant
+  because the firewall UDR wins on routing precedence).
+
+### Clarifications — Session 2026-06-03 (resolved autonomously)
+
+- **C26 — Default is parity (default-off).** `enable_hub_nat_gateway` defaults to
+  `false` so existing hubs and all module tests are unchanged until an instance
+  opts in. Day-one behaviour is preserved (Constitution "defaults preserve
+  existing behaviour"). This mirrors the *opposite* default to
+  `enable_hub_firewall` (which defaults `true`) because a NAT gateway is a NEW
+  optional capability, not existing behaviour.
+- **C27 — NAT targets exactly the `needs_route_table` workload subnets.** The
+  NAT gateway associates with the same subnet set that the shared route table
+  attaches to (`local.rt_attach_roles` = roles with `needs_route_table = true`).
+  Rationale: those are precisely the subnets that today depend on the firewall
+  UDR for egress, so they are precisely the subnets that need an alternate egress
+  path during/after firewall teardown. `AzureFirewallSubnet`,
+  `AzureFirewallManagementSubnet`, `AzureBastionSubnet`, `api-management`,
+  `container-apps`, and `agents` (all `needs_route_table = false`) do NOT get a
+  NAT association — they either need no egress, manage their own, or must not
+  carry a NAT association (Azure forbids NAT on `AzureFirewallSubnet`).
+- **C28 — Single Standard NAT gateway + single Standard static PIP, zone-resilient
+  PIP.** One NAT gateway is sufficient for the hub workload subnets (a NAT gateway
+  may serve up to many subnets in the same vnet). SKU is `Standard` (classic) to
+  match the existing firewall PIP SKU and keep behaviour well-understood. The NAT
+  gateway is **non-zonal (regional)** and its PIP is **zone-redundant**
+  (`zones = ["1","2","3"]`) so a single AZ outage does not remove egress. The
+  PIP does NOT carry the `FirstPartyUsage` ip_tag (that tag is auto-applied by
+  Azure only to first-party-service PIPs such as the firewall/bastion; a NAT
+  gateway PIP is a customer PIP).
+- **C29 — Naming engine additions (engine + 001 amendment).** Adding the NAT
+  gateway introduces a new top-level resource type to the naming catalogue. Per
+  the strict engine/naming rule, this amends BOTH feature 004 (the consuming
+  engine) and feature 001 (the naming engine). Additions: top-level
+  `nat_gateway` → abbr `ng` (CAF), `hyphenated` shape, azure_max 80 (canonical
+  `ng-net-<usecase>-<tenant>-<env>-<region>-001`); the NAT PIP reuses the
+  existing `public_ip` type with `service_purpose = "nat"` (canonical
+  `pip-nat-<usecase>-<tenant>-<env>-<region>-001`). The naming intent is added to
+  the hub branch of `local.engine_services` UNCONDITIONALLY (like the
+  firewall/bastion PIP names), so the names exist in `module.naming.names`
+  regardless of the toggle — only the *resources* are toggle-gated. This keeps
+  the naming-catalogue completeness test (US6) and CI parity script
+  (`check-naming-catalogue.sh`) green and the names stable across toggles.
+- **C30 — Coexistence with firewall; zero-gap two-phase cutover.** The NAT
+  gateway is intentionally additive to (not a replacement for) the firewall route
+  in a single apply. The operational cutover is two phases, both via the GitHub
+  `deploy` workflow, hub-only: **Phase 1** sets `enable_hub_nat_gateway = true`
+  (firewall still enabled) — plan is purely additive (1 NAT gateway + 1 PIP + 3
+  subnet NAT associations, NO route/firewall churn), NAT dormant. **Phase 2**
+  sets `enable_hub_firewall = false` (FR-227) — firewall + policy + 2 PIPs +
+  `udr-defaultroute` destroyed, route table retained (C22), workload subnets fall
+  through to the already-associated NAT gateway. Egress is continuous; the runner
+  stays online throughout.
+- **C31 — Spoke unaffected.** A spoke never sets `enable_hub_nat_gateway` (it is
+  ignored on `role = "spoke"`). Spokes continue to egress transitively via the
+  hub. After the hub firewall teardown (Phase 2), the spoke's route table simply
+  stops attaching (FR-228 / C25) once the hub `firewall_private_ip` resolves
+  `null`; spoke workloads then have no default egress route, which is the
+  intended post-teardown spoke posture (unchanged by this amendment).
+- **C32 — Instance application (hub only).** Turning the NAT gateway on is an
+  instance change to `101-hub-npd-vnet` (set `enable_hub_nat_gateway = true` in
+  `variables/hub/npd/vnet.tfvars.json`). No engine default changes. Rollout is
+  hub-only via the `deploy` workflow; sp01 needs no change for this amendment.
+
+### Test plan (amendment)
+
+- `modules/network/tests/optional_nat_gateway_hub.tftest.hcl` — a hub plan with
+  `enable_hub_nat_gateway = true` asserts (a)
+  `output.nat_gateway_id != null`; (b) `output.subnet_nat_attached` is `true`
+  for every `needs_route_table` workload role (`development`, `pre-production`,
+  `buildsvr`) and `false` for non-egress roles (`api-management`); (c) the
+  firewall and route-table outputs are UNCHANGED versus default (coexistence —
+  `route_table_active == true`, `subnet_route_table_attached["development"] ==
+  true`). A second `run` with the default (`enable_hub_nat_gateway = false`)
+  asserts `output.nat_gateway_id == null` and every entry in
+  `output.subnet_nat_attached` is `false` (parity / nothing created).
+- `terraform/vnet/tests/optional_nat_gateway_hub.tftest.hcl` — root-stack hub
+  plan with `enable_hub_nat_gateway = true` asserts `output.nat_gateway_id !=
+  null`; a second `run` at the default asserts `null`.
+
+### Out of scope for FR-229
+
+Spoke egress redesign (C31 — none), removing/replacing the firewall in the same
+apply (C30 — two separate phases), NAT gateway diagnostic settings / idle-timeout
+tuning (defaults are used), multiple NAT gateways or NAT on non-egress subnets
+(C27), and live applies (handled by the `deploy` workflow, hub only).

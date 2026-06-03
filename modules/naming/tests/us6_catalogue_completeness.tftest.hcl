@@ -27,8 +27,9 @@ run "catalogue_completeness" {
   assert {
     condition = length(setsubtract(
       toset([
-        # Top-level (28)
+        # Top-level (30)
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
+        "nat_gateway",
         "log_analytics", "app_insights", "storage", "keyvault",
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
@@ -44,6 +45,7 @@ run "catalogue_completeness" {
     error_message = "Spec lists service_types missing from catalogue: ${jsonencode(setsubtract(
       toset([
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
+        "nat_gateway",
         "log_analytics", "app_insights", "storage", "keyvault",
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
@@ -62,6 +64,7 @@ run "catalogue_completeness" {
       toset(keys(output.services)),
       toset([
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
+        "nat_gateway",
         "log_analytics", "app_insights", "storage", "keyvault",
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
@@ -76,6 +79,7 @@ run "catalogue_completeness" {
       toset(keys(output.services)),
       toset([
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
+        "nat_gateway",
         "log_analytics", "app_insights", "storage", "keyvault",
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",

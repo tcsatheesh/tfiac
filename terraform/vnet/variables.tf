@@ -138,6 +138,12 @@ variable "enable_hub_firewall" {
   default     = true
 }
 
+variable "enable_hub_nat_gateway" {
+  description = "When role=hub, deploy a Standard NAT gateway (+ its zone-redundant Standard static PIP) and associate it with the hub workload subnets that need egress (development, pre-production, buildsvr) (FR-229). Defaults to false (nothing created) for day-one parity. Provides a firewall-independent egress path so the hub firewall can be torn down with zero egress gap. Ignored when role=spoke."
+  type        = bool
+  default     = false
+}
+
 variable "hub_state_override" {
   description = "TEST-ONLY: synthesize hub remote-state outputs without contacting the backend. When non-null, the root stack skips data.terraform_remote_state.hub and uses these values directly. Production tfvars MUST leave this null."
   type = object({

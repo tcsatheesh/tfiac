@@ -119,3 +119,17 @@ output "route_table_active" {
   description = "Whether the shared route table carries a real 0.0.0.0/0 default route worth attaching to workload subnets (FR-228). Hub: enable_hub_firewall && enable_hub_default_route. Spoke: hub_firewall_private_ip != null."
   value       = local.route_table_active
 }
+
+output "nat_gateway_id" {
+  description = "Hub NAT gateway resource id (FR-229). Null on spoke or when enable_hub_nat_gateway is false."
+  value       = length(module.nat) > 0 ? module.nat[0].resource_id : null
+}
+
+output "subnet_nat_attached" {
+  description = "Map of role => bool indicating whether the subnet EFFECTIVELY associates the hub NAT gateway (FR-229): role=hub AND enable_hub_nat_gateway AND needs_route_table. Exposed for plan-time tests."
+  value = {
+    for r in local.active_roles : r => (
+      var.role == "hub" && var.enable_hub_nat_gateway && local.role_catalogue[r].needs_route_table
+    )
+  }
+}
