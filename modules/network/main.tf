@@ -58,7 +58,7 @@ module "vnet" {
       )
 
       route_table = (
-        local.role_catalogue[r].needs_route_table
+        local.role_catalogue[r].needs_route_table && local.route_table_active
         ? { id = module.rt.resource_id }
         : null
       )
@@ -114,7 +114,7 @@ module "rt" {
         next_hop_in_ip_address = var.hub_firewall_private_ip
       }
     }
-    : var.role == "hub" && var.enable_hub_default_route
+    : var.role == "hub" && var.enable_hub_firewall && var.enable_hub_default_route
     ? {
       to-firewall = {
         name                   = "udr-defaultroute"
@@ -146,7 +146,7 @@ module "bastion" {
 
 module "firewall" {
   source = "./firewall"
-  count  = var.role == "hub" ? 1 : 0
+  count  = var.role == "hub" && var.enable_hub_firewall ? 1 : 0
 
   name                = local.firewall_canonical_name
   location            = local.region_full

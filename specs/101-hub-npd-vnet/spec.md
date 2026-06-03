@@ -71,3 +71,28 @@ the engine via one tfvars file and a backend state key.
 
 - Any engine behaviour change (belongs in [004-vnet](../004-vnet/spec.md)).
 - prd hub vnet (separate future instance feature).
+
+## Amendment 2026-06-03 — tear down the hub Azure Firewall (selects 004 FR-227)
+
+The hub firewall is no longer needed in `npd`. The 004-vnet engine gained an
+`enable_hub_firewall` toggle (FR-227/FR-228, default `true`). This instance
+**selects** that engine capability by setting `"enable_hub_firewall": false` in
+[variables/hub/npd/vnet.tfvars.json](../../variables/hub/npd/vnet.tfvars.json).
+
+Effects on apply (hub):
+- `module.network.module.firewall[0]` (Azure Firewall + Firewall Policy + the
+  two PIPs) is destroyed.
+- The shared hub route table `rt-net-shd-hub-npd-swc-001` is retained but its
+  `udr-defaultroute` 0.0.0.0/0 entry is removed and no workload subnet attaches
+  it (engine `route_table_active` collapses to `false`).
+- The `firewall_private_ip` output becomes `null`, so the sp01 spoke (which
+  reads it from remote state) drops its own default route on its next apply.
+
+The `firewall` / `firewall-mgmt` subnets are **kept** (reserved-but-empty, per
+004 C21) so re-enabling the firewall later is a single tfvars flip with zero
+subnet/CIDR churn. `firewall_sku_tier` (`Basic`) is left in the tfvars but is
+inert while the firewall is disabled.
+
+Rollout: instance-level only (no engine change here beyond selecting the
+toggle). Dispatch the `deploy` workflow `service=vnet tenant=hub environment=npd
+action=apply` — **hub first**, then sp01. Operator-run via the workflow.

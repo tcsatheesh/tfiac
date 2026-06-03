@@ -50,13 +50,16 @@ resource "terraform_data" "assertions" {
       )
     }
 
-    # Spoke role hard requirement: hub_vnet_id + hub_firewall_private_ip must be supplied.
+    # Spoke role hard requirement: hub_vnet_id must be supplied. The hub
+    # firewall private IP is now OPTIONAL (C24/FR-227): it is legitimately null
+    # when the hub firewall is torn down via enable_hub_firewall=false, in which
+    # case the spoke simply does not emit a default route or attach the RT.
     precondition {
       condition = (
         var.role != "spoke"
-        || (var.hub_vnet_id != null && var.hub_firewall_private_ip != null)
+        || var.hub_vnet_id != null
       )
-      error_message = "VNET-INV-spoke: spoke role requires hub_vnet_id and hub_firewall_private_ip to be supplied by the root stack."
+      error_message = "VNET-INV-spoke: spoke role requires hub_vnet_id to be supplied by the root stack."
     }
   }
 }

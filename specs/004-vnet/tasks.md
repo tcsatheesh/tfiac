@@ -316,3 +316,55 @@ in [plan.md](plan.md).
 - [ ] T-FR226-003 `terraform fmt -recursive` → no changes. (FR-226)
 - [ ] T-FR226-004 `terraform -chdir=modules/network test` → 100% pass. (FR-226)
 - [ ] T-FR226-005 Push branch, open PR against master, squash-merge, delete branch. No live apply (engine-only). (FR-226)
+
+---
+
+## Phase FR-227/228 — Optional hub Azure Firewall (engine)
+
+> Branch `004-vnet-optional-firewall`. Amends engine 004. Default-on parity
+> (C20); firewall subnets retained (C21); RT resource always created (C22);
+> spoke precondition relaxed (C24). Dependency chain: T-FR227-001 → -002 → -003
+> → -004 → -005 → -006 → -007 → -008/-008b (tests+tfvars) → -009 (fmt) →
+> -010/-011 (test suites) → -012 (PR/merge) → -013 (rollout hub) → -014
+> (rollout sp01).
+
+- [x] T-FR227-001 Add `variable "enable_hub_firewall"` (bool, default `true`,
+  hub-only docstring) to [modules/network/variables.tf](../../modules/network/variables.tf). (FR-227 / C20)
+- [x] T-FR227-002 Add `route_table_active` local to [modules/network/locals.tf](../../modules/network/locals.tf):
+  hub = `var.enable_hub_firewall && var.enable_hub_default_route`; spoke =
+  `var.hub_firewall_private_ip != null`. (FR-228)
+- [x] T-FR227-003 In [modules/network/main.tf](../../modules/network/main.tf):
+  (a) `module.firewall` count → `var.role == "hub" && var.enable_hub_firewall ? 1 : 0`;
+  (b) gate the hub `routes` branch on `var.enable_hub_firewall` too;
+  (c) subnet `route_table` association → `needs_route_table && local.route_table_active ? { id = module.rt.resource_id } : null`. (FR-227 / FR-228 / C22 / C23)
+- [x] T-FR227-004 In [modules/network/outputs.tf](../../modules/network/outputs.tf):
+  guard `firewall_private_ip` / `firewall_id` / `firewall_pip_ip_tags` with
+  `length(module.firewall) > 0 ? … : null`; redefine `subnet_route_table_attached`
+  as `needs_route_table && local.route_table_active`; add new `route_table_active`
+  output. (FR-227 / FR-228)
+- [x] T-FR227-005 Relax `VNET-INV-spoke` precondition in [modules/network/check.tf](../../modules/network/check.tf)
+  to require only `var.hub_vnet_id != null`. (C24)
+- [x] T-FR227-006 In [terraform/vnet/variables.tf](../../terraform/vnet/variables.tf):
+  add `variable "enable_hub_firewall"` (bool, default `true`); change
+  `hub_state_override.firewall_private_ip` to `optional(string)`. (FR-227 / C24)
+- [x] T-FR227-007 In [terraform/vnet/main.tf](../../terraform/vnet/main.tf): pass
+  `enable_hub_firewall = var.enable_hub_firewall` to `module.network`. (FR-227)
+- [x] T-FR227-008 [P] Add tests:
+  [modules/network/tests/optional_firewall_hub.tftest.hcl](../../modules/network/tests/optional_firewall_hub.tftest.hcl),
+  [modules/network/tests/optional_firewall_spoke.tftest.hcl](../../modules/network/tests/optional_firewall_spoke.tftest.hcl),
+  [terraform/vnet/tests/optional_firewall_hub.tftest.hcl](../../terraform/vnet/tests/optional_firewall_hub.tftest.hcl). (FR-227 / FR-228)
+- [x] T-FR227-008b Set `"enable_hub_firewall": false` in
+  [variables/hub/npd/vnet.tfvars.json](../../variables/hub/npd/vnet.tfvars.json)
+  (teardown); sp01 tfvars unchanged. (C25)
+- [x] T-FR227-009 `terraform fmt -recursive` → no changes. (X)
+- [x] T-FR227-010 `terraform -chdir=modules/network test` → 100% pass. (IV / X)
+- [x] T-FR227-011 `terraform -chdir=terraform/vnet test` → 100% pass. (IV / X)
+- [ ] T-FR227-012 Push branch, open PR against master, squash-merge, delete branch. (X)
+- [ ] T-FR227-013 Rollout HUB via `deploy` workflow:
+  `gh workflow run deploy.yaml -f service=vnet -f tenant=hub -f environment=npd -f action=apply -f apply=true`;
+  watch to completion; confirm firewall + policy + 2 PIPs + `udr-defaultroute`
+  destroyed and RT retained. (Rollout)
+- [ ] T-FR227-014 Rollout SP01 via `deploy` workflow (after hub):
+  `gh workflow run deploy.yaml -f service=vnet -f tenant=sp01 -f environment=npd -f action=apply -f apply=true`;
+  watch to completion; confirm spoke `udr-defaultroute` removed + workload
+  subnets lose RT association. (Rollout)

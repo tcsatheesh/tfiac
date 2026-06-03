@@ -50,13 +50,13 @@ output "route_table_name" {
 }
 
 output "firewall_private_ip" {
-  description = "Hub firewall private IP (null on spoke)."
-  value       = var.role == "hub" ? module.firewall[0].private_ip : null
+  description = "Hub firewall private IP (null on spoke or when the hub firewall is disabled via enable_hub_firewall)."
+  value       = length(module.firewall) > 0 ? module.firewall[0].private_ip : null
 }
 
 output "firewall_id" {
-  description = "Hub firewall resource id (null on spoke)."
-  value       = var.role == "hub" ? module.firewall[0].resource_id : null
+  description = "Hub firewall resource id (null on spoke or when the hub firewall is disabled)."
+  value       = length(module.firewall) > 0 ? module.firewall[0].resource_id : null
 }
 
 output "bastion_id" {
@@ -65,8 +65,8 @@ output "bastion_id" {
 }
 
 output "firewall_pip_ip_tags" {
-  description = "First-party ip_tags applied to the hub firewall PIPs (null on spoke). FR-223 / C16.14; exposed for plan-time tests."
-  value       = var.role == "hub" ? module.firewall[0].pip_ip_tags : null
+  description = "First-party ip_tags applied to the hub firewall PIPs (null on spoke or when the hub firewall is disabled). FR-223 / C16.14; exposed for plan-time tests."
+  value       = length(module.firewall) > 0 ? module.firewall[0].pip_ip_tags : null
 }
 
 output "bastion_pip_ip_tags" {
@@ -109,8 +109,13 @@ output "subnet_delegations" {
 }
 
 output "subnet_route_table_attached" {
-  description = "Map of role => bool indicating whether the subnet attaches the shared route table (needs_route_table). Exposed so plan-time tests can assert FR-226: the `agents` (and `container-apps`) role does NOT attach the shared spoke default route."
+  description = "Map of role => bool indicating whether the subnet EFFECTIVELY attaches the shared route table (needs_route_table AND route_table_active). Exposed so plan-time tests can assert FR-226 (`agents`/`container-apps` never attach) and FR-228 (no subnet attaches when no default route exists)."
   value = {
-    for r in local.active_roles : r => local.role_catalogue[r].needs_route_table
+    for r in local.active_roles : r => local.role_catalogue[r].needs_route_table && local.route_table_active
   }
+}
+
+output "route_table_active" {
+  description = "Whether the shared route table carries a real 0.0.0.0/0 default route worth attaching to workload subnets (FR-228). Hub: enable_hub_firewall && enable_hub_default_route. Spoke: hub_firewall_private_ip != null."
+  value       = local.route_table_active
 }
