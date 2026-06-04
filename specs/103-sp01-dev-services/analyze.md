@@ -70,3 +70,16 @@ recreate is operator-run.**
 
 **Result (FR-103-06): no outstanding BLOCKER/MAJOR. Ready to merge; live
 destroy is workflow-run.**
+
+## Amendment addendum — FR-103-07 fix stale ACR-PE "Pinned selection" (doc consistency)
+
+| ID | Severity | Finding | Resolution |
+|----|----------|---------|------------|
+| A18 | MAJOR | The "Pinned selection" overview said `enable_container_registry_private_endpoint: true`, contradicting VC-7 + the live tfvars (`false`). Which is authoritative? | RESOLVED: `false` is authoritative. VC-7 (FR-103-05) is the resolved decision and the tfvars already say `false`. The overview line was stale (predated VC-7). Fixed to `false` + VC-7 xref. (C-103-07) |
+| A19 | BLOCKER | Should we instead flip the tfvars to `true` to honour the private-by-default mandate? | RESOLVED: NO. Microsoft's network-secured Standard Agent limitation states the Hosted-agent ACR "can't currently be placed behind a private network … must be reachable over its public endpoint for the platform to pull the image." Flipping to `true` would BREAK the agent. `false` is the documented VC-7 exception to the mandate. (C-103-07) |
+| A20 | MAJOR | Does this require a tfvars or engine change? | RESOLVED: NO. Documentation-only fix; the deployed `false` is already correct. Only `specs/103-*` changes. `10n` ⇏ `00n` honoured. (C-103-08) |
+| A21 | MINOR | Private-by-default mandate compliance — is leaving ACR public defensible? | RESOLVED: YES. The mandate explicitly exempts services that "genuinely cannot use a private endpoint", with the reason called out. ACR-for-Hosted-Agent is exactly that case (VC-7), and the reason is recorded (Microsoft platform limitation; registry holds no customer data; CI-pushed images). |
+| A22 | INFO | After the fix: overview, VC-7, and tfvars all report `false`. | Consistent. |
+| A23 | INFO | No code/tfvars change ⇒ no new tests; existing engine + services tests unaffected; `fmt` clean; no CI edit; no rollout. | Consistent. |
+
+**FR-103-07 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement (documentation-only; no rollout).**
