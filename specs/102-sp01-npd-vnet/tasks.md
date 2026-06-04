@@ -94,3 +94,26 @@ against the shipped 004-vnet engine. Tasks `[x]` shipped on master.
   -f tenant=sp01 -f environment=npd -f action=apply -f apply=true` — in-place
   address-space growth + new `agents` subnet, no destroy/recreate of existing
   subnets. **Operator-run, NOT this PR.**
+
+## Phase FR-105 — enable the spoke NAT gateway (deterministic egress)
+
+> Opts the sp01/npd spoke into the engine's existing spoke NAT gateway
+> (004-vnet FR-230) so the route-table workload subnets keep outbound internet
+> access after the hub firewall teardown (FR-227/FR-228). Engine unchanged.
+
+- [x] T028 [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json):
+  `enable_spoke_nat_gateway` `false` → `true` (no other value changes).
+  (FR-105 / C-105-01)
+- [x] T029 Confirm NO engine edit — only `specs/102-*` + the one tfvars file.
+  `10n` MUST NOT alter `00n`. (C-105-04)
+- [x] T030 Amend `specs/102-*/` spec/plan/tasks + `analyze.md` addendum.
+  (C-105-04)
+- [x] T031 CI: confirm `variables/sp01/npd/vnet.tfvars.json` already in
+  `vnet.yml` `paths:` (no edit needed). (C-105-01)
+- [x] T032 Validation (local, no live state): `terraform fmt -recursive` clean;
+  `modules/network` + `terraform/vnet` tests green (engine unchanged). (FR-105)
+- [ ] T033 Rollout (workflow only): `gh workflow run deploy.yaml -f service=vnet
+  -f tenant=sp01 -f environment=npd -f action=apply -f apply=true` — additive
+  NAT gateway + public IP + associations on the route-table subnets only, no
+  destroy/recreate of existing subnets and NO association on
+  `agents`/`container-apps`. **Operator-run, NOT this PR.**
