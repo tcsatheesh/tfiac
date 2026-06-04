@@ -105,3 +105,15 @@ exercised by the tfvars: distinct `service_purpose` per storage (FR-044),
 (required by the KV-connection toggle). `terraform validate` OK; engine
 `terraform test` 28/28 green. No BLOCKER/MAJOR findings. RBAC deferred to
 104-sp01-dev-rbac (FR-103-08).
+
+## Addendum 2026-06-04 — FR-103-10 Key Vault purpose token
+
+The portal-default KV name `kvuc1uc1sp01devswc001` is held by a soft-deleted,
+purge-protected vault (deleted 2026-05-30; `scheduledPurgeDate` 2026-08-28),
+so it cannot be purged and a fresh apply would name-conflict for ~3 months.
+Pinned the keyvault selection to `purpose=fdy` ⇒ canonical name
+`kvuc1fdysp01devswc001` (21 ≤ 24). The `keyvault` module `for_each` and the
+FR-045 KV-connection `one(...)` resolver both key on `service_type=="keyvault"`
+(purpose-agnostic), so the Foundry KV connection still resolves the single
+vault. Engine unchanged; `terraform validate` OK; engine `terraform test`
+28/28 green. No BLOCKER/MAJOR findings.

@@ -114,3 +114,17 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
 - [x] T-103-09-5 `terraform validate` OK + engine `terraform test` 28/28 green;
   tfvars passes purpose-distinctness + KV-present validations. (FR-103-06)
 - [ ] T-103-09-6 Rollout: NONE — prepare-only. RBAC owned by 104. **No deploy.**
+
+## Phase FR-103-10 (2026-06-04) — Key Vault purpose token (re-deploy unblock)
+
+> Default KV name kvuc1uc1sp01devswc001 collides with a purge-protected
+> soft-deleted vault (locked until 2026-08-28). Pin purpose=fdy for a fresh
+> name. Instance-only; engine unchanged.
+
+- [x] T-103-10-1 Set keyvault selection `purpose=fdy` in the tfvars. (FR-103-10)
+- [x] T-103-10-2 `terraform validate` OK; engine `terraform test` 28/28 green.
+  (FR-103-10)
+- [x] T-103-10-3 Confirm KV-connection resolver is purpose-agnostic
+  (service_type=="keyvault"), so the rename is transparent. (FR-103-10)
+- [ ] T-103-10-4 Merge; the rebuild runs via the deploy workflow
+  (destroy → apply). **No local apply.**

@@ -416,3 +416,31 @@ therefore surplus to the target topology.
 - Removing the Container Registry (still selected; ACR public per VC-7 — separate
   concern from the CAE; the operator's instruction named only the Container Apps
   Environment).
+
+## Amendment 2026-06-04 — Key Vault purpose token (FR-103-10)
+
+Re-deploy unblock. The previous default Key Vault name
+`kvuc1uc1sp01devswc001` (keyvault with no `purpose` ⇒ `service_purpose` =
+usecase = `uc1`) collides with a **soft-deleted, purge-protected** vault of the
+same name (deleted 2026-05-30, name-locked until 2026-08-28). Purge is
+impossible while purge protection is active, so a fresh apply would fail on a
+name conflict for ~3 months.
+
+Fix (instance-only, engine unchanged): pin the keyvault selection's
+`purpose` to `fdy` so the engine derives a fresh, non-locked canonical name
+`kvuc1fdysp01devswc001` (21 ≤ 24 chars). The `keyvault` module `for_each` and
+the FR-045 KV-connection `one(...)` resolver both select by
+`service_type == "keyvault"` (purpose-agnostic), so the rename is fully
+transparent to the Foundry Key Vault connection.
+
+- **FR-103-10**: The sp01/dev `keyvault` selection MUST set `purpose = "fdy"`
+  to avoid the purge-protected soft-deleted vault holding the default name.
+  This is a pure instance parameterization; no 006/007 engine change.
+
+Amendment acceptance:
+
+1. `terraform validate` on `terraform/services` with the updated tfvars
+   succeeds.
+2. Engine `terraform test` (28 cases) stays green.
+3. The resolved Key Vault canonical name is `kvuc1fdysp01devswc001` (not the
+   locked `kvuc1uc1sp01devswc001`).
