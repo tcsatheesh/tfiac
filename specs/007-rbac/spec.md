@@ -162,3 +162,56 @@ assignment's `role_definition_id` is built as
 
 Human/group RBAC, CMK identity grants, any resource creation, and any
 deploy-time rollout (prepare-only).
+
+## AMENDMENT 2026-06-04 — FR-046 label correction (Key Vault Secrets Officer)
+
+> **Why.** FR-046 was authored as "Key Vault **Crypto Service Encryption
+> User**" but the GUID copied from the portal Standard-Agent template,
+> `b86a8fe4-44ce-4948-aee5-eccb2c155cd7`, is in fact **Key Vault Secrets
+> Officer** (Crypto Service Encryption User is `e147488a-f6f5-4113-8e2d-b22465e65bf6`).
+> The engine therefore already grants the account managed identity **Key Vault
+> Secrets Officer** — exactly the data-plane secret-write role the Foundry
+> account needs to store connection secrets (e.g. the App Insights tracing
+> connection's ApiKey) in its BYO Key Vault. This amendment corrects the name
+> and the in-code identifier so the matrix is self-documenting; it is a pure
+> relabel with **no change to the granted GUID** and therefore no change to the
+> effective permission.
+
+- **FR-046 (corrected)** — Key Vault **Secrets Officer**
+  (`b86a8fe4-44ce-4948-aee5-eccb2c155cd7`) on the Key Vault, granted to the
+  **account** managed identity. *Gated on:* keyvault present ∧
+  `enable_aifoundry_keyvault_connection`. The Terraform identifiers are renamed
+  to match: `role_guids.kv_crypto_service_encryption_user` →
+  `role_guids.kv_secrets_officer`, and the assignment key
+  `account-kv-crypto-service-encryption-user` →
+  `account-kv-secrets-officer`.
+
+### Clarifications — Session 2026-06-04 (FR-046 correction)
+
+- **C-067 — Pure relabel, identical GUID.** Only the role's human-readable name
+  and the Terraform local/assignment identifiers change; the
+  `role_definition_id` GUID is unchanged, so an already-applied assignment is
+  functionally identical. RBAC has not yet been applied for any environment, so
+  the assignment-key rename causes no state churn.
+- **C-068 — This grant is what unblocks `006`'s secret-bearing connections.**
+  The account-MI Secrets Officer grant is the data-plane permission the
+  `006-services` App Insights connection (and any future ApiKey connection)
+  requires to write its secret into the account's attached Key Vault. Because
+  `rbac` runs after `services`, the FR-060 (`006`) `enable_aifoundry_agent_finalization`
+  toggle defers those secret-bearing resources to a second `services` pass that
+  runs **after** this grant exists. The two amendments are paired.
+
+### Validation criteria (FR-046 correction)
+
+- **VC-36** — The role-assignment matrix still emits exactly one account-MI Key
+  Vault Secrets Officer grant with `role_definition_id` ending
+  `/b86a8fe4-44ce-4948-aee5-eccb2c155cd7` when keyvault is present and the
+  toggle is on; the assignment key is `account-kv-secrets-officer`.
+- **VC-37** — No remaining reference to `kv_crypto_service_encryption_user`
+  exists under `terraform/rbac/`; `terraform fmt`/`validate`/`test` stay green.
+
+### Out of scope (FR-046 correction)
+
+Adding the *actual* Key Vault Crypto Service Encryption User role
+(`e147488a-…`) — the `006` deployment uses platform-managed encryption (no CMK),
+so that crypto grant is not required (consistent with C-066).

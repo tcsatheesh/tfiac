@@ -59,3 +59,20 @@ Legend: `[ ]` todo · `[x]` done. Engine-only; instance (104) is separate.
 - [x] T-026 `/speckit.analyze` remediation pass (analyze-rbac.md).
 - [x] T-027 Branch `007-rbac` → PR → CI green → squash-merge (prepare-only;
   NO deploy).
+
+## Phase 7 — FR-046 label correction (2026-06-04)
+
+> The GUID `b86a8fe4-…` granted under the name "Crypto Service Encryption User"
+> is actually **Key Vault Secrets Officer**. Pure relabel; same GUID, no
+> permission change. This grant is what `006`'s secret-bearing connections need.
+
+- [ ] T-028 `terraform/rbac/locals.tf`: rename `role_guids.kv_crypto_service_encryption_user`
+  → `role_guids.kv_secrets_officer` (GUID unchanged) and the assignment key
+  `account-kv-crypto-service-encryption-user` → `account-kv-secrets-officer`;
+  update the `role_definition_id` reference. (FR-046/C-067)
+- [ ] T-029 Update the FR-046 comment(s) to read "Key Vault Secrets Officer".
+- [ ] T-030 Tests: assert the matrix still emits exactly one
+  `account-kv-secrets-officer` grant with GUID `b86a8fe4-…`; no remaining
+  `kv_crypto_service_encryption_user` reference (VC-36/VC-37).
+- [ ] T-031 `terraform fmt -recursive` clean; `terraform test` green for
+  `modules/rbac` + `terraform/rbac` (VC-35).

@@ -79,7 +79,7 @@ run "full_matrix" {
   # Every expected grant key present.
   assert {
     condition = length(setsubtract([
-      "account-kv-crypto-service-encryption-user",
+      "account-kv-secrets-officer",
       "account-kv-crypto-user",
       "account-rg-contributor",
       "account-uos-storage-blob-data-contributor",
@@ -92,6 +92,13 @@ run "full_matrix" {
       "project-cosmos-documentdb-account-contributor",
     ], keys(output.role_assignment_ids))) == 0
     error_message = "VC-30: the full grant key set must be present."
+  }
+
+  # VC-36 — the account-MI Key Vault grant carries the Key Vault Secrets Officer
+  # role GUID (b86a8fe4-…), corrected from the FR-046 mislabel.
+  assert {
+    condition     = endswith(output.grant_role_definition_ids["account-kv-secrets-officer"], "/b86a8fe4-44ce-4948-aee5-eccb2c155cd7")
+    error_message = "VC-36: account-kv-secrets-officer must use the Key Vault Secrets Officer role GUID b86a8fe4-44ce-4948-aee5-eccb2c155cd7."
   }
 
   # VC-32 — purpose-correct storage resolution. The account user-owned grant must

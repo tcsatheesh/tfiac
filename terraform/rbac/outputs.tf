@@ -15,3 +15,10 @@ output "grant_scopes" {
   description = "Map of caller-key => the Azure resource id each control-plane grant is scoped to."
   value       = { for k, v in local.role_assignments : k => v.scope_id }
 }
+
+# Resolved grant role-definition ids (caller-key => role_definition_id). Lets the
+# test suite (VC-36) confirm a grant carries the intended role GUID.
+output "grant_role_definition_ids" {
+  description = "Map of caller-key => the role_definition_id each control-plane grant uses."
+  value       = { for k, v in local.role_assignments : k => v.role_definition_id }
+}

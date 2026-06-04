@@ -1036,3 +1036,64 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 - [ ] T-FR059-4 Push branch, PR against `master`, squash-merge, delete branch.
   Engine-only deletion; the sp01/dev rebuild then runs via the `deploy`
   workflow (destroy → apply), never a local apply. (FR-059)
+
+## Phase FR-060 — agent-finalization phasing + capability-host timeouts
+
+> Live sp01/dev rollout proved the account→rbac split cannot finish in one
+> `services` apply: the App Insights connection and BOTH Agents capability hosts
+> depend on `007-rbac` grants that only exist after `rbac` runs. Add a
+> default-true `enable_aifoundry_agent_finalization` toggle to defer exactly
+> those three resources, give both caphosts a `timeouts` block, and raise the
+> account create budget 90m → 150m.
+
+### FR-060.A — Module surface
+
+- [ ] T-FR060-1 `modules/aifoundry/variables.tf`: add
+  `variable "agent_finalization_enabled" { type = bool; default = true }` with
+  a description tying it to FR-060/C-069. (FR-060)
+- [ ] T-FR060-2 `modules/aifoundry/main.tf`: gate
+  `azapi_resource.appinsights_connection` `count =
+  var.application_insights_enabled && var.agent_finalization_enabled` and
+  `azapi_resource.capability_host` (account host) `count =
+  local.network_injection_enabled && var.agent_finalization_enabled`. (FR-060)
+- [ ] T-FR060-3 `modules/aifoundry/main.tf`: add
+  `timeouts { create = "60m" update = "60m" delete = "30m" }` to the account
+  `capability_host`; change `azapi_resource.this` timeouts create/update
+  `90m → 150m`. (FR-060/C-071)
+- [ ] T-FR060-4 `modules/aifoundryproject/variables.tf`: add
+  `agent_finalization_enabled` (bool, default true);
+  `modules/aifoundryproject/main.tf`: gate `azapi_resource.capability_host`
+  `count = var.network_injection_enabled && var.agent_finalization_enabled` and
+  add the same `timeouts` block. (FR-060)
+
+### FR-060.B — Services-stack wiring
+
+- [ ] T-FR060-5 `terraform/services/variables.tf`: add
+  `variable "enable_aifoundry_agent_finalization" { type = bool; default =
+  true }`. (FR-060)
+- [ ] T-FR060-6 `terraform/services/main.tf`: pass
+  `agent_finalization_enabled = var.enable_aifoundry_agent_finalization` into
+  both `module.aifoundry` and `module.aifoundry_project`. (FR-060)
+
+### FR-060.C — Tests
+
+- [ ] T-FR060-7 Positive: default (toggle unset ⇒ true) + injection + App
+  Insights ⇒ plan has 1 appinsights_connection, 1 account caphost, 1 project
+  caphost (existing happy fixtures already cover this; assert unchanged).
+  (FR-060)
+- [ ] T-FR060-8 Negative: `enable_aifoundry_agent_finalization = false` +
+  injection + App Insights ⇒ plan has 0 appinsights_connection, 0 account
+  caphost, 0 project caphost, while account/project/BYO connections remain.
+  (FR-060)
+
+### FR-060.D — Verification gates (HARD)
+
+- [ ] T-FR060-9 `terraform fmt -recursive` clean; `terraform validate
+  -backend=false` + full `terraform test` green for `terraform/services` and
+  both modules. (FR-060)
+
+### FR-060.E — Rollout
+
+- [ ] T-FR060-10 After merge, run the three-pass bootstrap via the `deploy`
+  workflow ONLY: `services` (finalization off) → `rbac` → `services`
+  (finalization on). Never a local apply. (FR-060/C-069)

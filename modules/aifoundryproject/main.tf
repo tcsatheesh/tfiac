@@ -58,7 +58,10 @@ resource "azurerm_monitor_diagnostic_setting" "to_hub_la" {
 # together. The fixed name "agents" mirrors the account host (different parent
 # scope ⇒ no collision) and satisfies the capability-host name RP pattern.
 resource "azapi_resource" "capability_host" {
-  count     = var.network_injection_enabled ? 1 : 0
+  # FR-060 / C-069 — gated on agent_finalization_enabled (alongside injection):
+  # the host hard-depends on the project-MI data-plane grants issued by the
+  # downstream 007-rbac stack, so it is deferred to the finalization pass.
+  count     = var.network_injection_enabled && var.agent_finalization_enabled ? 1 : 0
   type      = "Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-09-01"
   name      = "agents"
   parent_id = azapi_resource.this.id
@@ -82,6 +85,14 @@ resource "azapi_resource" "capability_host" {
   }
 
   response_export_values = ["id"]
+
+  # FR-060 / C-071 — caphost provisioning behind an injected network exceeds the
+  # azapi default 30-minute create deadline; the budget is a harmless upper bound.
+  timeouts {
+    create = "60m"
+    update = "60m"
+    delete = "30m"
+  }
 
   # FR-043 / C-059 — the project capability host is meaningless without an
   # injected parent account; defence-in-depth on top of the master-driven wiring.
