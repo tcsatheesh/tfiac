@@ -198,3 +198,7 @@ variables/**/backend.hcl
 
 # Local scratchpad for AVM module inspection / one-off probes (not committed)
 temp/scratchpad/
+
+# Speckit transient "current feature" pointer — flips on every speckit command,
+# so it's local working state, not shared config. Track the rest of .specify/.
+.specify/feature.json
