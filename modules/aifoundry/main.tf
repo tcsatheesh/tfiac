@@ -270,46 +270,17 @@ resource "azapi_resource" "agent_search_connection" {
   response_export_values = ["id"]
 }
 
-# C-026 / FR-031 step 3 (VC-3) — Agents capability host. capabilityHostKind is
-# "Agents"; customerSubnet is the dedicated agent subnet; the three connection
-# lists reference the connection NAMES created above (depends_on guarantees they
-# exist first — VC-3 hard-fails otherwise). storageConnections=Storage,
-# threadStorageConnections=Cosmos DB, vectorStoreConnections=AI Search.
-resource "azapi_resource" "capability_host" {
-  # FR-060 / C-069 — gated on agent_finalization_enabled: the host hard-depends
-  # on the project-MI storage/cosmos/search data-plane grants issued by the
-  # downstream 007-rbac stack, so it is deferred to the finalization pass.
-  count     = local.network_injection_enabled && var.agent_finalization_enabled ? 1 : 0
-  type      = "Microsoft.CognitiveServices/accounts/capabilityHosts@2025-09-01"
-  name      = "agents"
-  parent_id = azapi_resource.this.id
-
-  body = {
-    properties = {
-      capabilityHostKind       = "Agents"
-      customerSubnet           = var.agent_subnet_id
-      storageConnections       = [local.agent_conn_storage]
-      threadStorageConnections = [local.agent_conn_cosmos]
-      vectorStoreConnections   = [local.agent_conn_search]
-    }
-  }
-
-  depends_on = [
-    azapi_resource.agent_storage_connection,
-    azapi_resource.agent_cosmos_connection,
-    azapi_resource.agent_search_connection,
-  ]
-
-  # FR-060 / C-071 — caphost provisioning behind an injected network exceeds the
-  # azapi default 30-minute create deadline; the budget is a harmless upper bound.
-  timeouts {
-    create = "60m"
-    update = "60m"
-    delete = "30m"
-  }
-
-  response_export_values = ["id"]
-}
+# FR-062 (Amendment 2026-06-04) — the ACCOUNT-level Agents capability host is
+# NOT Terraform-managed. The injected-Foundry RP auto-provisions it as
+# `<account>@aml_aiagentservice` (capabilityHostKind=Agents, customerSubnet bound
+# to the agent subnet, BYO connection lists null) the moment the account is
+# created with `networkInjections` scenario=agent. The RP enforces exactly ONE
+# capability host per account ClientId, so an explicit Terraform `agents` host
+# always fails `Conflict` against the platform-managed one. The BYO
+# Storage/Cosmos/Search connections are bound on the PROJECT-level capability
+# host instead (modules/aifoundryproject, FR-043) — which the platform does NOT
+# auto-create. See specs/006-services/spec.md "AMENDMENT 2026-06-04 — account
+# capability host is platform-managed (FR-062)".
 
 # C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage connection. The
 # portal Standard-Agent template attaches the account's own (2nd) storage both

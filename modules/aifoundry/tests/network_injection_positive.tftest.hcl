@@ -92,25 +92,14 @@ run "network_injection_emitted" {
     error_message = "FR-031 / VC-4: injection must emit exactly one Storage, Cosmos and Search connection."
   }
 
-  assert {
-    condition     = length(azapi_resource.capability_host) == 1
-    error_message = "FR-031 / VC-3: injection must emit exactly one Agents capabilityHosts child."
-  }
-
-  assert {
-    condition     = azapi_resource.capability_host[0].body.properties.capabilityHostKind == "Agents"
-    error_message = "FR-031 / VC-3: capabilityHostKind must be \"Agents\"."
-  }
-
-  assert {
-    condition     = azapi_resource.capability_host[0].body.properties.customerSubnet == var.agent_subnet_id
-    error_message = "FR-031 / VC-3: capability host customerSubnet must equal agent_subnet_id."
-  }
-
-  assert {
-    condition     = one(azapi_resource.capability_host[0].body.properties.storageConnections) == "agentstorage" && one(azapi_resource.capability_host[0].body.properties.threadStorageConnections) == "agentcosmos" && one(azapi_resource.capability_host[0].body.properties.vectorStoreConnections) == "agentsearch"
-    error_message = "FR-031 / VC-3 / C-025: capability host must reference agentstorage/agentcosmos/agentsearch connection names."
-  }
+  # FR-062 (Amendment 2026-06-04) — the ACCOUNT-level Agents capability host is
+  # platform-managed: the injected-Foundry RP auto-provisions
+  # `<account>@aml_aiagentservice` (the RP enforces one host per account
+  # ClientId, so an explicit Terraform `agents` host always Conflicts).
+  # `azapi_resource.capability_host` is therefore removed from modules/aifoundry,
+  # and asserting on it here would be a reference to an undeclared resource. The
+  # BYO connections are bound on the project-level host instead
+  # (modules/aifoundryproject, FR-043/VC-20).
 
   assert {
     condition     = local.config.public_network_access == "Disabled"

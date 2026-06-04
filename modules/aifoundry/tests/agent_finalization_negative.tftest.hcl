@@ -81,11 +81,10 @@ run "finalization_off_defers_rbac_dependent_resources" {
     error_message = "FR-060: agent_finalization_enabled=false must emit zero appinsights_connection."
   }
 
-  # Deferred: account-level Agents capability host absent.
-  assert {
-    condition     = length(azapi_resource.capability_host) == 0
-    error_message = "FR-060: agent_finalization_enabled=false must emit zero account capability_host."
-  }
+  # FR-062: the account-level Agents capability host is platform-managed and was
+  # removed from modules/aifoundry — there is no `azapi_resource.capability_host`
+  # to assert on (the project-level host, gated by finalization, lives in
+  # modules/aifoundryproject).
 
   # Preserved: the account still carries its injection body.
   assert {

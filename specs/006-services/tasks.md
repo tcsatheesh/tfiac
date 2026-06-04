@@ -1117,3 +1117,31 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
   for `terraform/services`. (FR-061)
 - [ ] T-FR061-4 Branch → PR → CI green → squash-merge → sync master, then
   re-run bootstrap pass 2 (`rbac`). (FR-061)
+
+## Phase FR-062 (2026-06-04) — account capability host is platform-managed
+
+- [ ] T-FR062-1 `modules/aifoundry/main.tf`: remove the account-level
+  `azapi_resource.capability_host` resource entirely (replace with an
+  explanatory comment). The injected-Foundry RP auto-provisions
+  `<account>@aml_aiagentservice`; the RP's one-host-per-ClientId rule makes the
+  Terraform `agents` host always `Conflict`. Keep `networkInjections` + the
+  three BYO connections + `agent_finalization_enabled` (still gates the App
+  Insights connection). (FR-062/C-075/C-076)
+- [ ] T-FR062-2 `modules/aifoundry/tests/network_injection_positive.tftest.hcl`:
+  replace the four account-host asserts (length==1, capabilityHostKind,
+  customerSubnet, connection parity) with a single VC-23 zero-host assertion
+  (`length(azapi_resource.capability_host) == 0`). (FR-062/VC-23)
+- [ ] T-FR062-3 `modules/aifoundry/tests/agent_finalization_negative.tftest.hcl`
+  + `network_injection_default_off.tftest.hcl`: re-label the existing
+  `capability_host == 0` asserts to FR-062 (the resource is now always absent).
+  (FR-062)
+- [ ] T-FR062-4 `modules/aifoundry/variables.tf`: update the
+  `network_injection_enabled` description — injection no longer creates a
+  Terraform capability host (platform-managed); BYO connections bind on the
+  project host. (FR-062/C-077)
+- [ ] T-FR062-5 `terraform fmt -recursive` clean; full `terraform test` green
+  for `modules/aifoundry`, `modules/aifoundryproject`, and `terraform/services`.
+  (FR-062/VC-23/VC-24)
+- [ ] T-FR062-6 Branch → PR → CI green → squash-merge → sync master, then
+  re-run bootstrap pass 3 (`services`, `finalize=true`) — only the project
+  capability host is created; the account host is platform-supplied. (FR-062)

@@ -113,7 +113,7 @@ variable "telemetry_internet_access_enabled" {
 
 # ----- C-022..C-026 / FR-031 (Amendment 2026-06-02) — Hosted-Agent network injection -----
 variable "network_injection_enabled" {
-  description = "FR-031 / C-022: when true, the Foundry account is created with Hosted-Agent network injection (properties.networkInjections scenario=agent bound to var.agent_subnet_id), three BYO account connections (Storage/Cosmos/Search), and an Agents capabilityHosts child. Injection is settable ONLY at account creation (VC-1) — flipping this on an existing account requires an operator-approved recreate. Default false preserves the post-FR-028 day-one behaviour (no networkInjections, no connections, no capability host)."
+  description = "FR-031 / C-022: when true, the Foundry account is created with Hosted-Agent network injection (properties.networkInjections scenario=agent bound to var.agent_subnet_id) plus three BYO account connections (Storage/Cosmos/Search). The account-level Agents capability host is NOT Terraform-managed — the injected-Foundry RP auto-provisions it as `<account>@aml_aiagentservice` (FR-062); the BYO connections are bound on the project-level host (FR-043). Injection is settable ONLY at account creation (VC-1) — flipping this on an existing account requires an operator-approved recreate. Default false preserves the post-FR-028 day-one behaviour (no networkInjections, no connections)."
   type        = bool
   default     = false
 }

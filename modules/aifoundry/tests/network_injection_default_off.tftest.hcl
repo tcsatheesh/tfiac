@@ -63,10 +63,9 @@ run "default_off_no_injection" {
     error_message = "FR-031: with injection disabled no BYO connections must be emitted."
   }
 
-  assert {
-    condition     = length(azapi_resource.capability_host) == 0
-    error_message = "FR-031: with injection disabled no capabilityHosts child must be emitted."
-  }
+  # FR-062: the account-level Agents capability host is platform-managed and was
+  # removed from modules/aifoundry — there is no `azapi_resource.capability_host`
+  # to assert on (any reference would be to an undeclared resource).
 
   # FR-040 (Amendment 2026-06-02) — day-one parity: with injection OFF the
   # account keeps the GA API version and the body omits networkAcls +

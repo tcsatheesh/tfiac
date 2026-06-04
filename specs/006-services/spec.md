@@ -2635,3 +2635,102 @@ that engine's 2026-06-04 amendment for the label correction).
 Per-resource `_id`/`_name` outputs (still forbidden — the map is the contract,
 [C-008](#clarifications)); changing any existing key shape; exposing the `svc`
 RG inside the map (it keeps its dedicated `resource_group_id` output).
+
+## AMENDMENT 2026-06-04 — account capability host is platform-managed (FR-062)
+
+> **Why.** The live sp01/dev finalization pass (`services`, `finalize=true`)
+> failed creating the **account-level** Agents capability host with a hard
+> `Conflict`:
+>
+> > *There is an existing Capability Host with name:
+> > `aif-uc1-uc1-sp01-dev-swc-001@aml_aiagentservice`, provisioning state:
+> > Succeeded … cannot create a new Capability Host with name: `agents` for the
+> > same ClientId.*
+>
+> Inspecting the account proved the cause: the moment a Foundry account is
+> created with `properties.networkInjections` scenario=agent (FR-031/FR-040),
+> the injected-Foundry resource provider **auto-provisions the account-level
+> Agents capability host itself**, named `<account>@aml_aiagentservice`
+> (`capabilityHostKind=Agents`, `customerSubnet` bound to the agent subnet,
+> `storageConnections`/`threadStorageConnections`/`vectorStoreConnections` all
+> **null**). Azure enforces **exactly one** capability host per account ClientId,
+> so the explicit Terraform `agents` host shipped by FR-031/C-026 can **never**
+> be created on an injected account — every finalization pass times out (60 m
+> poll) and then returns `Conflict`. The platform host carries the subnet
+> binding but no BYO connections; the BYO Storage/Cosmos/Search bindings live on
+> the **project-level** capability host (FR-043), which the platform does **not**
+> auto-create. The earlier FR-031/C-026 design assumed Microsoft's Bicep
+> reference (which creates the account host explicitly) applied verbatim; the
+> live injected-Foundry RP behaviour in this tenant supersedes it.
+
+- **FR-062 — the account-level Agents capability host is platform-managed; the
+  `aifoundry` module MUST NOT create it (engine).** The
+  `azapi_resource.capability_host` resource in `modules/aifoundry`
+  ([modules/aifoundry/main.tf](../../modules/aifoundry/main.tf)) is **removed**.
+  Network injection (`network_injection_enabled = true`) continues to create the
+  account body's `networkInjections` (FR-031/FR-040) and the three BYO account
+  connections `agentstorage`/`agentcosmos`/`agentsearch` (C-024/C-026) — those
+  are unchanged. The account-level Agents capability host is supplied
+  exclusively by the injected-Foundry RP as `<account>@aml_aiagentservice` and
+  is never represented in Terraform state. The **project-level** capability host
+  (`modules/aifoundryproject`, FR-043) is **unchanged**: it remains
+  Terraform-managed, carries the three BYO connection references (and no
+  `customerSubnet`), and is gated by `agent_finalization_enabled` (FR-060). The
+  `agent_finalization_enabled` input on `modules/aifoundry` is retained — it
+  still gates the App Insights connection (FR-060 leg 1).
+
+### Clarifications — Session 2026-06-04 (FR-062)
+
+- **C-075 — Supersedes FR-031/C-026's account host, not the injection body.**
+  FR-062 removes only the Terraform-managed account capability host. The
+  injection body (`networkInjections`, `networkAcls`, preview API — FR-031/
+  FR-040) and the three BYO connections (C-024/C-026) remain exactly as shipped.
+  VC-3 (the account-host validation criterion) is retired and replaced by VC-23
+  (zero Terraform account capability hosts).
+- **C-076 — One capability host per account ClientId is an RP invariant.** The
+  conflict is not a transient race or a missing role grant — it is the RP's
+  one-host-per-ClientId rule colliding with the platform's own auto-created
+  host. No timeout increase, RBAC grant, or retry can resolve it; the only fix
+  is to stop creating the duplicate. (This is distinct from the FR-060
+  finalization phasing, which addressed the *project* host + App Insights
+  connection role dependencies; the account host was never a role problem.)
+- **C-077 — BYO connections are bound at project scope, not account scope.** The
+  platform account host has null connection lists by design; agents reach the
+  BYO Storage/Cosmos/Search via the **project** capability host's
+  `storageConnections=["agentstorage"]`/`threadStorageConnections=["agentcosmos"]`/
+  `vectorStoreConnections=["agentsearch"]` (FR-043/VC-20). Removing the
+  Terraform account host therefore loses no BYO binding.
+- **C-078 — No state surgery needed for fresh injected environments.** Because
+  the Terraform account host never successfully created (every attempt
+  `Conflict`ed), it is absent from state; removing the resource block is a clean
+  config delete with no `terraform state rm`. For any environment where a prior
+  buggy apply *did* land an account host in state, Terraform will plan its
+  destroy — acceptable only via an operator-reviewed plan, but no such state
+  exists for sp01/dev.
+
+### Validation criteria (FR-062)
+
+- **VC-23 — Zero Terraform account capability hosts.** With injection ON
+  (`network_injection_enabled = true`) **and** finalization ON
+  (`agent_finalization_enabled = true`), `modules/aifoundry` emits **zero**
+  `azapi_resource.capability_host` — the account host is platform-managed. The
+  account body still carries `networkInjections` and the three BYO connections
+  are still emitted (FR-031/VC-2/VC-4 unchanged).
+- **VC-24 — Project host unaffected.** `modules/aifoundryproject` with injection
+  + finalization ON still emits exactly one
+  `Microsoft.CognitiveServices/accounts/projects/capabilityHosts` named `agents`
+  (FR-043/VC-20) — FR-062 does not touch the project host.
+- **VC-25 — Day-one parity.** With injection OFF the `aifoundry` body is
+  byte-for-byte the pre-FR-062 state (the removed resource had `count = 0` there
+  already, so non-injected stacks are unchanged).
+- The full `terraform test` suite is green after the account-host asserts in
+  `modules/aifoundry/tests/network_injection_positive.tftest.hcl` are replaced by
+  a zero-host assertion (VC-23).
+
+### Out of scope for FR-062
+
+The project-level capability host (FR-043 owns it); the App Insights connection
+finalization gate (FR-060 owns it); any change to the `networkInjections` body
+or BYO connections (FR-031/FR-040 own them); adopting the platform host into
+Terraform state (explicitly rejected — it is RP-owned, its name is
+RP-generated, and Terraform must not manage it).
