@@ -2466,3 +2466,95 @@ Any future recovery that genuinely needs to adopt pre-existing Azure resources
 into state — that is handled ad hoc (a temporary, clearly-labelled shim on a
 dedicated branch, removed immediately after) and is not steady-state engine
 surface.
+
+## AMENDMENT 2026-06-04 — agent-finalization phasing + capability-host timeouts (FR-060)
+
+> **Why.** The live sp01/dev injected-agent rollout proved the engine's
+> account-then-rbac split cannot complete in a single `services` apply. Three
+> resources created by the `services` stack — the App Insights tracing
+> connection and **both** Agents capability hosts (the account-level host in
+> `modules/aifoundry` and the project-level host in `modules/aifoundryproject`,
+> FR-031/FR-043) — hard-depend on role grants that only the **separate** `rbac`
+> stack (`007-rbac`) issues, and which `rbac` can only issue **after** the
+> account + project exist. Microsoft's network-secured reference
+> (`microsoft-foundry/foundry-samples` sample 15, `main.bicep`) orders the data
+> plane explicitly: `account → project → storage/cosmos/search role assignments
+> → addAccountCapabilityHost (dependsOn those roles) → addProjectCapabilityHost
+> (dependsOn the account host + those roles)`. Because our role grants live in a
+> downstream stack, the first `services` apply created the caphosts **before**
+> the grants existed and they failed (`context deadline exceeded`), while the
+> App Insights connection failed `Forbidden` writing its ApiKey secret to the
+> account's attached Key Vault (the account MI's data-plane secret grant is also
+> an `rbac`-stack grant). Separately the account create budget (90m) was ~3 min
+> short of the observed swc injection time (~93m).
+
+- **FR-060 — `enable_aifoundry_agent_finalization` toggle gates the
+  `rbac`-dependent resources, and the capability hosts carry explicit
+  timeouts.** The engine gains a single known-at-plan boolean,
+  `enable_aifoundry_agent_finalization` (services-stack input; default
+  **`true`**, preserving the post-FR-043 single-pass behaviour for steady-state
+  re-applies where the grants already exist). It threads into
+  `modules/aifoundry` and `modules/aifoundryproject` as
+  `agent_finalization_enabled` and gates exactly three resources that depend on
+  `007-rbac` grants:
+  1. `azapi_resource.appinsights_connection` (`modules/aifoundry`) —
+     `count = application_insights_enabled && agent_finalization_enabled`.
+  2. `azapi_resource.capability_host` (account host, `modules/aifoundry`) —
+     `count = network_injection_enabled && agent_finalization_enabled`.
+  3. `azapi_resource.capability_host` (project host,
+     `modules/aifoundryproject`) —
+     `count = network_injection_enabled && agent_finalization_enabled`.
+  All other account/project/connection resources are unaffected (they do not
+  depend on `rbac` grants). Both capability-host resources additionally gain a
+  `timeouts { create = "60m" update = "60m" delete = "30m" }` block (the azapi
+  default 30-minute deadline is too short for caphost provisioning behind an
+  injected network). The account resource's create/update timeout is raised from
+  `90m` to `150m` to cover the observed swc injection time with margin.
+
+### Clarifications — Session 2026-06-04 (FR-060)
+
+- **C-069 — Phasing, not stack-merging.** The fix deliberately does **not** move
+  any `rbac` grant into the `services` stack; the `006`/`007` separation
+  (C-065) is preserved. `enable_aifoundry_agent_finalization` exists so a
+  brand-new injected environment can be brought up in a documented three-pass
+  bootstrap — `services` (finalization **off**: account + project + every BYO /
+  Key Vault / account-storage connection, **no** App Insights connection, **no**
+  capability hosts) → `rbac` (account-MI Key Vault Secrets Officer + project-MI
+  storage/cosmos/search data-plane grants) → `services` (finalization **on**:
+  App Insights connection + both capability hosts, which now succeed because the
+  grants they depend on exist). The default `true` makes every steady-state
+  re-apply a single pass; only the one-time bootstrap flips the toggle.
+- **C-070 — Default preserves behaviour; the bootstrap is the only deviation.**
+  `enable_aifoundry_agent_finalization` defaults to `true`, so existing
+  selections and every non-injected stack are byte-for-byte unchanged. The
+  toggle is a known-at-plan boolean (never a computed value), so the three
+  `count`s stay plan-resolvable. When `network_injection_enabled` /
+  `application_insights_enabled` are off, the toggle is inert for those legs.
+- **C-071 — Timeouts are upper bounds, not waits.** The `60m` caphost timeout
+  and the `150m` account timeout are harmless upper bounds — provisioning that
+  finishes earlier returns immediately; the larger budgets only stop Terraform
+  abandoning a still-healthy long-running create. They mirror the FR-040
+  account-timeout rationale.
+
+### Validation criteria (FR-060)
+
+- `terraform validate -backend=false` on `terraform/services` succeeds.
+- With `enable_aifoundry_agent_finalization = false` (+ injection + App Insights
+  on), the plan contains **zero** `appinsights_connection`, zero account
+  `capability_host`, and zero project `capability_host` instances, while the
+  account, project and all BYO/Key Vault/account-storage connections remain.
+- With `enable_aifoundry_agent_finalization = true` (default) the plan is
+  identical to the pre-FR-060 plan for the same inputs (one `appinsights_connection`,
+  one account host, one project host when injection + App Insights are on).
+- Both capability-host resources carry a `timeouts` block; the account resource's
+  create/update timeout is `150m`.
+- The full `terraform test` suite is green, including new positive (toggle true ⇒
+  resources present) and negative (toggle false ⇒ resources absent) fixtures.
+
+### Out of scope for FR-060
+
+Moving any role grant into the `services` stack (rejected — preserves C-065);
+automating the three-pass bootstrap inside CI (the rollout sequence is an
+instance-stack runbook, not engine surface); the account-MI Key Vault Secrets
+Officer grant itself (it already exists in `007-rbac`, see that engine's
+2026-06-04 amendment for the label correction).

@@ -367,6 +367,12 @@ module "aifoundry" {
   # actually being selected (see above). Default false ⇒ null.
   keyvault_connection_enabled = var.enable_aifoundry_keyvault_connection && local.keyvault_selected
   keyvault_account_id         = var.enable_aifoundry_keyvault_connection && local.keyvault_selected ? one([for k, v in module.keyvault : v.resource_id]) : null
+
+  # FR-060 / C-069 (Amendment 2026-06-04) — agent-finalization phasing. Defers
+  # the App Insights connection + account capability host (which depend on
+  # 007-rbac grants) to a second services pass during a brand-new injected
+  # bootstrap. Default true ⇒ single-pass steady-state behaviour unchanged.
+  agent_finalization_enabled = var.enable_aifoundry_agent_finalization
 }
 
 module "aifoundry_project" {
@@ -398,6 +404,11 @@ module "aifoundry_project" {
   # and the account capability host exist before this project host references
   # those connections by name (C-058/C-059).
   network_injection_enabled = var.enable_aifoundry_network_injection
+
+  # FR-060 / C-069 (Amendment 2026-06-04) — defers the project capability host
+  # (depends on 007-rbac project-MI grants) to the finalization pass. Default
+  # true ⇒ provisioned in the same pass as injection (steady-state unchanged).
+  agent_finalization_enabled = var.enable_aifoundry_agent_finalization
 
   depends_on = [module.aifoundry]
 }

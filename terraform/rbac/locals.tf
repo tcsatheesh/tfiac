@@ -51,16 +51,16 @@ locals {
 
   # ---- Role-definition GUIDs (verbatim from the portal template) -------------
   role_guids = {
-    kv_crypto_service_encryption_user = "b86a8fe4-44ce-4948-aee5-eccb2c155cd7" # FR-046
-    kv_crypto_user                    = "f25e0fa2-a7c8-4377-a976-54943a77a395" # FR-047
-    contributor                       = "b24988ac-6180-42a0-ab88-20f7382dd24c" # FR-048
-    storage_blob_data_contributor     = "ba92f5b4-2d11-453d-a403-e96b0029c9fe" # FR-049/FR-050
-    storage_blob_data_owner           = "b7e6dc6d-f1e8-4753-8033-0f276bb0955b" # FR-051
-    storage_file_priv_contributor     = "974c5e8b-45b9-4653-ba55-5f855dd0fb88" # FR-052
-    search_index_data_contributor     = "8ebe5a00-799e-43f5-93ac-243d3dce84a7" # FR-053
-    search_service_contributor        = "7ca78c08-252a-4471-8644-bb5ff32d4ba0" # FR-054
-    cosmos_operator                   = "230815da-be43-4aae-9cb4-875f7bd000aa" # FR-055
-    documentdb_account_contributor    = "5bd9cd88-fe45-4216-938b-f97437e15450" # FR-056
+    kv_secrets_officer             = "b86a8fe4-44ce-4948-aee5-eccb2c155cd7" # FR-046 (Key Vault Secrets Officer)
+    kv_crypto_user                 = "f25e0fa2-a7c8-4377-a976-54943a77a395" # FR-047
+    contributor                    = "b24988ac-6180-42a0-ab88-20f7382dd24c" # FR-048
+    storage_blob_data_contributor  = "ba92f5b4-2d11-453d-a403-e96b0029c9fe" # FR-049/FR-050
+    storage_blob_data_owner        = "b7e6dc6d-f1e8-4753-8033-0f276bb0955b" # FR-051
+    storage_file_priv_contributor  = "974c5e8b-45b9-4653-ba55-5f855dd0fb88" # FR-052
+    search_index_data_contributor  = "8ebe5a00-799e-43f5-93ac-243d3dce84a7" # FR-053
+    search_service_contributor     = "7ca78c08-252a-4471-8644-bb5ff32d4ba0" # FR-054
+    cosmos_operator                = "230815da-be43-4aae-9cb4-875f7bd000aa" # FR-055
+    documentdb_account_contributor = "5bd9cd88-fe45-4216-938b-f97437e15450" # FR-056
   }
 
   role_def_prefix = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions"
@@ -79,11 +79,11 @@ locals {
 
   # ---- Control-plane role-assignment fan-out ---------------------------------
   role_assignments = merge(
-    # Account MI — Key Vault crypto grants (FR-046 / FR-047)
+    # Account MI — Key Vault Secrets Officer + Crypto User grants (FR-046 / FR-047)
     local.account_kv_grant_enabled ? {
-      account-kv-crypto-service-encryption-user = {
+      account-kv-secrets-officer = {
         scope_id           = local.keyvault_id
-        role_definition_id = local.role_def_ids.kv_crypto_service_encryption_user
+        role_definition_id = local.role_def_ids.kv_secrets_officer
         principal_id       = local.account_principal_id
         principal_type     = "ServicePrincipal"
       }

@@ -414,3 +414,9 @@ variable "enable_aifoundry_keyvault_connection" {
   type        = bool
   default     = false
 }
+
+variable "enable_aifoundry_agent_finalization" {
+  description = "FR-060 / C-069: gates the three resources that depend on grants issued by the SEPARATE 007-rbac stack — the App Insights tracing connection (its ApiKey secret is written to the account's BYO Key Vault) and BOTH Agents capability hosts (account-level in modules/aifoundry and project-level in modules/aifoundryproject; both need the project-MI storage/cosmos/search data-plane grants). Default true preserves the post-FR-043 single-pass behaviour for steady-state re-applies where the grants already exist. Set false for the FIRST pass of a brand-new injected environment so the bootstrap runs services(off) -> rbac -> services(on)."
+  type        = bool
+  default     = true
+}

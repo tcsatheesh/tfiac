@@ -40,8 +40,8 @@ resource "azapi_resource" "this" {
   # account can finish provisioning; the value is a harmless upper bound for the
   # plain (non-injected) path, which still returns in a few minutes.
   timeouts {
-    create = "90m"
-    update = "90m"
+    create = "150m"
+    update = "150m"
     delete = "30m"
   }
 
@@ -165,7 +165,10 @@ resource "azurerm_application_insights" "tracing" {
 # name "appinsights" satisfies the connection-name RP pattern
 # ^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$ (the canonical name's dots/length do not).
 resource "azapi_resource" "appinsights_connection" {
-  count     = var.application_insights_enabled ? 1 : 0
+  # FR-060 / C-069 — the ApiKey secret is written to the account's BYO Key Vault,
+  # which requires the account-MI Key Vault Secrets Officer grant issued by the
+  # downstream 007-rbac stack. Defer to the second (finalization) services pass.
+  count     = var.application_insights_enabled && var.agent_finalization_enabled ? 1 : 0
   type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
   name      = "appinsights"
   parent_id = azapi_resource.this.id
@@ -273,7 +276,10 @@ resource "azapi_resource" "agent_search_connection" {
 # exist first — VC-3 hard-fails otherwise). storageConnections=Storage,
 # threadStorageConnections=Cosmos DB, vectorStoreConnections=AI Search.
 resource "azapi_resource" "capability_host" {
-  count     = local.network_injection_enabled ? 1 : 0
+  # FR-060 / C-069 — gated on agent_finalization_enabled: the host hard-depends
+  # on the project-MI storage/cosmos/search data-plane grants issued by the
+  # downstream 007-rbac stack, so it is deferred to the finalization pass.
+  count     = local.network_injection_enabled && var.agent_finalization_enabled ? 1 : 0
   type      = "Microsoft.CognitiveServices/accounts/capabilityHosts@2025-09-01"
   name      = "agents"
   parent_id = azapi_resource.this.id
@@ -293,6 +299,14 @@ resource "azapi_resource" "capability_host" {
     azapi_resource.agent_cosmos_connection,
     azapi_resource.agent_search_connection,
   ]
+
+  # FR-060 / C-071 — caphost provisioning behind an injected network exceeds the
+  # azapi default 30-minute create deadline; the budget is a harmless upper bound.
+  timeouts {
+    create = "60m"
+    update = "60m"
+    delete = "30m"
+  }
 
   response_export_values = ["id"]
 }

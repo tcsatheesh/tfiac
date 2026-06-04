@@ -88,3 +88,9 @@ variable "network_injection_enabled" {
   type        = bool
   default     = false
 }
+
+variable "agent_finalization_enabled" {
+  description = "FR-060 / C-069: known-at-plan toggle that, with network_injection_enabled, gates the project-level Agents capability host. The host hard-depends on the project-MI storage/cosmos/search data-plane grants issued by the SEPARATE 007-rbac stack, so it is deferred to the second (finalization) services pass during a brand-new injected-environment bootstrap. Default true preserves the post-FR-043 single-pass behaviour for steady-state re-applies where the grants already exist."
+  type        = bool
+  default     = true
+}
