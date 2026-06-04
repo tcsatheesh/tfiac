@@ -327,3 +327,41 @@ value is already `false`).
 - Flipping ACR to a private endpoint (UNSUPPORTED by the Foundry Hosted-Agent
   platform — would break the image pull; VC-7 / Microsoft limitation).
 - Any tfvars value change or engine change (this is a doc-only consistency fix).
+
+## Amendment 2026-06-04 — FR-103-08 drop the Container Apps Environment selection
+
+**Trigger:** the authoritative Foundry deployment template shared by the operator
+(`temp/scratchpad/template/template.json`) contains NO
+`Microsoft.App/managedEnvironments` resource. The hosted-agent network-injection
+path binds the account to the `agents` subnet and threads BYO
+Storage/Cosmos/Search connections only — it does not require a Container Apps
+Managed Environment. The previously-selected `container_app_environment` was
+therefore surplus to the target topology.
+
+- **C-103-08** — remove `{ "type": "container_app_environment" }` from the
+  `services` list in
+  [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json).
+- **C-103-09** — set `enable_container_apps: false` (the engine default) and
+  remove the now-inert `container_apps_subnet_role` key. The
+  `container_app_env_requires_subnet` check no longer fires (no CAE selected).
+- **C-103-10** — the `agents` subnet wiring (`agent_subnet_role: "agents"`,
+  `enable_aifoundry_network_injection: true`) is UNCHANGED — the agent subnet is
+  distinct from the dropped container-apps subnet role.
+- **C-103-11** — pure instance parameterization: NO `006-services` engine change
+  (the engine already supports not selecting a CAE).
+
+### Acceptance (FR-103-08)
+
+13. The sp01/dev `services` selection is
+    `aifoundry, aifoundry_project, container_registry, storage, cosmosdb, search`
+    (no `container_app_environment`).
+14. `enable_container_apps: false`; no `container_apps_subnet_role` key remains.
+15. Foundry network injection is intact (`enable_aifoundry_network_injection:
+    true`, `agent_subnet_role: "agents"`); `terraform fmt`/`validate`/`test`
+    green; no engine change.
+
+### Out of scope for FR-103-08
+
+- Removing the Container Registry (still selected; ACR public per VC-7 — separate
+  concern from the CAE; the operator's instruction named only the Container Apps
+  Environment).
