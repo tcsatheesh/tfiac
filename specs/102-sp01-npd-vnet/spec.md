@@ -246,3 +246,86 @@ Rollout ordering is mandatory: apply the **hub** vnet first (so its
 `firewall_private_ip` output is `null` in state), then dispatch the `deploy`
 workflow for this spoke (`service=vnet tenant=sp01 environment=npd
 action=apply`). Engine untouched by this instance.
+
+---
+
+## Amendment 2026-06-04 — re-instate the agent subnet for Standard Agent injection (supersedes FR-102-05) — FR-104
+
+**Created**: 2026-06-04. **Status**: Specified (instance-only; engine
+[004-vnet](../004-vnet/spec.md) unchanged).
+
+**Motivation.** FR-102-05 removed the `agents` subnet because the *legacy*
+ACA-backed Foundry Hosted-Agent injection program had been decommissioned. That
+decommissioning is now being **reversed**: the Foundry account is moving to the
+network-secured **Standard Agent** vnet-injection topology, which provisions
+BOTH an account-level and a project-level capability host (engine work landed in
+006-services **FR-043**, merged in PR #52) and injects into a **dedicated agent
+subnet delegated to `Microsoft.App/environments`**. Microsoft's Standard Agent
+setup mandates this subnet be a dedicated **/24** (the agent runtime's managed
+environment sizing requirement). The sp01/npd spoke therefore needs its
+dedicated `agents` `/24` back — which means re-instating the FR-102-04
+footprint that FR-102-05 reverted.
+
+This amendment **supersedes FR-102-05** for the sp01/npd spoke: it restores the
+exact FR-102-04 result (`address_space = 10.240.2.0/23`, `agents =
+10.240.3.0/24`), with the now-current justification (Standard Agent injection,
+not the legacy ACA backend).
+
+**Change (tfvars only — `variables/sp01/npd/vnet.tfvars.json`).**
+- `address_space`: `["10.240.2.0/24"]` → `["10.240.2.0/23"]` (covers
+  `10.240.2.0`–`10.240.3.255`; every existing subnet CIDR is an unchanged
+  sub-range — no renumber).
+- Add subnet `agents` → `10.240.3.0/24` (the upper half), selecting the
+  engine's existing `agents` role (004-vnet FR-226: delegation
+  `Microsoft.App/environments`, `needs_route_table = false`).
+
+**Why these clarifications (resolved, no user round-trip).**
+- **C-103-01** Re-expand to `/23` + a dedicated `/24` `agents` subnet (vs.
+  carving a smaller block from the existing `/24`): the existing `/24` is fully
+  allocated, AND Microsoft's Standard Agent injection requires the agent subnet
+  to be a dedicated **/24** — a smaller carve-out (e.g. `/27`) would not satisfy
+  the platform requirement. `/23` is the smallest expansion that frees a
+  contiguous `/24` while preserving every existing subnet CIDR byte-for-byte.
+- **C-103-02** Place the agent subnet at `10.240.3.0/24` (the new upper half)
+  — identical to the FR-102-04 placement — so existing allocations are
+  untouched and the value is the documented, previously-validated choice.
+- **C-103-03** Use the engine's existing `agents` role (004-vnet FR-226); this
+  instance only *selects* the role + assigns its CIDR. **No engine change**
+  (honours the `10n` ⇏ `00n` rule).
+- **C-103-04** This **supersedes FR-102-05** rather than literally reverting it:
+  the address-space/subnet result is the same as FR-102-04, but the driving
+  requirement is the new Standard Agent topology, so it is documented as a
+  forward amendment (FR-104), not an "undo".
+- **C-103-05** Ordering: the spoke vnet (this subnet) MUST exist **before** the
+  sp01/dev services stack consumes the agent subnet via remote state and before
+  the Foundry account flips its injection toggle. Rollout order: **hub vnet →
+  this spoke vnet → services**.
+- **C-103-06** Amendment to feature 102 (same spoke), not a new `10n` feature —
+  append to these 102 artifacts + edit the one tfvars file.
+
+**Apply-time note (non-destructive for the vnet stack).** Growing the VNet from
+the `/24` to its `/23` superset and *adding* a new subnet are both in-place
+Azure operations — no existing subnet is resized or removed, so the vnet apply
+does not destroy/recreate any surviving subnet. (The Foundry account recreate
+required to *consume* injection is a separate, operator-approved concern of the
+services instance, not this vnet change.)
+
+### FR-104 (new requirement)
+
+The sp01/npd spoke MUST expose a dedicated `agents` subnet (`10.240.3.0/24`,
+delegated `Microsoft.App/environments`, no shared route table) for Foundry
+**Standard Agent** network injection — restoring the FR-102-04 footprint by
+expanding `address_space` to `10.240.2.0/23` and selecting the engine's existing
+`agents` role — with **no** change to the 004-vnet engine and **no**
+renumbering of existing subnets. This requirement **supersedes FR-102-05**.
+
+### Acceptance (FR-104)
+
+10. The tfvars `address_space` is `10.240.2.0/23` and `subnets` contains
+    `agents = 10.240.3.0/24`; all pre-existing subnet CIDRs are byte-for-byte
+    unchanged.
+11. Engine `terraform fmt`/`validate`/`test` remain green (engine untouched).
+12. `deploy.yaml` dispatch (`service=vnet tenant=sp01 environment=npd
+    action=apply`) plans the address-space growth + new `agents` subnet as
+    in-place additions (no destroy/recreate of existing subnets) — **rollout is
+    operator-run via the workflow, not by this PR**.
