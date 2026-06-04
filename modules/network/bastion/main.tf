@@ -27,12 +27,13 @@ module "bastion" {
   source  = "Azure/avm-res-network-bastionhost/azurerm"
   version = "~> 0.4"
 
-  name             = var.name
-  location         = var.location
-  parent_id        = var.resource_group_id
-  sku              = "Standard"
-  enable_telemetry = false
-  tags             = var.tags
+  name              = var.name
+  location          = var.location
+  parent_id         = var.resource_group_id
+  sku               = "Standard"
+  tunneling_enabled = true # native-client SSH/RDP tunnel support (az network bastion tunnel)
+  enable_telemetry  = false
+  tags              = var.tags
 
   ip_configuration = {
     name                 = "ipconfig"
