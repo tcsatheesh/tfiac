@@ -37,7 +37,10 @@ Toggles (all private-by-default per CLAUDE.md mandate):
 
 - `enable_aifoundry_private_endpoint`: `true`
 - `enable_aifoundry_application_insights`: `true`
-- `enable_container_registry_private_endpoint`: `true`
+- `enable_container_registry_private_endpoint`: `false` (VC-7 exception — see
+  FR-103-05 / FR-103-07: the Hosted-Agent platform pulls the agent image over
+  ACR's **public** data-plane endpoint, which Microsoft does not currently
+  support behind a private endpoint)
 - `enable_container_apps`: `true`
 - `private_endpoint_subnet_role`: `development`
 - `container_apps_subnet_role`: `container-apps`
@@ -255,3 +258,72 @@ Toggles (updated):
   as 006 FR-032/033/034/035).
 - Executing the destructive recreate (operator-run, VC-8).
 - `hub/prd` and `sp01/prd` Foundry injection instances.
+
+---
+
+## Amendment 2026-06-04 — fix stale "Pinned selection" for ACR PE (doc consistency with VC-7) — FR-103-07
+
+**Created**: 2026-06-04. **Status**: Specified (instance-only; engine
+[006-services](../006-services/spec.md) unchanged).
+
+**Motivation.** During the Foundry Standard-Agent vnet-injection conformance
+review, the "Pinned selection" overview at the top of this spec was found to
+state `enable_container_registry_private_endpoint: true`, which **contradicts**:
+1. The resolved decision **VC-7** (FR-103-05): ACR is the ONE documented
+   private-by-default exception and is set to **`false`** (public) because the
+   Foundry Hosted-Agent platform pulls the agent container image over ACR's
+   **public** data-plane endpoint.
+2. The live tfvars (`enable_container_registry_private_endpoint: false`).
+3. **Microsoft's own platform limitation** for the network-secured Standard
+   Agent: *"For Hosted agents, the Azure Container Registry (ACR) that stores
+   the agent's container image can't currently be placed behind a private
+   network (private endpoint with public network access disabled). The ACR must
+   be reachable over its public endpoint for the platform to pull the image."*
+   ([Set up private networking for Foundry Agent Service — Limitations](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks)).
+
+The overview line was stale (it predated the VC-7 resolution). Flipping ACR to a
+private endpoint would **break** the Hosted agent (the platform could not pull
+the image), so the correct value is `false`. This amendment fixes ONLY the
+documentation to match VC-7 + the tfvars + the Microsoft limitation. **No tfvars
+or engine change** — the deployed configuration is already correct.
+
+**Change (documentation only).**
+- `specs/103-sp01-dev-services/spec.md` — "Pinned selection" line
+  `enable_container_registry_private_endpoint: true` → `false`, with a VC-7
+  cross-reference.
+
+**Why these clarifications (resolved, no user round-trip).**
+- **C-103-07** Resolve the contradiction in favour of `false` (public ACR), NOT
+  by flipping the tfvars to `true`: Microsoft does not support a private-only
+  ACR for the Hosted-Agent image pull, so `false` is mandatory for a working
+  agent. This is the documented VC-7 exception to the private-by-default
+  mandate (the registry holds no customer data; images are CI-pushed). The
+  stale overview line was simply never updated when VC-7 was decided.
+- **C-103-08** This is a documentation-consistency fix (no behaviour change), so
+  there is **no tfvars edit** and **no engine edit**; it appends to the 103
+  artifacts only. Per CLAUDE.md it still runs the FULL speckit pipeline (even a
+  docs-only change is a feature).
+
+### FR-103-07 (new requirement)
+
+The 103 spec's "Pinned selection" MUST report
+`enable_container_registry_private_endpoint: false`, consistent with VC-7, the
+live tfvars, and the Microsoft Hosted-Agent ACR limitation — fixing the stale
+`true` overview line. **No tfvars or 006-services engine change** (the deployed
+value is already `false`).
+
+### Acceptance (FR-103-07)
+
+10. The "Pinned selection" overview reports
+    `enable_container_registry_private_endpoint: false` (with a VC-7
+    cross-reference); the tfvars value is unchanged (`false`).
+11. The spec is internally consistent: the overview, VC-7, and the tfvars all
+    agree that ACR public access stays enabled for the Hosted-Agent image pull.
+12. No `terraform`/engine change; `terraform fmt`/`validate`/`test` remain green
+    (nothing in code or tfvars changed).
+
+### Out of scope for FR-103-07
+
+- Flipping ACR to a private endpoint (UNSUPPORTED by the Foundry Hosted-Agent
+  platform — would break the image pull; VC-7 / Microsoft limitation).
+- Any tfvars value change or engine change (this is a doc-only consistency fix).

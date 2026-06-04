@@ -115,3 +115,33 @@ and all 103 artifacts are retained for a future corrected redeploy.
 **Rollout.** Operator-run via `deploy.yaml`
 (`service=services tenant=sp01 environment=dev action=destroy apply=true`),
 then the account purge. Never local; tfstate SA firewall never opened.
+
+---
+
+## Amendment plan — FR-103-07 (doc consistency: ACR PE overview → false)
+
+**Scope (documentation only; tfvars + engine untouched).**
+- `specs/103-sp01-dev-services/spec.md` — "Pinned selection" line
+  `enable_container_registry_private_endpoint` `true` → `false` (+ VC-7 xref).
+- `specs/103-sp01-dev-services/` — this amendment (spec/plan/tasks) +
+  `analyze.md` addendum.
+
+**Decisions (locked).**
+- A12. Resolve the spec/tfvars contradiction toward `false` (public ACR), NOT by
+  flipping the tfvars to `true`: Microsoft does not support a private-only ACR
+  for the Hosted-Agent image pull; `false` is mandatory. The overview line was
+  stale relative to the VC-7 resolution (C-103-07).
+- A13. Documentation-only fix — NO tfvars edit, NO engine edit; the deployed
+  value is already correct (C-103-08).
+- A14. Full speckit pipeline still applies (docs-only change is still a feature,
+  per CLAUDE.md) — append to the 103 artifacts (C-103-08).
+
+**Verification (no live apply).**
+- `terraform fmt -recursive` clean (nothing in code changed).
+- No new tests (no code/tfvars change); existing engine + services tests remain
+  green and unaffected.
+- CI `services.yml` already watches the 103 tfvars path (unchanged); no CI edit.
+
+**Rollout.** None required — documentation-only; the live ACR config already
+matches (`enable_container_registry_private_endpoint: false`, public for the
+Hosted-Agent image pull per VC-7 + the Microsoft limitation).

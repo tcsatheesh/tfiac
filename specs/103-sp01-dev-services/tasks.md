@@ -71,3 +71,23 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
 - [ ] T-103-06-004 Rollout (workflow only): `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true`; watch to completion. (FR-103-06 / C-103-06-01)
 - [ ] T-103-06-005 Post-destroy cleanup: delete + **purge** any soft-deleted Cognitive Services account `aif-uc1-uc1-sp01-dev-swc-001` left untracked. (C-103-06-03)
 - [ ] T-103-06-006 Verify RG `rg-svc-uc1-sp01-dev-swc-001` is gone/empty and no soft-deleted account remains in the region. (FR-103-06 acceptance 5)
+
+## Phase FR-103-07 — fix stale ACR-PE "Pinned selection" (doc consistency with VC-7)
+
+> The overview said `enable_container_registry_private_endpoint: true` while
+> VC-7 + the tfvars + the Microsoft Hosted-Agent limitation all require `false`
+> (public ACR for the agent image pull). Documentation-only fix; no tfvars/engine
+> change.
+
+- [x] T022 [specs/103-sp01-dev-services/spec.md](./spec.md): "Pinned selection"
+  `enable_container_registry_private_endpoint` `true` → `false` (+ VC-7 xref).
+  (FR-103-07 / C-103-07)
+- [x] T023 Confirm NO tfvars edit (live value already `false`) and NO engine
+  edit. `10n` MUST NOT alter `00n`. (C-103-08)
+- [x] T024 Amend `specs/103-*/` spec/plan/tasks + `analyze.md` addendum. (C-103-08)
+- [x] T025 Verify the spec is internally consistent (overview ⇔ VC-7 ⇔ tfvars all
+  say `false`). (FR-103-07)
+- [x] T026 Validation (local): `terraform fmt -recursive` clean; no code/tfvars
+  change ⇒ existing tests unaffected. (FR-103-07)
+- [ ] T027 Rollout: NONE — documentation-only; the live ACR config already
+  matches (`false`, public for the Hosted-Agent image pull). **No deploy.**
