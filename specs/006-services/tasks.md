@@ -1020,3 +1020,19 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-044/045.E — Rollout
 
 - [ ] T-FR044-015 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, additive (default-off ⇒ no new resources). The `103` instance selects the second storage + Key Vault and flips the toggles on its own `deploy`-workflow pipeline — never a local apply. (FR-044 / FR-045)
+
+## Phase FR-059 — remove the temporary Foundry import shim
+
+> PR #58 left `terraform/services/import.aifoundry.tf` (a one-shot recovery
+> `import {}` block). The account it targeted has since been deleted, so the
+> block now fails a fresh plan ("Cannot import non-existent remote object").
+> Pure deletion; engine returns to a clean lifecycle.
+
+- [x] T-FR059-1 `git rm terraform/services/import.aifoundry.tf`. (FR-059 / C-067)
+- [x] T-FR059-2 Confirm no other `import {` block remains under
+  `terraform/services/`. (FR-059)
+- [x] T-FR059-3 `terraform validate -backend=false` OK; full `terraform test`
+  suite stays green (shim was inert under the all-zeros fixture sub). (FR-059)
+- [ ] T-FR059-4 Push branch, PR against `master`, squash-merge, delete branch.
+  Engine-only deletion; the sp01/dev rebuild then runs via the `deploy`
+  workflow (destroy → apply), never a local apply. (FR-059)
