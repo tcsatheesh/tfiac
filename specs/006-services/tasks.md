@@ -1102,3 +1102,18 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 - [ ] T-FR060-10 After merge, run the three-pass bootstrap via the `deploy`
   workflow ONLY: `services` (finalization off, `-f finalize=false`) → `rbac` →
   `services` (finalization on, default). Never a local apply. (FR-060/C-069)
+
+## Phase FR-061 (2026-06-04) — cross-stack contract completeness
+
+- [ ] T-FR061-1 `terraform/services/outputs.tf`: add `module.container_app_environment`,
+  `module.cosmosdb`, and `module.aifoundry_project` to the `resource_ids`
+  `merge(...)` and to the `resource_names` `concat(keys(...))` set so the key
+  set equals `keys(module.naming.names)` minus the `resource_group` entry. (FR-061)
+- [ ] T-FR061-2 `terraform/services/tests/resource_ids_contract.tftest.hcl`:
+  new regression — full-stack plan asserts `resource_names` set equals
+  `keys(naming)` minus the RG, `resource_ids` keys equal `resource_names` keys,
+  and the three previously-omitted services appear. (FR-061/C-073)
+- [ ] T-FR061-3 `terraform fmt -recursive` clean; full `terraform test` green
+  for `terraform/services`. (FR-061)
+- [ ] T-FR061-4 Branch → PR → CI green → squash-merge → sync master, then
+  re-run bootstrap pass 2 (`rbac`). (FR-061)
