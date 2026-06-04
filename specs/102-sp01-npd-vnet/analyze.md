@@ -46,3 +46,18 @@ workflow, not this PR).**
 
 **FR-102-05 result: no unresolved BLOCKER/MAJOR. Ready (rollout operator-run via
 workflow).**
+
+## Amendment addendum — FR-104 re-instate the agent subnet (supersedes FR-102-05)
+
+| ID | Severity | Finding | Resolution |
+|----|----------|---------|------------|
+| A18 | BLOCKER | Conflict with FR-102-05 (which removed `agents`) — does re-adding it contradict a locked decision? | RESOLVED: FR-102-05 removed the subnet because the *legacy ACA* injection was decommissioned. The driver has changed: Foundry now adopts the network-secured **Standard Agent** topology (006-services FR-043, PR #52), which requires the dedicated agent subnet. FR-104 SUPERSEDES FR-102-05 with the new justification; the footprint equals FR-102-04. (C-103-04) |
+| A19 | MAJOR | Is a `/24` actually required, or could a smaller carve-out from the existing `/24` work (avoiding the `/23` growth)? | RESOLVED: Microsoft's Standard Agent setup mandates a dedicated `/24` agent subnet delegated to `Microsoft.App/environments`; a `/27` carve-out would not satisfy it. `/23` is the minimal expansion that frees a contiguous `/24` while preserving every existing CIDR. (C-103-01) |
+| A20 | MAJOR | Does this require an engine change (would violate `10n` ⇏ `00n`)? | RESOLVED: NO. The `agents` role already exists in the 004-vnet engine (FR-226: delegation `Microsoft.App/environments`, `needs_route_table=false`). Only `variables/sp01/npd/vnet.tfvars.json` + `specs/102-*` change. (C-103-03) |
+| A21 | MAJOR | Does growing `/24`→`/23` + adding `agents` destroy/recreate any surviving subnet? | RESOLVED: NO. Address-space growth to a superset + adding a new subnet are in-place Azure ops; every existing subnet CIDR is byte-for-byte unchanged. (apply-time note) |
+| A22 | MINOR | Ordering vs services/Foundry consumption. | RESOLVED: hub vnet → this spoke vnet → services. The agent subnet must exist before services/Foundry consume it. (C-103-05) |
+| A23 | MINOR | New `10n` folder or amendment? | RESOLVED: amendment to the same sp01/npd spoke — append to 102 artifacts + edit the one tfvars file. (C-103-06) |
+| A24 | INFO | Spec FR-104, plan A12–A17, tasks T022–T027, tfvars all agree on `/23` + `agents = 10.240.3.0/24`. | Consistent. |
+| A25 | INFO | CI `vnet.yml` already watches the sp01/npd tfvars path; no CI edit. | Consistent. |
+
+**FR-104 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement (rollout operator-run via workflow).**

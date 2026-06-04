@@ -111,3 +111,39 @@ now that the Foundry injection program (legacy backend) is decommissioned
 **Rollout.** Operator-run via `deploy.yaml` (`service=vnet tenant=sp01
 environment=npd action=apply`) — in-place agent-subnet removal + address-space
 shrink, no destroy/recreate of surviving subnets.
+
+---
+
+## Amendment plan — FR-104 (re-instate agent subnet; supersedes FR-102-05)
+
+**Scope (instance-only; engine 004-vnet untouched).**
+- `variables/sp01/npd/vnet.tfvars.json` — `address_space` `10.240.2.0/24` →
+  `10.240.2.0/23`; add subnet `agents = 10.240.3.0/24`.
+- `specs/102-sp01-npd-vnet/` — this amendment (spec/plan/tasks) + `analyze.md`
+  addendum.
+
+**Decisions (locked).**
+- A12. Re-expand to `/23` + dedicated `/24` `agents` subnet — Standard Agent
+  injection requires a dedicated `/24`; a smaller carve-out from the existing
+  `/24` cannot satisfy it (C-103-01).
+- A13. Place `agents` at `10.240.3.0/24` (upper half) — same as FR-102-04,
+  existing CIDRs untouched (C-103-02).
+- A14. Select the engine's existing `agents` role (004-vnet FR-226); no engine
+  change (C-103-03).
+- A15. This is a forward amendment that SUPERSEDES FR-102-05 (same footprint as
+  FR-102-04, new Standard-Agent justification) (C-103-04).
+- A16. Ordering: hub vnet → this spoke vnet → services; this subnet must exist
+  before services/Foundry consume it (C-103-05).
+- A17. Amendment to feature 102 (same spoke), not a new `10n` feature
+  (C-103-06).
+
+**Verification (no live apply).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=terraform/vnet test` + `terraform -chdir=modules/network
+  test` green (engine unchanged).
+- CI `vnet.yml` already watches `variables/sp01/npd/vnet.tfvars.json` — no CI
+  edit needed.
+
+**Rollout.** Operator-run via `deploy.yaml` (`service=vnet tenant=sp01
+environment=npd action=apply`) — in-place address-space growth + new `agents`
+subnet, no destroy/recreate of surviving subnets.
