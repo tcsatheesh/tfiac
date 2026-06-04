@@ -112,3 +112,26 @@ locals {
   search_selected    = length([for s in var.services : s if s.type == "search"]) > 0
   keyvault_selected  = length([for s in var.services : s if s.type == "keyvault"]) > 0
 }
+
+# ----- FR-044 / C-060 (Amendment 2026-06-04): storage-role resolution -----
+# The aifoundry account can consume up to TWO distinct storage accounts: the BYO
+# AGENT thread/file store (capability-host storageConnections leg, gated by
+# var.enable_aifoundry_network_injection) and the account's own userOwnedStorage
+# (gated by var.enable_aifoundry_user_owned_storage). When two storages are
+# selected they are disambiguated by their engine service_purpose via
+# var.agent_storage_purpose / var.account_storage_purpose. When a single storage
+# is selected and the purposes are null, both resolvers collapse to that one
+# storage (back-compat with the single-storage injection case).
+locals {
+  storage_count = length([for s in var.services : s if s.type == "storage"])
+
+  agent_byo_storage_id = var.agent_storage_purpose != null ? one([
+    for k, v in module.storage : v.resource_id
+    if module.naming.names[k].service_purpose == var.agent_storage_purpose
+  ]) : one([for k, v in module.storage : v.resource_id])
+
+  account_owned_storage_id = var.account_storage_purpose != null ? one([
+    for k, v in module.storage : v.resource_id
+    if module.naming.names[k].service_purpose == var.account_storage_purpose
+  ]) : one([for k, v in module.storage : v.resource_id])
+}

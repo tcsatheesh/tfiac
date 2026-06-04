@@ -346,9 +346,27 @@ module "aifoundry" {
   # is only evaluated when injection is on.
   network_injection_enabled = var.enable_aifoundry_network_injection
   agent_subnet_id           = local.agent_subnet_id
-  agent_storage_account_id  = var.enable_aifoundry_network_injection ? one([for k, v in module.storage : v.resource_id]) : null
+  agent_storage_account_id  = var.enable_aifoundry_network_injection ? local.agent_byo_storage_id : null
   agent_cosmosdb_account_id = var.enable_aifoundry_network_injection ? one([for k, v in module.cosmosdb : v.resource_id]) : null
   agent_search_service_id   = var.enable_aifoundry_network_injection ? one([for k, v in module.search : v.resource_id]) : null
+
+  # FR-044 / C-060 (Amendment 2026-06-04) — userOwnedStorage. When enabled, the
+  # account's own (2nd) storage is attached as properties.userOwnedStorage plus
+  # an 'accountstorage' connection. Resolved from the account_storage_purpose
+  # leg so it stays distinct from the BYO agent store. The known-at-plan toggle
+  # gates the connection/body; the id (computed) carries the value. Gated on the
+  # two-storage prereq as well so the module is never handed an inconsistent
+  # (enabled = true, id = null) pair on a misconfiguration — check.tf is the
+  # loud guard. Default false ⇒ off / null.
+  account_storage_connection_enabled = var.enable_aifoundry_user_owned_storage && local.storage_count == 2
+  account_storage_account_id         = var.enable_aifoundry_user_owned_storage ? local.account_owned_storage_id : null
+
+  # FR-045 / C-061 (Amendment 2026-06-04) — Key Vault connection. When enabled,
+  # the single selected (private-by-default) keyvault is attached to the account
+  # as a 'keyvault' connection (AccountManagedIdentity). Gated on a keyvault
+  # actually being selected (see above). Default false ⇒ null.
+  keyvault_connection_enabled = var.enable_aifoundry_keyvault_connection && local.keyvault_selected
+  keyvault_account_id         = var.enable_aifoundry_keyvault_connection && local.keyvault_selected ? one([for k, v in module.keyvault : v.resource_id]) : null
 }
 
 module "aifoundry_project" {

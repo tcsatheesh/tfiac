@@ -2286,3 +2286,136 @@ the Storage connection requires a service-endpoint URI.
 **Acceptance 16** — with injection enabled, plan shows the `agentstorage`
 connection target equal to the storage account's Blob endpoint URI; live apply of
 the connection succeeds (no RP ValidationError).
+
+## AMENDMENT 2026-06-04 — userOwnedStorage + Key Vault connection (FR-044, FR-045)
+
+> **AMENDMENT NOTICE.** This amendment extends the 006-services engine so a
+> selected Foundry account can additionally consume (a) its OWN second storage
+> account as `properties.userOwnedStorage` plus a matching account connection,
+> and (b) a Key Vault as an `AzureKeyVault` account connection — the two
+> remaining service-graph legs in the portal "Foundry account + Standard Agent
+> Setup (network-injected)" reference template that the engine could not yet
+> express. Both are **opt-in, default-off**; with the toggles off the account
+> body and connection set are byte-for-byte the post-FR-043 state. This is an
+> ENGINE change (new selectable wiring + toggles + module inputs); the concrete
+> sp01/dev selection lands in the `103` instance feature, and the role
+> assignments the template attaches to these resources land in the separate
+> `007-rbac` engine — neither is in scope here.
+
+**Problem.** The portal Standard-Agent reference deploys TWO storage accounts —
+the BYO agent thread/file store (already supported via FR-031 network
+injection) AND a SECOND storage that the account owns directly, surfaced on the
+account body as `properties.userOwnedStorage` and mirrored as an
+`AzureStorageAccount` account connection (`<account>-userowned`). It also
+deploys a Key Vault and attaches it to the account as an `AzureKeyVault`
+connection (`<account>-keyvault`, `authType = AccountManagedIdentity`). The
+006-services engine had no way to (i) select/attach a second account-owned
+storage, or (ii) attach a Key Vault connection. The existing single-storage
+resolver (`one([for k, v in module.storage : v.resource_id])`) also breaks the
+moment a second `storage` is selected, so the engine must disambiguate the two
+storages by their engine `service_purpose`.
+
+- **FR-044 — userOwnedStorage (the account's own second storage).** The
+  `aifoundry` account module MUST be able to attach a second storage account as
+  `properties.userOwnedStorage = [{ resourceId = <storage id> }]` AND provision
+  a matching `Microsoft.CognitiveServices/accounts/connections` of
+  `category = "AzureStorageAccount"` (fixed name `accountstorage`, `authType =
+  "AAD"`, `isSharedToAll = true`, `target` = the storage account's Blob
+  endpoint URI per C-031-06, `metadata.ResourceId` = the storage ARM id). This
+  is gated by a known-at-plan toggle (`account_storage_connection_enabled`)
+  kept separate from the (computed, unknown-at-plan) `account_storage_account_id`
+  so `count`/`for_each` never depend on an unknown value — mirroring the
+  `network_injection_enabled` precedent. The services stack exposes
+  `enable_aifoundry_user_owned_storage`; when on it REQUIRES exactly two
+  `storage` selections disambiguated by `agent_storage_purpose` (the BYO agent
+  store) and `account_storage_purpose` (the account's userOwnedStorage), both
+  set and distinct. Default off ⇒ no `userOwnedStorage`, no `accountstorage`
+  connection, single-storage behaviour preserved.
+- **FR-045 — Key Vault connection on the Foundry account.** The `aifoundry`
+  account module MUST be able to attach a Key Vault as a
+  `Microsoft.CognitiveServices/accounts/connections` of `category =
+  "AzureKeyVault"` (fixed name `keyvault`, `authType = "AccountManagedIdentity"`,
+  `isSharedToAll = true` so child projects inherit it, `target` and
+  `metadata.ResourceId` = the Key Vault ARM id, `metadata.location` = the
+  account location, `credentials = {}`). Gated by a known-at-plan toggle
+  (`keyvault_connection_enabled`) separate from the computed
+  `keyvault_account_id`. The services stack exposes
+  `enable_aifoundry_keyvault_connection`; when on it REQUIRES exactly one
+  `keyvault` selection. Default off ⇒ no Key Vault connection. Because azapi's
+  embedded connection schema does not (yet) list the `AccountManagedIdentity`
+  auth mode (valid at the RP), the Key Vault connection resource sets
+  `schema_validation_enabled = false` so the template-exact `authType` is sent.
+
+### Clarifications — Session 2026-06-04 (FR-044 / FR-045)
+
+- **C-060 — Two storages, disambiguated by `service_purpose`.** The naming
+  engine already produces DISTINCT canonical names for two `storage` selections
+  (per-entry key suffix), so a second storage needs NO `001-naming` change.
+  The engine distinguishes the BYO agent store from the account userOwnedStorage
+  purely by `service_purpose`: the services stack resolves
+  `local.agent_byo_storage_id` and `local.account_owned_storage_id` by filtering
+  `module.storage` on `module.naming.names[k].service_purpose ==
+  var.agent_storage_purpose` / `== var.account_storage_purpose`. When a single
+  storage is selected and the purposes are null, both resolvers collapse to that
+  one storage (back-compat with the FR-031 single-storage injection case).
+  `check.aifoundry_user_owned_storage_prereqs` enforces (aifoundry == 1 ∧
+  storage == 2 ∧ both purposes set ∧ distinct) when
+  `enable_aifoundry_user_owned_storage = true`, and the network-injection
+  prereq's storage count is relaxed to `(uos ? 2 : 1)`.
+- **C-061 — Fixed short connection names + private-by-default Key Vault.** Both
+  new connections use FIXED short names (`accountstorage`, `keyvault`) for the
+  same reason as C-025 (the canonical account name's dots/length cannot satisfy
+  the connection-name RP pattern `^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$`). With one
+  account per stack there is no collision. `check.aifoundry_keyvault_connection_prereqs`
+  enforces (aifoundry == 1 ∧ keyvault == 1) when
+  `enable_aifoundry_keyvault_connection = true`.
+
+### DEVIATION from the portal template (private-by-default mandate)
+
+The portal reference creates the Key Vault **PUBLIC** (`publicNetworkAccess =
+Enabled`, `networkAcls.defaultAction = Allow`). Per the repository's standing
+**private-by-default mandate** (CLAUDE.md — every Private-Link-capable service
+is deployed with public access disabled + a private endpoint), the `keyvault`
+selection backing FR-045 is deployed **PRIVATE** (`publicNetworkAccess =
+Disabled`, `network_acls.default_action = Deny`, `vault` private endpoint +
+`privatelink.vaultcore.azure.net` DNS) via the existing `keyvault` module +
+`enable_keyvault_private_endpoint` / `private_by_default` controls. This is
+STRICTLY MORE private than the template and is the intentional, documented
+deviation. The Foundry account reaches the vault over the spoke VNet via its
+managed identity (the `AzureKeyVault`/`AccountManagedIdentity` connection),
+which functions identically against a private vault.
+
+### Validation criteria (FR-044 / FR-045)
+
+- **VC-23 — userOwnedStorage body + connection.** With
+  `account_storage_connection_enabled = true` and a valid
+  `account_storage_account_id`, the account body includes
+  `userOwnedStorage[0].resourceId == account_storage_account_id` AND exactly one
+  `accountstorage` connection (`category = AzureStorageAccount`, `target` = the
+  Blob endpoint URI, `metadata.ResourceId` = the storage id).
+- **VC-24 — Key Vault connection.** With `keyvault_connection_enabled = true`
+  and a valid `keyvault_account_id`, exactly one `keyvault` connection
+  (`category = AzureKeyVault`, `authType = AccountManagedIdentity`,
+  `isSharedToAll = true`, `target` = the Key Vault id).
+- **VC-25 — Day-one parity.** With both toggles off (defaults), the account
+  body has NO `userOwnedStorage` and neither the `accountstorage` nor the
+  `keyvault` connection is emitted.
+- **VC-26 — Two-storage disambiguation.** With
+  `enable_aifoundry_user_owned_storage = true`, two `storage` selections with
+  distinct purposes resolve to two distinct canonical storages; the misconfig
+  (≠2 storages, or missing/equal purposes) is rejected by
+  `check.aifoundry_user_owned_storage_prereqs`.
+- **VC-27 — Key Vault prereq.** With `enable_aifoundry_keyvault_connection =
+  true` and no `keyvault` selected, `check.aifoundry_keyvault_connection_prereqs`
+  fails.
+
+### Out of scope for FR-044 / FR-045
+
+The role assignments the portal attaches to the userOwnedStorage / Key Vault
+(account + project MI → Storage Blob Data Contributor, Key Vault Crypto roles,
+etc.) — those land in the separate `007-rbac` engine; the concrete sp01/dev
+selection of the second storage + Key Vault (and dropping the container
+registry) — that lands in the `103-sp01-dev-services` instance feature; the
+Key Vault's own private-endpoint wiring (already shipped by FR-041 /
+`enable_keyvault_private_endpoint`); and any provisioning of the storage/Key
+Vault resources themselves (the existing `storage`/`keyvault` selectable types).
