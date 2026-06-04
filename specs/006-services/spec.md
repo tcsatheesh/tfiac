@@ -2575,3 +2575,63 @@ sequence remains an operator-dispatched runbook — C-072 only adds a thin
 `finalize` parameter passthrough, not a one-click orchestrator); the account-MI
 Key Vault Secrets Officer grant itself (it already exists in `007-rbac`, see
 that engine's 2026-06-04 amendment for the label correction).
+
+## AMENDMENT 2026-06-04 — `resource_ids` / `resource_names` must cover every emitted service (FR-061)
+
+> **Why.** The live sp01/dev bootstrap pass 2 (`007-rbac`) failed at **plan**
+> with `Error: Invalid index` on `local.resource_ids[local.project_name]` and
+> `local.resource_ids[local.cosmos_name]`. Root cause: the `terraform/services`
+> `resource_ids` (and the sibling `resource_names`) output silently **omitted
+> three emitted modules** — `module.aifoundry_project`, `module.cosmosdb`, and
+> `module.container_app_environment` — even though every one of them produces a
+> first-class service with a `resource_id` output and a `module.naming.names`
+> entry. The cross-stack contract
+> ([contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md)) is
+> explicit that `resource_ids` keys MUST be byte-identical to
+> `keys(module.naming.names)` minus the single `resource_group` entry, so the
+> omission was a latent **contract violation**: any downstream consumer
+> resolving a project/cosmos/container-app id by canonical name hit a missing
+> key. It surfaced now because the project only just came into existence (pass 1
+> created the first-ever sp01/dev Foundry project).
+
+- **FR-061 — the `resource_ids` and `resource_names` outputs MUST include every
+  emitted service except the `svc` RG.** Both `merge(...)` (for `resource_ids`)
+  and the `concat(keys(...))` set (for `resource_names`) gain the three
+  previously-missing modules — `module.container_app_environment`,
+  `module.cosmosdb`, and `module.aifoundry_project` — so the emitted key set is
+  byte-identical to `keys(module.naming.names)` minus the `resource_group`
+  entry, exactly as the cross-stack contract requires. No key shape, naming, or
+  value changes for any service that was already present; this is a pure
+  completeness fix.
+
+### Clarifications — Session 2026-06-04 (FR-061)
+
+- **C-073 — Contract completeness is mechanical, not selective.** The output
+  enumerates wrapper modules by hand (Terraform cannot iterate module blocks),
+  so any newly-added `module.<svc>` must also be appended to these two outputs.
+  FR-061 closes the gap for the three modules that existed but were never wired
+  in; the new regression test (below) asserts **set equality** against
+  `keys(module.naming.names)` minus the RG so a future omission fails CI rather
+  than a live downstream plan.
+- **C-074 — No consumer migration required.** Existing keys are unchanged and
+  only-added keys are net-new, so every current consumer
+  (`007-rbac`) keeps working; the rbac stack's `local.resource_ids[project_name]`
+  / `[cosmos_name]` lookups now resolve instead of erroring.
+
+### Validation criteria (FR-061)
+
+- `terraform validate -backend=false` on `terraform/services` succeeds.
+- A full-stack plan (`aifoundry` + `aifoundry_project` + `cosmosdb` + `storage` +
+  `search` + `keyvault`) yields `keys(output.resource_names)` equal to the set of
+  `keys(module.naming.names)` minus the `resource_group` entry, and
+  `keys(output.resource_ids)` identical to `keys(output.resource_names)`.
+- The `aifoundry_project`, `cosmosdb` and `container_app_environment` canonical
+  names appear in both outputs whenever those services are selected.
+- The full `terraform test` suite is green, including the new
+  `resource_ids_contract.tftest.hcl` regression.
+
+### Out of scope for FR-061
+
+Per-resource `_id`/`_name` outputs (still forbidden — the map is the contract,
+[C-008](#clarifications)); changing any existing key shape; exposing the `svc`
+RG inside the map (it keeps its dedicated `resource_group_id` output).

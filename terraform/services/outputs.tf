@@ -20,10 +20,13 @@ output "resource_ids" {
     { for k, m in module.log_analytics : k => m.workspace_resource_id },
     { for k, m in module.app_insights : k => m.resource_id },
     { for k, m in module.container_registry : k => m.resource_id },
+    { for k, m in module.container_app_environment : k => m.resource_id },
+    { for k, m in module.cosmosdb : k => m.resource_id },
     { for k, m in module.user_assigned_identity : k => m.resource_id },
     { for k, m in module.search : k => m.resource_id },
     { for k, m in module.openai : k => m.resource_id },
     { for k, m in module.aifoundry : k => m.resource_id },
+    { for k, m in module.aifoundry_project : k => m.resource_id },
     { for k, m in module.language : k => m.resource_id },
     { for k, m in module.doc_intel : k => m.resource_id },
     { for k, m in module.function_app : k => m.resource_id },
@@ -39,10 +42,11 @@ output "resource_names" {
     for k in concat(
       keys(module.keyvault), keys(module.storage), keys(module.log_analytics),
       keys(module.app_insights), keys(module.container_registry),
+      keys(module.container_app_environment), keys(module.cosmosdb),
       keys(module.user_assigned_identity), keys(module.search), keys(module.openai),
-      keys(module.aifoundry), keys(module.language), keys(module.doc_intel),
-      keys(module.function_app), keys(module.logic_app), keys(module.aml_workspace),
-      keys(module.apim),
+      keys(module.aifoundry), keys(module.aifoundry_project), keys(module.language),
+      keys(module.doc_intel), keys(module.function_app), keys(module.logic_app),
+      keys(module.aml_workspace), keys(module.apim),
     ) : k => k
   }
 }
