@@ -2535,6 +2535,16 @@ surface.
   finishes earlier returns immediately; the larger budgets only stop Terraform
   abandoning a still-healthy long-running create. They mirror the FR-040
   account-timeout rationale.
+- **C-072 — Bootstrap toggle is a dispatch parameter, not committed tfvars.**
+  The three-pass bootstrap selects finalization off/on via a `finalize`
+  `workflow_dispatch` input on `.github/workflows/deploy.yaml` (default
+  **`true`**), which the `plan` step forwards as
+  `-var "enable_aifoundry_agent_finalization=<finalize>"` **only** when
+  `service == services` (other stacks have no such variable). This keeps the
+  committed `variables/<tenant>/<env>/services.tfvars.json` at its steady-state
+  intent (finalization on) with no transient flips — the one-time off pass is a
+  pure dispatch parameter. The input only *passes* the toggle; it does **not**
+  orchestrate the sequence (operators still dispatch the three passes in order).
 
 ### Validation criteria (FR-060)
 
@@ -2550,11 +2560,18 @@ surface.
   create/update timeout is `150m`.
 - The full `terraform test` suite is green, including new positive (toggle true ⇒
   resources present) and negative (toggle false ⇒ resources absent) fixtures.
+- `.github/workflows/deploy.yaml` exposes a `finalize` `workflow_dispatch`
+  boolean (default `true`) and, when `service == services`, the `plan` step's
+  arguments include `-var "enable_aifoundry_agent_finalization=<finalize>"`;
+  for any other `service` the flag is omitted (no undefined-variable error). The
+  committed `variables/sp01/dev/services.tfvars.json` does **not** pin
+  `enable_aifoundry_agent_finalization` (steady-state default `true`). (C-072)
 
 ### Out of scope for FR-060
 
 Moving any role grant into the `services` stack (rejected — preserves C-065);
-automating the three-pass bootstrap inside CI (the rollout sequence is an
-instance-stack runbook, not engine surface); the account-MI Key Vault Secrets
-Officer grant itself (it already exists in `007-rbac`, see that engine's
-2026-06-04 amendment for the label correction).
+fully **orchestrating** the three-pass bootstrap inside CI (the rollout
+sequence remains an operator-dispatched runbook — C-072 only adds a thin
+`finalize` parameter passthrough, not a one-click orchestrator); the account-MI
+Key Vault Secrets Officer grant itself (it already exists in `007-rbac`, see
+that engine's 2026-06-04 amendment for the label correction).

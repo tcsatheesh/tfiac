@@ -1094,6 +1094,11 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 
 ### FR-060.E — Rollout
 
+- [ ] T-FR060-10a `.github/workflows/deploy.yaml`: add optional `finalize`
+  `workflow_dispatch` boolean input (default `true`); in the `plan` step append
+  `-var "enable_aifoundry_agent_finalization=${{ inputs.finalize }}"` to the
+  plan args **only** when `service == services`. Keeps committed
+  `services.tfvars.json` at steady-state intent. (FR-060/C-072)
 - [ ] T-FR060-10 After merge, run the three-pass bootstrap via the `deploy`
-  workflow ONLY: `services` (finalization off) → `rbac` → `services`
-  (finalization on). Never a local apply. (FR-060/C-069)
+  workflow ONLY: `services` (finalization off, `-f finalize=false`) → `rbac` →
+  `services` (finalization on, default). Never a local apply. (FR-060/C-069)
