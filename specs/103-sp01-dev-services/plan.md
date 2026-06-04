@@ -156,3 +156,15 @@ Hosted-Agent image pull per VC-7 + the Microsoft limitation).
   removing the CAE cannot affect network injection.
 - Validate with `terraform fmt` + `terraform validate -backend=false` +
   `terraform test` on `terraform/services`.
+
+## Amendment 2026-06-04 — FR-103-06 portal Standard-Agent template match
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  add a 2nd `storage` (purposes `agt`/`act`); set `agent_storage_purpose=agt`,
+  `account_storage_purpose=act`, `enable_aifoundry_user_owned_storage=true`,
+  `enable_aifoundry_keyvault_connection=true`; add `keyvault` (private); drop
+  `container_registry`.
+- No engine (`006-services`/`007-rbac`) or module change. The KV-connection
+  and user-owned-storage wiring is already in the engine (F1, PR #59).
+- Validate with `terraform validate -backend=false` + `terraform test` on
+  `terraform/services`. RBAC for this estate is the 104-sp01-dev-rbac instance.

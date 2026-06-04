@@ -85,6 +85,57 @@ Cross-stack wiring:
    `cae-uc1-uc1-sp01-dev-swc-001` (Internal=True); private DNS zone
    `*.swedencentral.azurecontainerapps.io` in the svc RG.
 
+## Amendment 2026-06-04 — portal Standard-Agent template-exact match
+
+This instance is re-pinned to mirror the shared-portal Standard-Agent ARM
+template (the canonical Foundry Agent deployment). Engine code is unchanged;
+only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json)
+is amended.
+
+Re-pinned selection (source of truth: the tfvars):
+
+- `aifoundry`, `aifoundry_project`
+- `storage` × 2 — distinct purposes `agt` (agent/project BYO) and `act`
+  (account user-owned), disambiguated by `service_purpose` (engine FR-044).
+- `cosmosdb`
+- `search`
+- `keyvault` (deployed **private** — documented deviation C-061: the template
+  leaves KV public; this estate's private-by-default mandate overrides).
+- `container_registry` **dropped** — the template's Standard Agent deployment
+  does not provision an ACR for the agent runtime in this estate.
+
+Re-pinned toggles:
+
+- `enable_aifoundry_user_owned_storage`: `true` (FR-044) with
+  `agent_storage_purpose=agt`, `account_storage_purpose=act`.
+- `enable_aifoundry_keyvault_connection`: `true` (FR-045).
+- `enable_aifoundry_private_endpoint`: `true`,
+  `enable_aifoundry_application_insights`: `true`,
+  `enable_aifoundry_network_injection`: `true`.
+- `enable_storage_private_endpoint`: `true`,
+  `enable_search_private_endpoint`: `true`,
+  `enable_keyvault_private_endpoint`: `true`.
+- `enable_container_apps`: `false`.
+
+Amendment requirements:
+
+- **FR-103-06**: Selection + config MUST mirror the portal Standard-Agent
+  template (two storages by purpose, KV connection, user-owned storage),
+  except the two documented estate deviations (KV private; no ACR).
+- **FR-103-07**: The 103 instance MUST NOT modify any 006-services or
+  007-rbac engine spec/code (engine/instance split).
+- **FR-103-08**: RBAC for this deployment is owned by the **104-sp01-dev-rbac**
+  instance of the 007-rbac engine, not by this services instance.
+
+Amendment acceptance:
+
+1. `terraform validate` on `terraform/services` with this tfvars succeeds.
+2. Engine `terraform test` (28 cases) remains green (unchanged by this
+   instance).
+3. tfvars passes the engine variable validations: two distinct storage
+   purposes, `agent_storage_purpose`/`account_storage_purpose` set + distinct,
+   `keyvault` selected (required by the KV-connection toggle).
+
 ## Out of scope
 
 - Any engine behaviour change (new selectable type, toggle, naming row) —

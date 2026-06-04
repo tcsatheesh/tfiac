@@ -91,3 +91,17 @@ Removal is a pure instance tfvars change; `container_app_env_requires_subnet`
 check is satisfied (no CAE selected, enable_container_apps=false). Foundry
 network injection (agents subnet + BYO Storage/Cosmos/Search) is unaffected.
 No BLOCKER/MAJOR findings.
+
+## Addendum 2026-06-04 — FR-103-06 portal Standard-Agent template match
+
+Cross-checked the shared Standard-Agent template: two storage accounts
+(agent BYO + account user-owned), a KV connection, and user-owned storage on
+the account. Re-pinned the tfvars to match: 2 storages by purpose (`agt`/`act`),
+`enable_aifoundry_user_owned_storage=true`, `enable_aifoundry_keyvault_connection=true`,
+`keyvault` added. Two documented estate deviations vs the template: KV is
+deployed **private** (C-061) and **no ACR** is provisioned. Engine validations
+exercised by the tfvars: distinct `service_purpose` per storage (FR-044),
+`agent_storage_purpose`≠`account_storage_purpose`, and `keyvault` present
+(required by the KV-connection toggle). `terraform validate` OK; engine
+`terraform test` 28/28 green. No BLOCKER/MAJOR findings. RBAC deferred to
+104-sp01-dev-rbac (FR-103-08).
