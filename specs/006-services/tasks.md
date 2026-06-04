@@ -954,3 +954,30 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-042.D — Rollout
 
 - [x] T-FR042-008 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, guard-only; same `deploy` workflow path as FR-041 (never a local apply). (FR-042)
+
+## Phase FR-043 — Foundry project-level capability host (engine)
+
+### FR-043.A — Module surface
+
+- [x] T-FR043-001 [modules/aifoundryproject/variables.tf](../../modules/aifoundryproject/variables.tf): add `network_injection_enabled` (bool, default false) with a description tying it to FR-043 / the account-level injection master. (FR-043 / C-059)
+- [x] T-FR043-002 [modules/aifoundryproject/locals.tf](../../modules/aifoundryproject/locals.tf): add fixed connection-name constants `agent_conn_storage="agentstorage"`, `agent_conn_cosmos="agentcosmos"`, `agent_conn_search="agentsearch"` with a comment that they MUST match `modules/aifoundry/locals.tf`; add `network_injection_enabled` passthrough local. (FR-043 / C-058)
+- [x] T-FR043-003 [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf): add count-gated `azapi_resource "capability_host"` — `Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-09-01`, name `agents`, parent_id = the project resource, body `capabilityHostKind="Agents"` + storage/thread/vector connection lists (the three constants), **no** `customerSubnet`; `response_export_values=["id"]`. (FR-043 / C-056 / C-057 / VC-20)
+- [x] T-FR043-004 [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf): add a `lifecycle.precondition` on the capability host asserting `var.network_injection_enabled` ⇒ a non-empty `var.parent_account_id` (defence-in-depth; the project host is meaningless without the injected parent). (FR-043)
+
+### FR-043.B — Services-stack wiring
+
+- [x] T-FR043-005 [terraform/services/main.tf](../../terraform/services/main.tf): pass `network_injection_enabled = var.enable_aifoundry_network_injection` and `depends_on = [module.aifoundry]` to `module.aifoundry_project` so account/connections/account-caphost exist before the project host. (FR-043 / C-059)
+
+### FR-043.C — Tests
+
+- [x] T-FR043-006 `modules/aifoundryproject/tests/network_injection_positive.tftest.hcl` (VC-20 + VC-22): injection-on ⇒ one projects/capabilityHosts named `agents`, kind=Agents, connections = agentstorage/agentcosmos/agentsearch, no customerSubnet. (FR-043)
+- [x] T-FR043-007 `modules/aifoundryproject/tests/network_injection_parity.tftest.hcl` (VC-21): injection-off (default) ⇒ zero capability hosts; project body unchanged. (FR-043)
+
+### FR-043.D — Verification gates (HARD)
+
+- [x] T-FR043-008 `terraform fmt -recursive` → no changes. (FR-043)
+- [x] T-FR043-009 `terraform -chdir=modules/aifoundryproject test` → all pass; re-run `modules/aifoundry` + `terraform/services` suites → all pass. (FR-043)
+
+### FR-043.E — Rollout
+
+- [x] T-FR043-010 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, additive (default-off ⇒ no new resources). The `103` instance picks up the project host on its next `deploy`-workflow plan/apply — never a local apply. (FR-043)

@@ -372,6 +372,16 @@ module "aifoundry_project" {
   # on the child only because the RP returns 400 LocationRequired without it
   # (confirmed live 2026-05-30).
   parent_account_id = one([for k, v in module.aifoundry : v.resource_id])
+
+  # FR-043 (Amendment 2026-06-04) — project-level capability host. Driven by the
+  # SAME injection master as the account-level host (FR-031/FR-033/FR-040) so the
+  # two Agents capability hosts are always provisioned together. depends_on the
+  # aifoundry module guarantees the account, its three shared BYO connections,
+  # and the account capability host exist before this project host references
+  # those connections by name (C-058/C-059).
+  network_injection_enabled = var.enable_aifoundry_network_injection
+
+  depends_on = [module.aifoundry]
 }
 
 module "language" {
