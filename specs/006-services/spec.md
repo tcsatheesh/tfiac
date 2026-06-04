@@ -2419,3 +2419,50 @@ registry) — that lands in the `103-sp01-dev-services` instance feature; the
 Key Vault's own private-endpoint wiring (already shipped by FR-041 /
 `enable_keyvault_private_endpoint`); and any provisioning of the storage/Key
 Vault resources themselves (the existing `storage`/`keyvault` selectable types).
+
+## AMENDMENT 2026-06-04 — remove the temporary Foundry import shim (FR-059)
+
+> **Why.** PR #58 added `terraform/services/import.aifoundry.tf`, a
+> config-based `import {}` block scoped to the sp01/dev Foundry account
+> (`aif-uc1-uc1-sp01-dev-swc-001`). It was a one-shot recovery aid to adopt an
+> account that a prior apply had created in Azure but not written to state
+> (a >90 m network-injection create that hit `context deadline exceeded`). Its
+> own header said *"REMOVE this file in a follow-up PR once the import has
+> landed in state."* The import has since landed and the account has since
+> been deleted (its resource group was removed), so the import target no
+> longer exists. Left in place, the block makes a fresh apply **fail at plan**
+> ("Cannot import non-existent remote object").
+
+- **FR-059 — the engine carries no instance-pinned import shim.** The
+  `terraform/services/` root module MUST NOT contain a config-based `import {}`
+  block hard-scoped to a specific tenant/environment resource name. Such a
+  block is a transient recovery artefact, never steady-state engine behaviour.
+  Removing `import.aifoundry.tf` restores the engine to a clean
+  create/update/destroy lifecycle for every instance, including a from-scratch
+  rebuild after a manual resource-group deletion.
+
+### Clarifications — Session 2026-06-04 (FR-059)
+
+- **C-067 — Pure deletion, no replacement.** FR-059 deletes the file and adds
+  nothing. The account is provisioned normally by `module.aifoundry` on apply;
+  no import path is needed for a clean (empty-state) rebuild.
+- **C-068 — `destroy` was always safe.** Terraform ignores `import {}` blocks
+  during `terraform destroy`, so the stale shim never affected teardown; only
+  the create/plan path was at risk. The fix is still required before any fresh
+  apply.
+
+### Validation criteria (FR-059)
+
+- `terraform validate -backend=false` on `terraform/services` succeeds with the
+  file removed.
+- The full `terraform test` suite stays green (the shim was inert under the
+  all-zeros sentinel subscription used by every fixture, so its removal changes
+  no test outcome).
+- No remaining `import {` block exists anywhere under `terraform/services/`.
+
+### Out of scope for FR-059
+
+Any future recovery that genuinely needs to adopt pre-existing Azure resources
+into state — that is handled ad hoc (a temporary, clearly-labelled shim on a
+dedicated branch, removed immediately after) and is not steady-state engine
+surface.
