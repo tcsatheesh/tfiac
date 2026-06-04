@@ -329,3 +329,80 @@ renumbering of existing subnets. This requirement **supersedes FR-102-05**.
     action=apply`) plans the address-space growth + new `agents` subnet as
     in-place additions (no destroy/recreate of existing subnets) — **rollout is
     operator-run via the workflow, not by this PR**.
+
+---
+
+## Amendment 2026-06-04 — enable the spoke NAT gateway for deterministic egress — FR-105
+
+**Created**: 2026-06-04. **Status**: Specified (instance-only; engine
+[004-vnet](../004-vnet/spec.md) unchanged).
+
+**Motivation.** The hub Azure Firewall is being torn down (004 FR-227/FR-228;
+see the 2026-06-03 amendment above), which removes the spoke's previous
+outbound path. Workloads in the sp01/npd spoke that need **outbound internet
+access** (the route-table workload subnets — development, pre-production, the
+function-app/logic-app pairs) therefore have no egress once the firewall route
+collapses. A **NAT gateway is not transitive over peering**, so the spoke must
+own one. Engine support already exists: 004-vnet **FR-230** added the
+`enable_spoke_nat_gateway` toggle, which (when `true`) provisions a spoke NAT
+gateway + public IP and associates it with every workload subnet that has a
+route table (`needs_route_table = true`). This instance simply opts in.
+
+This is an **instance-only** change: flip `enable_spoke_nat_gateway` from
+`false` to `true` in `variables/sp01/npd/vnet.tfvars.json`. **No engine code
+changes.**
+
+**Change (tfvars only — `variables/sp01/npd/vnet.tfvars.json`).**
+- `enable_spoke_nat_gateway`: `false` → `true`.
+
+**Egress topology (engine FR-230, unchanged).** With the toggle on, the engine
+creates `pip-nat-shd-sp01-npd-swc-001` + `ng-net-shd-sp01-npd-swc-001` and
+associates the NAT gateway with the spoke's route-table subnets only:
+`development`, `pre-production`, `function-app`, `logic-app`, `preprod-func`,
+`preprod-logic`. The delegated subnets `container-apps` (Microsoft.App/
+environments) and `agents` (Microsoft.App/environments) have
+`needs_route_table = false` and are **intentionally excluded** — Azure does not
+permit a customer NAT gateway / route table on a `Microsoft.App/environments`-
+delegated subnet, and the managed environment provides its own outbound path.
+
+**Why these clarifications (resolved, no user round-trip).**
+- **C-105-01** Use the engine's existing spoke NAT toggle (004-vnet FR-230)
+  rather than authoring any new resource — the capability already exists; the
+  instance only *selects* it. **No engine change** (honours `10n` ⇏ `00n`).
+- **C-105-02** Egress is needed because the hub firewall (the prior outbound
+  path) is being removed (FR-227/FR-228). A NAT gateway is **not transitive
+  over peering**, so the spoke that needs internet egress must own one — a
+  shared hub NAT gateway would not serve the spoke's workload subnets.
+- **C-105-03** The `agents` and `container-apps` subnets are correctly
+  **excluded** from NAT association (they are `Microsoft.App/environments`-
+  delegated, `needs_route_table = false`; their managed environments own their
+  egress). Their private connectivity to BYO resources is provided by Foundry
+  network injection + private endpoints, which is orthogonal to NAT.
+- **C-105-04** This is an **amendment to instance feature 102** (same spoke),
+  not a new `10n` feature — append to these 102 artifacts + edit the one tfvars
+  file.
+- **C-105-05** Apply-time note: enabling the NAT gateway is an **additive,
+  in-place** operation — it creates a new public IP + NAT gateway and adds an
+  association to existing subnets. No existing subnet is resized/recreated and
+  no surviving resource is destroyed.
+
+### FR-105 (new requirement)
+
+The sp01/npd spoke MUST enable its own NAT gateway for deterministic outbound
+internet access — by setting `enable_spoke_nat_gateway = true` in
+`variables/sp01/npd/vnet.tfvars.json` — so the route-table workload subnets
+retain egress after the hub firewall teardown (FR-227/FR-228). The engine
+(004-vnet FR-230) is consumed **unchanged**; the delegated `agents` and
+`container-apps` subnets remain excluded from NAT association by design.
+
+### Acceptance (FR-105)
+
+13. The tfvars `enable_spoke_nat_gateway` is `true`; no other tfvars value
+    changes.
+14. Engine `terraform fmt`/`validate`/`test` remain green (engine untouched).
+15. `deploy.yaml` dispatch (`service=vnet tenant=sp01 environment=npd
+    action=apply`) plans a NEW public IP + NAT gateway and NAT associations on
+    the route-table subnets (`development`, `pre-production`, `function-app`,
+    `logic-app`, `preprod-func`, `preprod-logic`) only — no destroy/recreate of
+    existing subnets, and NO association on `agents`/`container-apps`.
+    **Rollout is operator-run via the workflow, not by this PR.**

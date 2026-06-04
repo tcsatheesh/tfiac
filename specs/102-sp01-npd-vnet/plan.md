@@ -147,3 +147,40 @@ shrink, no destroy/recreate of surviving subnets.
 **Rollout.** Operator-run via `deploy.yaml` (`service=vnet tenant=sp01
 environment=npd action=apply`) — in-place address-space growth + new `agents`
 subnet, no destroy/recreate of surviving subnets.
+
+---
+
+## Amendment plan — FR-105 enable the spoke NAT gateway
+
+**Scope (instance-only).** One tfvars flip; engine 004-vnet unchanged.
+
+**Files touched.**
+- `variables/sp01/npd/vnet.tfvars.json` — `enable_spoke_nat_gateway`
+  `false` → `true`.
+- `specs/102-sp01-npd-vnet/` — this amendment (spec/plan/tasks) + `analyze.md`
+  addendum.
+
+**Decisions (locked).**
+- A18. Consume the engine's existing spoke NAT toggle (004-vnet FR-230); author
+  no new resource — instance only selects it. No engine change (C-105-01).
+- A19. Egress is required because the hub firewall is being removed
+  (FR-227/FR-228); NAT is not transitive over peering so the spoke must own one
+  (C-105-02).
+- A20. `agents` + `container-apps` stay EXCLUDED from NAT (Microsoft.App/
+  environments delegation, `needs_route_table=false`); their managed
+  environments own egress (C-105-03).
+- A21. Amendment to feature 102 (same spoke), not a new `10n` feature
+  (C-105-04).
+- A22. Additive in-place apply — new PIP + NAT gateway + subnet associations;
+  no destroy/recreate of surviving resources (C-105-05).
+
+**Verification (no live apply).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=terraform/vnet test` + `terraform -chdir=modules/network
+  test` green (engine unchanged).
+- CI `vnet.yml` already watches `variables/sp01/npd/vnet.tfvars.json` — no CI
+  edit needed.
+
+**Rollout.** Operator-run via `deploy.yaml` (`service=vnet tenant=sp01
+environment=npd action=apply`) — additive NAT gateway + associations on the
+route-table subnets only, no destroy/recreate.

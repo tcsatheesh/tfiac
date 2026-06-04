@@ -61,3 +61,18 @@ workflow).**
 | A25 | INFO | CI `vnet.yml` already watches the sp01/npd tfvars path; no CI edit. | Consistent. |
 
 **FR-104 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement (rollout operator-run via workflow).**
+
+## Amendment addendum — FR-105 enable the spoke NAT gateway
+
+| ID | Severity | Finding | Resolution |
+|----|----------|---------|------------|
+| A26 | BLOCKER | Does enabling the spoke NAT gateway require an engine change (would violate `10n` ⇏ `00n`)? | RESOLVED: NO. The `enable_spoke_nat_gateway` toggle + the NAT gateway/public-IP resources + the subnet-association logic already exist in the 004-vnet engine (FR-230). This instance only flips the toggle in `variables/sp01/npd/vnet.tfvars.json`. (C-105-01) |
+| A27 | MAJOR | Why does the spoke need its own NAT gateway — can it not egress via the hub? | RESOLVED: The hub firewall (the prior egress path) is being torn down (FR-227/FR-228), and a NAT gateway is NOT transitive over VNet peering. The spoke that needs internet egress must therefore own one. (C-105-02) |
+| A28 | MAJOR | Will NAT be wrongly attached to the delegated `agents`/`container-apps` subnets (Microsoft.App/environments)? | RESOLVED: NO. The engine associates NAT only with `needs_route_table=true` subnets; both delegated subnets are `needs_route_table=false` and are excluded by design. Azure also forbids a customer NAT/route table on a `Microsoft.App/environments`-delegated subnet; the managed environment owns its egress. (C-105-03) |
+| A29 | MAJOR | Does enabling NAT destroy/recreate any existing subnet or resource? | RESOLVED: NO. It creates a new public IP + NAT gateway and adds associations to existing route-table subnets — additive, in-place ops. No surviving subnet/resource is resized or destroyed. (C-105-05) |
+| A30 | MINOR | Conflict with the 2026-06-03 firewall-teardown amendment (which says the spoke needs NO tfvars change)? | RESOLVED: NO. That amendment covered the route-table/UDR auto-collapse (reading `firewall_private_ip=null` from hub state). NAT egress is a SEPARATE, additive capability that the spoke opts into explicitly; the two are complementary, not contradictory. (C-105-02) |
+| A31 | MINOR | New `10n` folder or amendment? | RESOLVED: amendment to the same sp01/npd spoke — append to 102 artifacts + edit the one tfvars file. (C-105-04) |
+| A32 | INFO | Spec FR-105, plan A18–A22, tasks T028–T033, tfvars all agree on `enable_spoke_nat_gateway = true`. | Consistent. |
+| A33 | INFO | CI `vnet.yml` already watches the sp01/npd tfvars path; no CI edit. | Consistent. |
+
+**FR-105 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement (rollout operator-run via workflow).**
