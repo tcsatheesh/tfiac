@@ -261,22 +261,55 @@ check "cosmosdb_requires_backends" {
   }
 }
 
-# aifoundry_network_injection_prereqs (spec.md FR-033 / C-031..C-033): when
-# Hosted-Agent network injection is enabled, the capability host needs exactly
-# one each of aifoundry / storage / cosmosdb / search (the BYO trio + the
-# account) AND a private account. Fires at plan time, ahead of the module
-# precondition, with a friendly per-leg diagnostic. Defence-in-depth pair for
-# the module's FR-031 validators + the variable-level prereqs.
+# aifoundry_network_injection_prereqs (spec.md FR-033 / C-031..C-033, amended
+# FR-044 / C-060): when Hosted-Agent network injection is enabled, the
+# capability host needs exactly one each of aifoundry / cosmosdb / search plus
+# the BYO agent storage AND a private account. The storage count is normally
+# exactly one, but when userOwnedStorage is also enabled (FR-044) the account
+# additionally owns a 2nd storage, so exactly TWO storages are expected.
 check "aifoundry_network_injection_prereqs" {
   assert {
     condition = !var.enable_aifoundry_network_injection || (
       coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default) &&
       length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
-      length([for s in var.services : s if s.type == "storage"]) == 1 &&
+      length([for s in var.services : s if s.type == "storage"]) == (var.enable_aifoundry_user_owned_storage ? 2 : 1) &&
       length([for s in var.services : s if s.type == "cosmosdb"]) == 1 &&
       length([for s in var.services : s if s.type == "search"]) == 1
     )
-    error_message = "FR-033 — enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true and EXACTLY ONE each of 'aifoundry', 'storage', 'cosmosdb', and 'search' selected (the Agents capability host needs one BYO Storage + Cosmos + Search leg)."
+    error_message = "FR-033 — enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true and EXACTLY ONE each of 'aifoundry', 'cosmosdb', and 'search', plus the BYO 'storage' leg (one 'storage', or TWO when enable_aifoundry_user_owned_storage = true so the account also owns a 2nd userOwnedStorage)."
+  }
+}
+
+# aifoundry_user_owned_storage_prereqs (spec.md FR-044 / C-060): when
+# userOwnedStorage is enabled the stack must hold an aifoundry account plus
+# EXACTLY TWO 'storage' selections, and both disambiguating purposes must be set
+# and distinct so local.agent_byo_storage_id / local.account_owned_storage_id
+# each resolve to exactly one storage. Defence-in-depth pair for the
+# variable-level validators + the one(...) resolvers in locals.tf.
+check "aifoundry_user_owned_storage_prereqs" {
+  assert {
+    condition = !var.enable_aifoundry_user_owned_storage || (
+      length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
+      length([for s in var.services : s if s.type == "storage"]) == 2 &&
+      var.agent_storage_purpose != null &&
+      var.account_storage_purpose != null &&
+      var.agent_storage_purpose != var.account_storage_purpose
+    )
+    error_message = "FR-044 — enable_aifoundry_user_owned_storage = true requires EXACTLY ONE 'aifoundry' and EXACTLY TWO 'storage' selections, with both agent_storage_purpose and account_storage_purpose set to distinct values (so the BYO agent store and the account's userOwnedStorage are distinguishable)."
+  }
+}
+
+# aifoundry_keyvault_connection_prereqs (spec.md FR-045 / C-061): when the
+# Key Vault connection is enabled the stack must hold an aifoundry account plus
+# EXACTLY ONE 'keyvault' selection (the connection target), so the
+# one(...) keyvault resolver in main.tf yields a single id.
+check "aifoundry_keyvault_connection_prereqs" {
+  assert {
+    condition = !var.enable_aifoundry_keyvault_connection || (
+      length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
+      length([for s in var.services : s if s.type == "keyvault"]) == 1
+    )
+    error_message = "FR-045 — enable_aifoundry_keyvault_connection = true requires EXACTLY ONE 'aifoundry' and EXACTLY ONE 'keyvault' selected (the account's AzureKeyVault connection target)."
   }
 }
 

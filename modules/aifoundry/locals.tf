@@ -47,6 +47,19 @@ locals {
   # validated storage account resource ID (last path segment = account name).
   agent_storage_blob_target = var.agent_storage_account_id == null ? null : "https://${reverse(split("/", var.agent_storage_account_id))[0]}.blob.core.windows.net"
 
+  # C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage (the account's own
+  # Storage, the 2nd storage in the portal Standard-Agent template). Enabled
+  # independently of injection: set whenever account_storage_account_id is
+  # supplied. The connection's `target` is the Blob endpoint URI (the RP rejects
+  # a resource ID for AzureStorageAccount connections — same rule as the agent
+  # storage connection above).
+  account_storage_connection_enabled = var.account_storage_connection_enabled
+  account_storage_blob_target        = var.account_storage_account_id == null ? null : "https://${reverse(split("/", var.account_storage_account_id))[0]}.blob.core.windows.net"
+
+  # C-061 / FR-045 (Amendment 2026-06-04) — Key Vault connection on the account.
+  # Gated on the known-at-plan toggle (the id is computed/unknown at plan).
+  keyvault_connection_enabled = var.keyvault_connection_enabled
+
   # FR-031 step 1 / VC-2 — the networkInjections list is EMPTY when disabled
   # so the merge below omits the attribute entirely, preserving the exact
   # post-FR-028 account body (day-one parity, A-031-04).
@@ -92,5 +105,10 @@ locals {
     local.network_injection_enabled ? { networkInjections = local.network_injections } : {},
     local.network_injection_enabled ? { networkAcls = local.injection_network_acls } : {},
     local.network_injection_enabled ? { disableLocalAuth = false } : {},
+    # C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage (account's own
+    # 2nd storage). Single-key conditional merge (the proven FR-031 pattern) so
+    # the false branch stays an empty object — non-userOwned bodies remain
+    # byte-for-byte identical to the prior state.
+    local.account_storage_connection_enabled ? { userOwnedStorage = [{ resourceId = var.account_storage_account_id }] } : {},
   )
 }

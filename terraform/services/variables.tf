@@ -371,3 +371,46 @@ variable "agent_subnet_role" {
     error_message = "agent_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
   }
 }
+
+# ----- C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage (the account's
+# own 2nd storage), template-exact-match -----
+variable "enable_aifoundry_user_owned_storage" {
+  description = "FR-044 / C-060: when true, the selected aifoundry account gets a SECOND storage attached as properties.userOwnedStorage + an 'accountstorage' connection — the portal Standard-Agent template's userOwnedStorage (fndrystrg00002), distinct from the BYO agent thread/file store. Requires TWO 'storage' selections in this stack with distinct purposes, disambiguated by var.agent_storage_purpose (the BYO agent store) and var.account_storage_purpose (the userOwned store) — enforced by check.aifoundry_user_owned_storage_prereqs. Default false preserves day-one behaviour (single storage, no userOwnedStorage)."
+  type        = bool
+  default     = false
+}
+
+variable "agent_storage_purpose" {
+  description = "FR-044 / C-060: service_purpose (3 lowercase alphanumerics) of the 'storage' selection used as the BYO AGENT thread/file store (the capability host storageConnections leg). Required when enable_aifoundry_user_owned_storage = true (to disambiguate the two storages); when null and exactly one storage is selected, that single storage is used (back-compat). Must differ from account_storage_purpose."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.agent_storage_purpose == null || can(regex("^[a-z0-9]{3}$", var.agent_storage_purpose))
+    error_message = "agent_storage_purpose (when set) must match ^[a-z0-9]{3}$ (engine service_purpose regex)."
+  }
+}
+
+variable "account_storage_purpose" {
+  description = "FR-044 / C-060: service_purpose (3 lowercase alphanumerics) of the 'storage' selection used as the account's own userOwnedStorage (the 2nd storage). Required when enable_aifoundry_user_owned_storage = true. Must differ from agent_storage_purpose."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.account_storage_purpose == null || can(regex("^[a-z0-9]{3}$", var.account_storage_purpose))
+    error_message = "account_storage_purpose (when set) must match ^[a-z0-9]{3}$ (engine service_purpose regex)."
+  }
+
+  validation {
+    condition     = var.account_storage_purpose == null || var.agent_storage_purpose == null || var.account_storage_purpose != var.agent_storage_purpose
+    error_message = "account_storage_purpose must differ from agent_storage_purpose so the two storages are distinguishable."
+  }
+}
+
+# ----- C-061 / FR-045 (Amendment 2026-06-04) — Key Vault connection on the
+# Foundry account, template-exact-match -----
+variable "enable_aifoundry_keyvault_connection" {
+  description = "FR-045 / C-061: when true, attach the selected 'keyvault' to the selected aifoundry account as a Microsoft.CognitiveServices/accounts/connections of category 'AzureKeyVault' (authType AccountManagedIdentity, fixed name 'keyvault'), mirroring the portal Standard-Agent template's '<account>-keyvault' connection. Requires exactly one 'keyvault' selection (enforced by check.aifoundry_keyvault_connection_prereqs). The vault is deployed private-by-default. Default false preserves day-one behaviour (no Key Vault connection)."
+  type        = bool
+  default     = false
+}

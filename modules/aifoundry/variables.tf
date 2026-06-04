@@ -161,3 +161,41 @@ variable "agent_search_service_id" {
     error_message = "agent_search_service_id must be null or a full Microsoft.Search/searchServices resource ID."
   }
 }
+
+# ----- C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage (account's own
+# Storage) — template-exact-match -----
+variable "account_storage_account_id" {
+  description = "FR-044 / C-060: full resource ID of the account's own (userOwnedStorage) Azure Storage account. When non-null the module (i) adds a properties.userOwnedStorage = [{ resourceId }] entry to the account body and (ii) provisions an AzureStorageAccount account connection (fixed name \"accountstorage\") targeting the account's Blob endpoint. This is the SECOND storage in the portal Standard-Agent template (fndrystrg00002), distinct from the BYO agent thread/file store (agent_storage_account_id). Default null preserves day-one behaviour (no userOwnedStorage, no connection). Provisioned by the services stack as a second `storage` selection, never by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.account_storage_account_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.Storage/storageAccounts/[^/]+$", var.account_storage_account_id))
+    error_message = "account_storage_account_id must be null or a full Microsoft.Storage/storageAccounts resource ID."
+  }
+}
+
+variable "account_storage_connection_enabled" {
+  description = "FR-044 / C-060: known-at-plan toggle that gates the userOwnedStorage body property + the 'accountstorage' connection. Kept separate from account_storage_account_id (whose value is computed, hence unknown at plan) so count/for_each never depend on an unknown — mirrors network_injection_enabled. When true, account_storage_account_id MUST be non-null (enforced by the account precondition). Default false preserves day-one behaviour."
+  type        = bool
+  default     = false
+}
+
+# ----- C-061 / FR-045 (Amendment 2026-06-04) — Key Vault connection on the
+# Foundry account — template-exact-match -----
+variable "keyvault_account_id" {
+  description = "FR-045 / C-061: full resource ID of the Key Vault to attach to the Foundry account as a Microsoft.CognitiveServices/accounts/connections of category \"AzureKeyVault\" (authType AccountManagedIdentity, fixed name \"keyvault\", isSharedToAll=true) so child projects inherit it. Mirrors the portal Standard-Agent template's `<account>-keyvault` connection. Default null preserves day-one behaviour (no Key Vault connection). The vault itself is provisioned by the services stack as a `keyvault` selection (private-by-default), never by this module."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.keyvault_account_id == null || can(regex("^/subscriptions/.+/resourceGroups/.+/providers/Microsoft\\.KeyVault/vaults/[^/]+$", var.keyvault_account_id))
+    error_message = "keyvault_account_id must be null or a full Microsoft.KeyVault/vaults resource ID."
+  }
+}
+
+variable "keyvault_connection_enabled" {
+  description = "FR-045 / C-061: known-at-plan toggle that gates the 'keyvault' AzureKeyVault connection. Kept separate from keyvault_account_id (whose value is computed, hence unknown at plan) so count never depends on an unknown — mirrors network_injection_enabled. When true, keyvault_account_id MUST be non-null (enforced by the account precondition). Default false preserves day-one behaviour."
+  type        = bool
+  default     = false
+}

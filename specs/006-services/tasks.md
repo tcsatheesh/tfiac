@@ -988,3 +988,35 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 - [x] T-FR031-A2 Point `agent_storage_connection.target` at the local; keep metadata.ResourceId on the ARM id. (C-031-06/07)
 - [x] T-FR031-A3 Add `storage_connection_target_is_blob_uri` test; full module suite green (16 passed). (Acceptance 16)
 - [ ] T-FR031-A4 Reconcile sp01/dev half-built stack and re-apply (operator decision A vs B).
+
+## Phase FR-044/045 (2026-06-04) — userOwnedStorage + Key Vault connection
+
+### FR-044/045.A — aifoundry module
+
+- [x] T-FR044-001 [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf): add `account_storage_account_id` (string/null, Storage regex), `account_storage_connection_enabled` (bool/false), `keyvault_account_id` (string/null, KeyVault regex), `keyvault_connection_enabled` (bool/false). (FR-044 / FR-045 / C-060 / C-061)
+- [x] T-FR044-002 [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): derive `account_storage_connection_enabled` / `keyvault_connection_enabled` from the bool vars; add `account_storage_blob_target`; extend the account body merge with the conditional `userOwnedStorage` leg. (FR-044 / C-060)
+- [x] T-FR044-003 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): add count-gated `azapi_resource.account_storage_connection` (name `accountstorage`, AzureStorageAccount, target = Blob URI, AAD) and `azapi_resource.keyvault_connection` (name `keyvault`, AzureKeyVault, AccountManagedIdentity, `schema_validation_enabled = false`). (FR-044 / FR-045 / C-061 / VC-23 / VC-24)
+- [x] T-FR044-004 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): add two `lifecycle.precondition`s on `azapi_resource.this` (each toggle ⇒ matching id non-null). (FR-044 / FR-045)
+
+### FR-044/045.B — Services-stack wiring
+
+- [x] T-FR044-005 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `enable_aifoundry_user_owned_storage`, `enable_aifoundry_keyvault_connection` (bools/false), `agent_storage_purpose`, `account_storage_purpose` (string/null, `^[a-z0-9]{3}$`, distinct). (FR-044 / C-060)
+- [x] T-FR044-006 [terraform/services/locals.tf](../../terraform/services/locals.tf): add `storage_count`, `agent_byo_storage_id`, `account_owned_storage_id` (purpose-filtered with single-storage fallback). (FR-044 / C-060)
+- [x] T-FR044-007 [terraform/services/main.tf](../../terraform/services/main.tf) `module.aifoundry`: agent storage via `local.agent_byo_storage_id`; `account_storage_connection_enabled = toggle && storage_count == 2` + `account_storage_account_id`; `keyvault_connection_enabled = toggle && keyvault_selected` + `keyvault_account_id`. (FR-044 / FR-045)
+- [x] T-FR044-008 [terraform/services/check.tf](../../terraform/services/check.tf): relax `aifoundry_network_injection_prereqs` storage count to `(uos ? 2 : 1)`; add `aifoundry_user_owned_storage_prereqs` + `aifoundry_keyvault_connection_prereqs`. (FR-044 / FR-045 / VC-26 / VC-27)
+
+### FR-044/045.C — Tests
+
+- [x] T-FR044-009 `modules/aifoundry/tests/account_connections.tftest.hcl` (VC-23 + VC-24): both toggles on ⇒ userOwnedStorage body + `accountstorage` (Blob URI) + `keyvault` (AzureKeyVault/AccountManagedIdentity). (FR-044 / FR-045)
+- [x] T-FR044-010 `modules/aifoundry/tests/account_connections_default_off.tftest.hcl` (VC-25): both off ⇒ no userOwnedStorage, no connections. (FR-044 / FR-045)
+- [x] T-FR044-011 `terraform/services/tests/aifoundry_account_connections_happy.tftest.hcl` (VC-26): two distinct-purpose storages + keyvault + injection + private-by-default plan cleanly. (FR-044 / FR-045)
+- [x] T-FR044-012 `terraform/services/tests/reject_user_owned_storage_without_two_storages.tftest.hcl` + `reject_keyvault_connection_without_keyvault.tftest.hcl` (VC-26 / VC-27): misconfigs rejected by the new checks. (FR-044 / FR-045)
+
+### FR-044/045.D — Verification gates (HARD)
+
+- [x] T-FR044-013 `terraform fmt -recursive` → no changes. (FR-044 / FR-045)
+- [x] T-FR044-014 `modules/aifoundry test` (19 pass) + `terraform/services test` (28 pass) → all green. (FR-044 / FR-045)
+
+### FR-044/045.E — Rollout
+
+- [ ] T-FR044-015 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, additive (default-off ⇒ no new resources). The `103` instance selects the second storage + Key Vault and flips the toggles on its own `deploy`-workflow pipeline — never a local apply. (FR-044 / FR-045)

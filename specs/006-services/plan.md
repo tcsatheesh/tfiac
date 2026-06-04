@@ -1444,3 +1444,56 @@ exists in Azure but not in state). After this fix merges, the half-built stack i
 reconciled by either (A) deleting the orphan `to-hub-la` diag setting then
 re-applying, or (B) `terraform destroy` + clean re-apply. No soft-deleted
 account exists (the account was created fresh).
+
+## Amendment plan — userOwnedStorage + Key Vault connection (FR-044 / FR-045, 2026-06-04)
+
+**Approach.** Two opt-in, default-off legs on the `aifoundry` account module,
+driven by services-stack toggles, disambiguated (for the two storages) by engine
+`service_purpose`. No `001-naming` change (the engine already produces distinct
+canonical names for two `storage` selections). KV deployed PRIVATE per the
+private-by-default mandate (documented deviation from the PUBLIC portal vault).
+
+- **A-044-01** — `modules/aifoundry/variables.tf`: add `account_storage_account_id`
+  (string/null, `Microsoft.Storage/storageAccounts` regex) + `account_storage_connection_enabled`
+  (bool/false), and `keyvault_account_id` (string/null, `Microsoft.KeyVault/vaults`
+  regex) + `keyvault_connection_enabled` (bool/false). The bools are the
+  known-at-plan gates (the ids are computed/unknown at plan ⇒ cannot drive
+  `count`); mirrors the `network_injection_enabled` precedent.
+- **A-044-02** — `modules/aifoundry/locals.tf`: `account_storage_connection_enabled
+  = var.account_storage_connection_enabled`; `account_storage_blob_target` = the
+  Blob endpoint URI (reuse the C-031-06 derivation); `keyvault_connection_enabled
+  = var.keyvault_connection_enabled`; extend the `account_properties` merge with a
+  conditional `userOwnedStorage = [{ resourceId }]` leg.
+- **A-044-03** — `modules/aifoundry/main.tf`: add count-gated
+  `azapi_resource.account_storage_connection` (name `accountstorage`,
+  `AzureStorageAccount`, target = Blob URI, `AAD`) and
+  `azapi_resource.keyvault_connection` (name `keyvault`, `AzureKeyVault`,
+  `AccountManagedIdentity`, `schema_validation_enabled = false`). Add two
+  preconditions on `azapi_resource.this` (toggle ⇒ id non-null).
+- **A-045-04** — `terraform/services/variables.tf`: add
+  `enable_aifoundry_user_owned_storage`, `enable_aifoundry_keyvault_connection`
+  (bools/false), `agent_storage_purpose`, `account_storage_purpose` (string/null,
+  `^[a-z0-9]{3}$`, distinct).
+- **A-045-05** — `terraform/services/locals.tf`: `storage_count`,
+  `agent_byo_storage_id`, `account_owned_storage_id` (filter `module.storage` by
+  `module.naming.names[k].service_purpose`; fall back to `one([all])` when purpose
+  null).
+- **A-045-06** — `terraform/services/main.tf` `module.aifoundry`: agent storage
+  via `local.agent_byo_storage_id`; `account_storage_connection_enabled = toggle
+  && storage_count == 2`; `keyvault_connection_enabled = toggle && keyvault_selected`
+  (gated so the module is never handed `enabled = true` + `id = null` on a
+  misconfig — `check.tf` is the loud guard).
+- **A-045-07** — `terraform/services/check.tf`: relax
+  `aifoundry_network_injection_prereqs` storage count to `(uos ? 2 : 1)`; add
+  `aifoundry_user_owned_storage_prereqs` and
+  `aifoundry_keyvault_connection_prereqs`.
+- **A-045-08** — tests: module `account_connections.tftest.hcl` +
+  `account_connections_default_off.tftest.hcl`; services
+  `aifoundry_account_connections_happy.tftest.hcl` +
+  `reject_user_owned_storage_without_two_storages.tftest.hcl` +
+  `reject_keyvault_connection_without_keyvault.tftest.hcl`.
+
+**Verification.** `terraform fmt -recursive` clean; `modules/aifoundry` suite
+19 pass; `terraform/services` suite 28 pass. Engine-only, additive (default-off
+⇒ zero new resources). The `103` instance selects the second storage + Key Vault
+and flips the toggles on its own pipeline; role assignments land in `007-rbac`.

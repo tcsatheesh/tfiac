@@ -60,6 +60,18 @@ resource "azapi_resource" "this" {
       )
       error_message = "FR-031 — network_injection_enabled=true requires private_endpoint_enabled=true and non-null agent_subnet_id, agent_storage_account_id, agent_cosmosdb_account_id, and agent_search_service_id."
     }
+
+    # FR-044 / FR-045 — when a connection toggle is on its resource id must be
+    # supplied (the toggle is the known-at-plan gate; the id carries the value).
+    precondition {
+      condition     = !var.account_storage_connection_enabled || var.account_storage_account_id != null
+      error_message = "FR-044 — account_storage_connection_enabled=true requires a non-null account_storage_account_id."
+    }
+
+    precondition {
+      condition     = !var.keyvault_connection_enabled || var.keyvault_account_id != null
+      error_message = "FR-045 — keyvault_connection_enabled=true requires a non-null keyvault_account_id."
+    }
   }
 }
 
@@ -281,6 +293,74 @@ resource "azapi_resource" "capability_host" {
     azapi_resource.agent_cosmos_connection,
     azapi_resource.agent_search_connection,
   ]
+
+  response_export_values = ["id"]
+}
+
+# C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage connection. The
+# portal Standard-Agent template attaches the account's own (2nd) storage both
+# as `properties.userOwnedStorage` (account body, see locals.tf) AND as an
+# AzureStorageAccount account connection named `<account>-userowned`. We mirror
+# the connection with a fixed short name `accountstorage` (the canonical name's
+# dots/length cannot satisfy the connection-name RP pattern — C-025). The
+# `target` MUST be the Blob endpoint URI (the RP rejects a resource ID for
+# AzureStorageAccount connections — same rule as the agent storage connection).
+# Inert (zero-count) unless var.account_storage_account_id is supplied,
+# preserving day-one behaviour.
+resource "azapi_resource" "account_storage_connection" {
+  count     = local.account_storage_connection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
+  name      = "accountstorage"
+  parent_id = azapi_resource.this.id
+
+  body = {
+    properties = {
+      category      = "AzureStorageAccount"
+      target        = local.account_storage_blob_target
+      authType      = "AAD"
+      isSharedToAll = true
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = var.account_storage_account_id
+      }
+    }
+  }
+
+  response_export_values = ["id"]
+}
+
+# C-061 / FR-045 (Amendment 2026-06-04) — Key Vault connection on the account.
+# Mirrors the portal Standard-Agent template's `<account>-keyvault` connection:
+# category=AzureKeyVault, authType=AccountManagedIdentity, isSharedToAll=true so
+# child projects inherit it. Fixed short name `keyvault` (C-025). `target` and
+# `metadata.ResourceId` are the Key Vault resource id. Inert (zero-count) unless
+# var.keyvault_account_id is supplied, preserving day-one behaviour.
+resource "azapi_resource" "keyvault_connection" {
+  count     = local.keyvault_connection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/connections@2025-09-01"
+  name      = "keyvault"
+  parent_id = azapi_resource.this.id
+
+  # The portal template's runtime authType `AccountManagedIdentity` is a valid
+  # Cognitive Services connection auth mode but is missing from azapi's embedded
+  # connection schema (which only lists the generic 'ManagedIdentity'); disable
+  # schema validation for this one resource so we send the template-exact value.
+  schema_validation_enabled = false
+
+  body = {
+    properties = {
+      category      = "AzureKeyVault"
+      target        = var.keyvault_account_id
+      authType      = "AccountManagedIdentity"
+      isSharedToAll = true
+      credentials   = {}
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = var.keyvault_account_id
+        location   = var.location
+      }
+    }
+  }
 
   response_export_values = ["id"]
 }
