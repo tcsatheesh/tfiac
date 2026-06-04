@@ -91,3 +91,9 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
   change ⇒ existing tests unaffected. (FR-103-07)
 - [ ] T027 Rollout: NONE — documentation-only; the live ACR config already
   matches (`false`, public for the Hosted-Agent image pull). **No deploy.**
+
+## Phase FR-103-08 (2026-06-04) — drop Container Apps Environment
+
+- [x] T-103-08-1 Remove `container_app_environment` from the services list; set `enable_container_apps: false`; remove `container_apps_subnet_role`. (C-103-08/09)
+- [x] T-103-08-2 Confirm no engine change and injection intact (agents subnet unchanged). (C-103-10/11)
+- [ ] T-103-08-3 fmt/validate/test green; merge; included in the clean sp01/dev recreate apply.

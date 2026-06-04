@@ -83,3 +83,11 @@ destroy is workflow-run.**
 | A23 | INFO | No code/tfvars change ⇒ no new tests; existing engine + services tests unaffected; `fmt` clean; no CI edit; no rollout. | Consistent. |
 
 **FR-103-07 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement (documentation-only; no rollout).**
+
+## Addendum 2026-06-04 — FR-103-08 CAE removal
+
+Cross-checked the shared template (no `Microsoft.App/managedEnvironments`).
+Removal is a pure instance tfvars change; `container_app_env_requires_subnet`
+check is satisfied (no CAE selected, enable_container_apps=false). Foundry
+network injection (agents subnet + BYO Storage/Cosmos/Search) is unaffected.
+No BLOCKER/MAJOR findings.

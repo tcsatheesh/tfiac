@@ -145,3 +145,14 @@ then the account purge. Never local; tfstate SA firewall never opened.
 **Rollout.** None required — documentation-only; the live ACR config already
 matches (`enable_container_registry_private_endpoint: false`, public for the
 Hosted-Agent image pull per VC-7 + the Microsoft limitation).
+
+## Amendment plan — FR-103-08 drop Container Apps Environment (2026-06-04)
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  drop the `container_app_environment` service entry; `enable_container_apps:
+  false`; remove `container_apps_subnet_role`.
+- No engine (`006-services`) or module change. Verified the `aifoundry` module
+  injection wiring references storage/cosmosdb/search only (not the CAE), so
+  removing the CAE cannot affect network injection.
+- Validate with `terraform fmt` + `terraform validate -backend=false` +
+  `terraform test` on `terraform/services`.
