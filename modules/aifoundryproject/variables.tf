@@ -81,3 +81,10 @@ variable "parent_account_id" {
     error_message = "parent_account_id must be a full Microsoft.CognitiveServices/accounts resource ID (spec.md C-017 / FR-026)."
   }
 }
+
+# ----- FR-043 (Amendment 2026-06-04) — project-level capability host -----
+variable "network_injection_enabled" {
+  description = "FR-043 / C-059: when true, provision a project-level Microsoft.CognitiveServices/accounts/projects/capabilityHosts (capabilityHostKind=Agents) referencing the parent account's three fixed BYO connections (agentstorage/agentcosmos/agentsearch) — the project-scoped half of the Standard Agent two-host topology (the account-level host with the agent customerSubnet is owned by the aifoundry module, FR-031). Driven by the SAME var.enable_aifoundry_network_injection master as the account injection, so the two hosts are always provisioned together. Creation-time only (VC-1). Default false preserves the pre-FR-043 day-one behaviour (bare project, no capability host)."
+  type        = bool
+  default     = false
+}

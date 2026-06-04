@@ -41,3 +41,54 @@ resource "azurerm_monitor_diagnostic_setting" "to_hub_la" {
     category = "AllMetrics"
   }
 }
+
+# FR-043 / C-056..C-059 (Amendment 2026-06-04) — project-level capability host.
+# The Standard Agent (vnet-injected) topology provisions TWO Agents capability
+# hosts: the account-level host (owned by the aifoundry module, FR-031, carrying
+# the agent customerSubnet) AND this project-level host, which gives the injected
+# account's agents their project-scoped runtime binding. The project host
+# references the SAME three account-level BYO connections by name
+# (agentstorage→storage, agentcosmos→threadStorage/Cosmos DB,
+# agentsearch→vectorStore/AI Search — all isSharedToAll on the parent account,
+# created by modules/aifoundry). It carries NO customerSubnet (C-057 — the
+# subnet binding lives on the account host and is inherited) and NO
+# aiServicesConnections (C-058 — that leg exists only in the BYO-separate-foundry
+# variant; our project is parented directly by the account). Count-gated on the
+# same injection master as the account host, so the two are always provisioned
+# together. The fixed name "agents" mirrors the account host (different parent
+# scope ⇒ no collision) and satisfies the capability-host name RP pattern.
+resource "azapi_resource" "capability_host" {
+  count     = var.network_injection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-09-01"
+  name      = "agents"
+  parent_id = azapi_resource.this.id
+
+  # FR-043 — the azapi 2.10.0 embedded schema for the *projects* capabilityHosts
+  # child does not yet model `capabilityHostKind` (it is modelled on the
+  # account-level child, which is why modules/aifoundry validates fine). The
+  # body below is RP-correct — it mirrors the portal-exported Standard Agent
+  # `project-capability-host` exactly — so we disable the embedded schema check
+  # for this child only (the provider itself recommends this when its schema
+  # lags the RP). The account-level host keeps full validation.
+  schema_validation_enabled = false
+
+  body = {
+    properties = {
+      capabilityHostKind       = "Agents"
+      storageConnections       = [local.agent_conn_storage]
+      threadStorageConnections = [local.agent_conn_cosmos]
+      vectorStoreConnections   = [local.agent_conn_search]
+    }
+  }
+
+  response_export_values = ["id"]
+
+  # FR-043 / C-059 — the project capability host is meaningless without an
+  # injected parent account; defence-in-depth on top of the master-driven wiring.
+  lifecycle {
+    precondition {
+      condition     = !var.network_injection_enabled || length(var.parent_account_id) > 0
+      error_message = "FR-043 — network_injection_enabled=true requires a non-empty parent_account_id (the injected Foundry account that owns the shared agent connections)."
+    }
+  }
+}

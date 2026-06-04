@@ -2164,3 +2164,102 @@ Auto-provisioning unselected supporting services (rejected — C-053); the BYO
 RBAC role assignments + Cosmos RU/s floor (still deferred — C-047); the capability
 -host / network-injection wiring (FR-033/FR-040 own that, default-off); and all
 `103` instance tfvars selection (the instance's own pipeline).
+
+## AMENDMENT 2026-06-04 — Foundry **project-level** capability host (FR-043)
+
+> **Why now.** A portal-exported "Standard Agent (vnet-injected)" Foundry
+> template (researched 2026-06-04) and Microsoft's network-secured Standard
+> Agent reference both provision **two** capability hosts on an injected
+> account: an **account-level** host (`accounts/capabilityHosts`,
+> kind=Agents, carrying `customerSubnet` — already shipped by FR-031/C-026)
+> **and** a **project-level** host (`accounts/projects/capabilityHosts`,
+> kind=Agents, carrying the same storage/thread/vector connection references,
+> **no** `customerSubnet`). The current `aifoundryproject` module
+> ([modules/aifoundryproject/](../../modules/aifoundryproject/)) creates only
+> the bare project resource — **no project capability host** — so an injected
+> account's agents have no project-scoped runtime binding. FR-043 closes that
+> gap so Foundry network injection "just works" end-to-end when the toggle is
+> flipped on (the user's standing instruction: *"if required in the future I
+> should be able to set it to true and deploy and it should magically work"*).
+
+- **FR-043 — Foundry project-level capability host (engine).** When
+  Hosted-Agent network injection is enabled (the same
+  `enable_aifoundry_network_injection` master that drives the account-level
+  injection in FR-031/FR-033/FR-040), the `aifoundryproject` module MUST
+  provision a `Microsoft.CognitiveServices/accounts/projects/capabilityHosts`
+  child:
+  1. **Shape.** `capabilityHostKind = "Agents"`; `storageConnections`,
+     `threadStorageConnections`, `vectorStoreConnections` reference the **same
+     three account-level BYO connection names** the `aifoundry` account module
+     creates (C-024/C-026): `agentstorage` (storage), `agentcosmos`
+     (threadStorage / Cosmos DB), `agentsearch` (vectorStore / AI Search). The
+     project host carries **no `customerSubnet`** — the subnet binding lives on
+     the account-level host (FR-031) and the project inherits it.
+  2. **Ordering.** The project capability host depends on (a) its own project
+     resource and (b) the account-level connections + account capability host
+     created by the `aifoundry` module. The services-stack wiring passes
+     `depends_on = [module.aifoundry]` so the shared-to-all connections exist
+     before the project host references them by name.
+  3. **Connection-name parity.** The three connection names referenced by the
+     project host MUST equal the account module's fixed
+     `local.agent_conn_storage`/`local.agent_conn_cosmos`/`local.agent_conn_search`
+     constants exactly (one account per stack ⇒ no collision; a documented
+     single-source contract, mirroring the C-025 fixed-name precedent).
+  4. **Toggle + day-one parity.** Default off ⇒ no project capability host ⇒
+     the project body is byte-for-byte the pre-FR-043 state. Injection is a
+     creation-time property (mirrors VC-1) — flipping it on an existing project
+     is an operator-approved recreate, never an in-place edit.
+
+### Clarifications — Session 2026-06-04 (FR-043)
+
+- **C-056 — Additive, not a replacement.** FR-043 ADDS the project-level
+  capability host; it does **not** remove or relocate the account-level host
+  shipped by FR-031/C-026. Both are `kind=Agents`; the portal/reference create
+  both. The account host owns `customerSubnet`; the project host owns the
+  project-scoped agent runtime. Keeping both matches the proven reference.
+- **C-057 — No `customerSubnet` on the project host.** The agent subnet is
+  declared once, on the account-level host (FR-031). The project host omits
+  `customerSubnet` entirely (it inherits the account binding); re-declaring it
+  would duplicate/conflict with the account host. This matches the portal's
+  `project-capability-host` body (subnet only on `account-capability-host`).
+- **C-058 — Fixed connection-name parity; `aiServicesConnections` omitted.**
+  The project host references the literal connection names
+  `agentstorage`/`agentcosmos`/`agentsearch` defined in the account module —
+  a hard single-source contract (the module-level test asserts the exact
+  literals). The portal's `aiServicesConnections` leg is OMITTED: it exists
+  only in the BYO-separate-foundry variant (where a different account supplies
+  the AI Services connection). In our topology the project is parented
+  **directly** by the account, so no `aiServicesConnections` reference is
+  needed (matching the portal's `aiFoundry`-empty `project-capability-host`
+  variant).
+- **C-059 — Creation-time only + parity.** Like the account-level injection
+  (VC-1 / C-031), the project capability host is settable only at creation;
+  default-off reproduces the pre-FR-043 project body byte-for-byte. The
+  services stack drives the project module's `network_injection_enabled` from
+  the same `var.enable_aifoundry_network_injection` master, so the account and
+  project hosts are always provisioned together (never one without the other).
+
+### Validation criteria (FR-043)
+
+- **VC-20 — Injection-on creates the project host.**
+  `network_injection_enabled = true` (with the project's `parent_account_id`)
+  ⇒ exactly one `Microsoft.CognitiveServices/accounts/projects/capabilityHosts`
+  named `agents`, `capabilityHostKind = "Agents"`, with `storageConnections =
+  ["agentstorage"]`, `threadStorageConnections = ["agentcosmos"]`,
+  `vectorStoreConnections = ["agentsearch"]`, and **no** `customerSubnet`.
+- **VC-21 — Day-one parity.** `network_injection_enabled = false` (default) ⇒
+  zero project capability hosts; the project resource body is byte-for-byte the
+  pre-FR-043 state.
+- **VC-22 — Connection-name parity.** The project host's three connection
+  names equal the account module's fixed constants
+  (`agentstorage`/`agentcosmos`/`agentsearch`) exactly — asserted in the
+  `aifoundryproject` module test.
+
+### Out of scope for FR-043
+
+The account-level capability host + the agent `customerSubnet` (FR-031 owns
+them — unchanged); `aiServicesConnections` (BYO-separate-foundry variant only —
+C-058); the BYO trio (Storage/Cosmos/Search) provisioning and their private
+endpoints (FR-031/FR-035/FR-042 + the `103` instance); the `agents` subnet
+itself (the 004-vnet `agents` role + the spoke vnet instance own it); and any
+`10n` instance tfvars selection (each instance's own pipeline).

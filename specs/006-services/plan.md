@@ -1374,3 +1374,49 @@ Storage/Search/Key Vault. Guard-only (no auto-provision). Engine-only.
 
 **Rollout.** Engine-only, guard-only; no new Azure resources. Same `deploy`
 workflow path as FR-041 when the `103` instance re-plans.
+
+---
+
+## Amendment plan — FR-043 (Foundry project-level capability host)
+
+**Scope.** Engine-only. Add a project-level `capabilityHosts` child to the
+`aifoundryproject` module, gated on a new `network_injection_enabled` toggle,
+and wire that toggle from the services stack's existing
+`var.enable_aifoundry_network_injection` master. No `10n` instance edits, no
+naming-catalogue change (the host uses a fixed RP-side name, not an
+engine-emitted canonical name — mirrors the account host's `agents` name and
+the C-019/C-025 fixed-name precedent).
+
+**Files touched.**
+
+- [modules/aifoundryproject/variables.tf](../../modules/aifoundryproject/variables.tf)
+  — add `network_injection_enabled` (bool, default false).
+- [modules/aifoundryproject/locals.tf](../../modules/aifoundryproject/locals.tf)
+  — add the three fixed connection-name constants
+  (`agent_conn_storage`/`agent_conn_cosmos`/`agent_conn_search`) that MUST
+  match the `aifoundry` account module (C-058), plus
+  `network_injection_enabled` passthrough local.
+- [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf)
+  — add `azapi_resource "capability_host"` (count-gated,
+  `accounts/projects/capabilityHosts@2025-09-01`, name `agents`, kind=Agents,
+  the three connection lists, **no** customerSubnet) + a `lifecycle.precondition`
+  asserting the toggle is coherent.
+- [terraform/services/main.tf](../../terraform/services/main.tf) — pass
+  `network_injection_enabled = var.enable_aifoundry_network_injection` and
+  `depends_on = [module.aifoundry]` to `module.aifoundry_project`.
+- `modules/aifoundryproject/tests/network_injection_positive.tftest.hcl` (new,
+  VC-20/VC-22) + `modules/aifoundryproject/tests/network_injection_parity.tftest.hcl`
+  (new, VC-21).
+
+**API version.** `2025-09-01` (GA) for the project capability host — consistent
+with the account-level host in `modules/aifoundry/main.tf` (the FR-040 preview
+pin is required only for the *account* network-injection create path, not the
+capability-host children).
+
+**Verification.** `terraform -chdir=modules/aifoundryproject test` + the wider
+`modules/aifoundry` + `terraform/services` suites green; `terraform fmt
+-recursive` clean.
+
+**Rollout.** Engine-only; additive (default-off ⇒ zero new resources for any
+instance that has injection off — VC-21). The `103` instance (injection on)
+picks up the project host on its next `deploy`-workflow plan/apply.
