@@ -1420,3 +1420,27 @@ capability-host children).
 **Rollout.** Engine-only; additive (default-off ⇒ zero new resources for any
 instance that has injection off — VC-21). The `103` instance (injection on)
 picks up the project host on its next `deploy`-workflow plan/apply.
+
+## Amendment plan — FR-031 storage connection target (2026-06-04)
+
+- **A-031-09** — add `local.agent_storage_blob_target` in
+  [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): null when
+  `agent_storage_account_id` is null, else
+  `"https://${reverse(split("/", var.agent_storage_account_id))[0]}.blob.core.windows.net"`.
+  Public-cloud suffix is acceptable (repo is swedencentral / AzureCloud only).
+- **A-031-10** — point `azapi_resource.agent_storage_connection` `target` at
+  `local.agent_storage_blob_target`; keep `metadata.ResourceId` on the ARM id.
+- **A-031-11** — add test `storage_connection_target_is_blob_uri` to
+  [modules/aifoundry/tests/network_injection_positive.tftest.hcl](../../modules/aifoundry/tests/network_injection_positive.tftest.hcl)
+  asserting the derived Blob URI, the unchanged metadata.ResourceId, and that
+  Cosmos/Search targets remain resource IDs.
+
+## Operational note — sp01/dev recovery (2026-06-04)
+
+The first live apply (run 26943355158) built the full stack except the
+`agentstorage` connection (this defect) and the AIF `to-hub-la` diagnostic
+setting (azurerm create-PUT succeeded but apply errored before state write, so it
+exists in Azure but not in state). After this fix merges, the half-built stack is
+reconciled by either (A) deleting the orphan `to-hub-la` diag setting then
+re-applying, or (B) `terraform destroy` + clean re-apply. No soft-deleted
+account exists (the account was created fresh).

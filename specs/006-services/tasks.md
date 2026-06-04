@@ -981,3 +981,10 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-043.E — Rollout
 
 - [x] T-FR043-010 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, additive (default-off ⇒ no new resources). The `103` instance picks up the project host on its next `deploy`-workflow plan/apply — never a local apply. (FR-043)
+
+## Phase FR-031-amend (2026-06-04) — storage connection target fix
+
+- [x] T-FR031-A1 Add `local.agent_storage_blob_target` (locals.tf). (C-031-06)
+- [x] T-FR031-A2 Point `agent_storage_connection.target` at the local; keep metadata.ResourceId on the ARM id. (C-031-06/07)
+- [x] T-FR031-A3 Add `storage_connection_target_is_blob_uri` test; full module suite green (16 passed). (Acceptance 16)
+- [ ] T-FR031-A4 Reconcile sp01/dev half-built stack and re-apply (operator decision A vs B).

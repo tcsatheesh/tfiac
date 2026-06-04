@@ -39,6 +39,14 @@ locals {
   agent_conn_cosmos  = "agentcosmos"
   agent_conn_search  = "agentsearch"
 
+  # FR-031 (Amendment 2026-06-04) — the AzureStorageAccount BYO connection's
+  # `target` must be the Blob service ENDPOINT URI, not the storage account
+  # resource ID (RP rejects a resource ID with HTTP 400 ValidationError:
+  # "Target property must be a valid storage URI"). Cosmos/Search connections
+  # accept resource IDs, but Storage does not. Derive the blob endpoint from the
+  # validated storage account resource ID (last path segment = account name).
+  agent_storage_blob_target = var.agent_storage_account_id == null ? null : "https://${reverse(split("/", var.agent_storage_account_id))[0]}.blob.core.windows.net"
+
   # FR-031 step 1 / VC-2 — the networkInjections list is EMPTY when disabled
   # so the merge below omits the attribute entirely, preserving the exact
   # post-FR-028 account body (day-one parity, A-031-04).

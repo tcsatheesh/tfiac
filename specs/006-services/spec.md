@@ -2263,3 +2263,26 @@ C-058); the BYO trio (Storage/Cosmos/Search) provisioning and their private
 endpoints (FR-031/FR-035/FR-042 + the `103` instance); the `agents` subnet
 itself (the 004-vnet `agents` role + the spoke vnet instance own it); and any
 `10n` instance tfvars selection (each instance's own pipeline).
+
+## Amendment 2026-06-04 — FR-031 storage connection target must be the Blob endpoint URI
+
+**Defect (live apply, run 26943355158):** With network injection enabled, the
+AzureStorageAccount BYO connection (`agentstorage`) was created with
+`properties.target = <storage account resource ID>`. The Cognitive Services RP
+rejects this with HTTP 400 `ValidationError`: *"Target property must be a valid
+storage URI (e.g., https://<account>.blob.core.windows.net)."* The Cosmos DB and
+AI Search connections accept resource IDs and were created successfully — only
+the Storage connection requires a service-endpoint URI.
+
+- **C-031-06** — the `agentstorage` connection `properties.target` MUST be the
+  Blob service endpoint URI of the BYO storage account
+  (`https://<account>.blob.core.windows.net`), derived deterministically from the
+  validated `agent_storage_account_id` (last path segment = account name).
+- **C-031-07** — `properties.metadata.ResourceId` MUST remain the full storage
+  account ARM resource ID (unchanged).
+- **C-031-08** — the Cosmos DB (`agentcosmos`) and AI Search (`agentsearch`)
+  connection targets remain the respective ARM resource IDs (no change).
+
+**Acceptance 16** — with injection enabled, plan shows the `agentstorage`
+connection target equal to the storage account's Blob endpoint URI; live apply of
+the connection succeeds (no RP ValidationError).
