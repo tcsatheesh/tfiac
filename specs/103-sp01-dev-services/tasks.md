@@ -97,3 +97,20 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
 - [x] T-103-08-1 Remove `container_app_environment` from the services list; set `enable_container_apps: false`; remove `container_apps_subnet_role`. (C-103-08/09)
 - [x] T-103-08-2 Confirm no engine change and injection intact (agents subnet unchanged). (C-103-10/11)
 - [ ] T-103-08-3 fmt/validate/test green; merge; included in the clean sp01/dev recreate apply.
+
+## Phase FR-103-09 (2026-06-04) — portal Standard-Agent template-exact match
+
+> Re-pin the tfvars to mirror the shared portal Standard-Agent template:
+> two storages by purpose, user-owned storage, KV connection, KV added
+> (private deviation), ACR dropped. Engine unchanged. Prepare-only.
+
+- [x] T-103-09-1 Add 2nd `storage`; pin purposes `agt`/`act`; set
+  `agent_storage_purpose=agt`, `account_storage_purpose=act`. (engine FR-044)
+- [x] T-103-09-2 Set `enable_aifoundry_user_owned_storage=true` +
+  `enable_aifoundry_keyvault_connection=true`. (engine FR-044/FR-045)
+- [x] T-103-09-3 Add `keyvault` (private: `enable_keyvault_private_endpoint=true`);
+  document deviation C-061 (template KV is public). (FR-103-06)
+- [x] T-103-09-4 Drop `container_registry` (+ its PE toggle). (FR-103-06)
+- [x] T-103-09-5 `terraform validate` OK + engine `terraform test` 28/28 green;
+  tfvars passes purpose-distinctness + KV-present validations. (FR-103-06)
+- [ ] T-103-09-6 Rollout: NONE — prepare-only. RBAC owned by 104. **No deploy.**
