@@ -27,3 +27,13 @@ No BLOCKER/MAJOR findings remain unresolved. The amendment is internally
 consistent, honours the `00n`/`10n` engine/instance split, is additive +
 default-off (reversible), and is fully validatable at `terraform plan` level.
 Cleared to implement T-FR031-001..012.
+
+## Addendum 2026-06-04 — storage connection target ValidationError
+
+Live apply surfaced that `AzureStorageAccount` connections require a Blob
+endpoint URI in `properties.target`, unlike `CosmosDB`/`CognitiveSearch` which
+accept ARM resource IDs. Root cause: `target` was wired to the storage account
+resource ID. Fix derives the Blob endpoint from the validated account id. Verified
+by the new positive test and the existing reject/positive suite (16 passed, 0
+failed). metadata.ResourceId intentionally stays the ARM id (used by Foundry for
+RBAC resolution).

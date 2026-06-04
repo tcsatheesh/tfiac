@@ -135,3 +135,26 @@ run "network_injection_emitted" {
     error_message = "FR-040 / VC-11: the injected account body must set disableLocalAuth=false."
   }
 }
+
+
+# FR-031 (Amendment 2026-06-04) — the AzureStorageAccount connection target must
+# be the Blob endpoint URI (not the resource ID); the RP rejects a resource ID
+# with HTTP 400 ValidationError. Cosmos/Search targets stay as resource IDs.
+run "storage_connection_target_is_blob_uri" {
+  command = plan
+
+  assert {
+    condition     = azapi_resource.agent_storage_connection[0].body.properties.target == "https://stuc1sp01devswc001.blob.core.windows.net"
+    error_message = "FR-031: AzureStorageAccount connection target must be the Blob endpoint URI derived from the storage account name."
+  }
+
+  assert {
+    condition     = azapi_resource.agent_storage_connection[0].body.properties.metadata.ResourceId == var.agent_storage_account_id
+    error_message = "FR-031: the connection metadata.ResourceId must remain the storage account resource ID."
+  }
+
+  assert {
+    condition     = azapi_resource.agent_cosmos_connection[0].body.properties.target == var.agent_cosmosdb_account_id && azapi_resource.agent_search_connection[0].body.properties.target == var.agent_search_service_id
+    error_message = "FR-031: Cosmos/Search connection targets must remain the resource IDs (only Storage needs a URI)."
+  }
+}

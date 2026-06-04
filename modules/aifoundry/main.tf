@@ -198,7 +198,7 @@ resource "azapi_resource" "agent_storage_connection" {
   body = {
     properties = {
       category      = "AzureStorageAccount"
-      target        = var.agent_storage_account_id
+      target        = local.agent_storage_blob_target
       authType      = "AAD"
       isSharedToAll = true
       metadata = {
