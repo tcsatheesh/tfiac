@@ -11,7 +11,7 @@ on:
         description: "Stack name under terraform/<service>/."
         required: true
         type: choice
-        options: [vnet, dns, log, buildsvr, services, rbac]
+        options: [vnet, dns, log, buildsvr, services, rbac, winvm]
       tenant:
         description: "Tenancy (hub|sp01|sp02)."
         required: true
