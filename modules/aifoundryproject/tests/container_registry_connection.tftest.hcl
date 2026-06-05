@@ -89,6 +89,21 @@ run "registry_connection_emitted" {
   }
 
   assert {
+    condition     = azapi_resource.container_registry_connection[0].body.properties.isSharedToAll == false
+    error_message = "FR-063: connection must set isSharedToAll=false (reference-exact; true makes the RP demand credentials)."
+  }
+
+  assert {
+    condition     = azapi_resource.container_registry_connection[0].body.properties.useWorkspaceManagedIdentity == false
+    error_message = "FR-063: connection must set useWorkspaceManagedIdentity=false (reference-exact)."
+  }
+
+  assert {
+    condition     = azapi_resource.container_registry_connection[0].body.properties.peRequirement == "NotRequired"
+    error_message = "FR-063: connection must set peRequirement=NotRequired (reference-exact)."
+  }
+
+  assert {
     condition     = azapi_resource.container_registry_connection[0].body.properties.target == "crshdshdsp01devuks001.azurecr.io"
     error_message = "FR-063: connection target must be the supplied registry login server."
   }
@@ -96,5 +111,11 @@ run "registry_connection_emitted" {
   assert {
     condition     = azapi_resource.container_registry_connection[0].body.properties.metadata.ResourceId == "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-svc-shd-sp01-dev-uks-001/providers/Microsoft.ContainerRegistry/registries/crshdshdsp01devuks001"
     error_message = "FR-063: connection metadata.ResourceId must be the supplied registry resource id."
+  }
+
+  # The reference body carries NO metadata.ApiType — only ResourceId.
+  assert {
+    condition     = !can(azapi_resource.container_registry_connection[0].body.properties.metadata.ApiType)
+    error_message = "FR-063: connection metadata must NOT include ApiType (reference-exact)."
   }
 }
