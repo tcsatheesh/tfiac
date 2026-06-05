@@ -474,3 +474,37 @@ firewall UDR.
 - [x] T-FR230-012 `terraform -chdir=terraform/vnet test` → 100% pass. (IV / X)
 - [ ] T-FR230-013 Push branch, open PR against master, squash-merge, delete
   branch. (X)
+
+## Phase FR-231 — NAT egress for delegated managed-environment subnets
+
+- [x] T-FR231-001 In [modules/network/locals.tf](../../modules/network/locals.tf):
+  add a per-role `needs_nat_egress` bool to every entry in `role_catalogue`
+  (`true` for `development`/`pre-production`/`buildsvr`/`function-app`/`logic-app`/
+  `preprod-func`/`preprod-logic`/`agents`/`container-apps`; `false` for
+  `api-management`/`bastion`/`firewall`/`firewall-mgmt`); add derived
+  `local.nat_attach_roles`; correct the stale `agents`/`container-apps` "manages
+  its own egress" comments. (FR-231 / C40 / C41)
+- [x] T-FR231-002 In [modules/network/main.tf](../../modules/network/main.tf):
+  change the subnet `nat_gateway` association predicate from
+  `local.role_catalogue[r].needs_route_table` to
+  `local.role_catalogue[r].needs_nat_egress`. (FR-231 / C41)
+- [x] T-FR231-003 In [modules/network/outputs.tf](../../modules/network/outputs.tf):
+  re-point `subnet_nat_attached` to `needs_nat_egress`; update its description.
+  (FR-231)
+- [x] T-FR231-004 [P] Add [modules/network/tests/agent_subnet_nat_egress.tftest.hcl](../../modules/network/tests/agent_subnet_nat_egress.tftest.hcl)
+  (agents+cae attach NAT but not route table; non-egress role attaches neither;
+  toggle-off attaches nothing); correct
+  [modules/network/tests/optional_nat_gateway_spoke.tftest.hcl](../../modules/network/tests/optional_nat_gateway_spoke.tftest.hcl)
+  (container-apps now NAT-attached). (FR-231 / IV)
+- [x] T-FR231-005 `terraform fmt -recursive` → no changes. (X)
+- [x] T-FR231-006 `terraform -chdir=modules/network test` → 23 passed. (IV / X)
+- [x] T-FR231-007 `terraform -chdir=terraform/vnet test` → 21 passed. (IV / X)
+- [ ] T-FR231-008 Push branch, open PR against master, squash-merge, delete
+  branch. (X)
+- [ ] T-FR231-009 Roll out `vnet` stack for `sp01/npd` via the `deploy`
+  workflow (`-f service=vnet -f tenant=sp01 -f environment=npd -f action=apply
+  -f apply=true`); confirm the plan is a strict ADD of `nat_gateway`
+  associations on `snet-agt-…` and `snet-cae-…`. (FR-231 / C44)
+- [ ] T-FR231-010 Verify live: the `agents` subnet now shows the spoke NAT
+  gateway associated; app team re-runs agent create and confirms the 503 is
+  cleared. (FR-231)

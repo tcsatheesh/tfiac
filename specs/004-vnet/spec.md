@@ -1020,3 +1020,135 @@ Turning sp01 egress on (C38 — instance change, sp01 stays `false` here), spoke
 NAT diagnostic settings / idle-timeout tuning (defaults), multiple NAT gateways
 or NAT on non-egress subnets (C34), any hub behaviour change (FR-229 is
 untouched), and live applies (handled by the `deploy` workflow).
+
+## Amendment: NAT egress for delegated managed-environment subnets (FR-231)
+
+**Status**: Amendment — appended to feature 004 (engine). Engine-only and
+purely additive: it adds ONE new per-role field (`needs_nat_egress`) to the
+module-internal subnet role catalogue and re-points the NAT-gateway subnet
+association at it. No name, no default toggle, and no route-table behaviour
+changes; the only live effect is that, where a NAT gateway is already enabled,
+the `agents` and `container-apps` subnets now ALSO associate it.
+
+### Background — the Foundry Standard-Agent 503 root cause (VC-5 follow-up)
+
+A Foundry account with Hosted-/Standard-Agent network injection runs its agent
+runtime inside the dedicated `agents` subnet (FR-226), which is delegated to
+`Microsoft.App/environments` (an injected Azure Container Apps managed
+environment). The account-level injection is created with
+`useMicrosoftManagedNetwork = false`, which means **the customer owns egress**
+for that subnet. Per Microsoft Learn
+(`ai-foundry/agents/how-to/virtual-networks` → Limitations → "Agent subnet
+egress firewall allowlisting"), the injected environment makes **outbound**
+calls that MUST be reachable for the runtime to come up healthy:
+
+- the Azure Container Apps control plane,
+- MCR (`mcr.microsoft.com`, `*.data.mcr.microsoft.com`) for platform images,
+- the agent image's **public** ACR endpoint — for Hosted agents the ACR
+  cannot be placed behind a private endpoint and must be pulled over its
+  public endpoint (006 VC-7),
+- Entra ID / Managed-Identity authentication (`login.microsoftonline.com`,
+  `AzureActiveDirectory` service tag).
+
+Azure default outbound access is retired for newly-created subnets, so a
+delegated agent subnet with **no** explicit egress path (no NAT gateway, no
+UDR) has **zero** outbound connectivity. The injected runtime therefore never
+initialises and every data-plane call (`GET /agents`, agent create) returns
+**503**, even when the capability host, private endpoints, private DNS links,
+and RBAC are all healthy. This was observed live on
+`aifp-uc1-uc1-sp01-dev-swc-001` after a fully-verified caphost rebuild.
+
+### Gap in the pre-FR-231 engine
+
+The NAT-gateway subnet association (FR-229 hub / FR-230 spoke) was gated on
+`local.role_catalogue[r].needs_route_table`. The delegated
+managed-environment roles `agents` (FR-226) and `container-apps` are
+deliberately `needs_route_table = false` — they MUST NOT attach the shared
+`0.0.0.0/0 → firewall` route (a forced-tunnel UDR is neither required nor
+supported for an injected managed environment, and would blackhole/hijack the
+runtime's traffic). But because NAT association reused the **same** predicate,
+those subnets also got **no NAT egress** — leaving them with no outbound path
+at all. The catalogue comment ("the managed environment handles its own
+egress") was the incorrect assumption at the root of the bug: it is only true
+when Microsoft owns the network (`useMicrosoftManagedNetwork = true`), not in
+the BYO-VNet injection model used here.
+
+### Requirement
+
+- **FR-231 — NAT egress decoupled from the route table.** The module-internal
+  role catalogue (`modules/network/locals.tf`) MUST gain a new per-role boolean
+  field `needs_nat_egress`, and the NAT-gateway subnet association
+  (`modules/network/main.tf`) plus the `subnet_nat_attached` output
+  (`modules/network/outputs.tf`) MUST be re-pointed from `needs_route_table` to
+  `needs_nat_egress`. `needs_nat_egress` is a **superset** of the
+  `needs_route_table` roles: it is `true` for every role that previously got a
+  NAT association (`development`, `pre-production`, `buildsvr`, `function-app`,
+  `logic-app`, `preprod-func`, `preprod-logic`) **plus** the delegated
+  managed-environment roles `agents` and `container-apps`; it is `false` for
+  the non-egress roles (`api-management`, `bastion`, `firewall`,
+  `firewall-mgmt`). The route-table attachment predicate
+  (`needs_route_table`) is **unchanged** — `agents`/`container-apps` still do
+  NOT attach the shared route table (FR-226/FR-228 preserved). The net effect:
+  a subnet may now attach the NAT gateway WITHOUT attaching the route table.
+
+### Clarifications — Session 2026-06-05 (resolved autonomously)
+
+- **C40 — Both delegated roles get egress, not just `agents`.** Both `agents`
+  and `container-apps` are delegated to `Microsoft.App/environments` and run
+  injected managed environments with the same egress needs, so both flip to
+  `needs_nat_egress = true`. Scoping the fix to `agents` only would leave the
+  `container-apps` role with the identical latent bug; the engine fix is
+  correct for both.
+- **C41 — Supersedes FR-230/C34's exclusion.** FR-230/C34 stated `agents` and
+  `container-apps` "do NOT get a NAT association (they manage their own egress
+  / must not carry one)." That clause is **superseded** by FR-231: they MUST
+  carry a NAT association when the NAT gateway is enabled. The "must not carry
+  the route table" half of FR-226/FR-228 remains in force; only the NAT half
+  is corrected.
+- **C42 — Purely additive, default-off preserved.** `needs_nat_egress` changes
+  nothing when no NAT gateway is enabled (`enable_hub_nat_gateway` /
+  `enable_spoke_nat_gateway` both default `false`). Where a NAT gateway IS
+  enabled (e.g. `sp01/npd`, `enable_spoke_nat_gateway = true`), the only plan
+  delta is the addition of a `nat_gateway` association on the `agents` and
+  `container-apps` subnets — a strict ADD, no destroy/replace, no route-table
+  or firewall churn. The NAT gateway and PIP already exist.
+- **C43 — NAT-on-a-delegated-subnet is supported and recommended.**
+  Associating a NAT gateway with a subnet delegated to
+  `Microsoft.App/environments` that already hosts an active managed environment
+  is a supported, in-place operation (and is Microsoft's recommended stable
+  outbound for Container Apps). No environment recreate is required; the
+  runtime gains egress on association and recovers from 503.
+- **C44 — No instance/tfvars change required for the fix to take effect.** The
+  `sp01/npd` vnet instance already selects the `agents` and `container-apps`
+  subnets and already sets `enable_spoke_nat_gateway = true`. Rolling out the
+  `vnet` stack for `sp01/npd` after this engine change associates the NAT
+  gateway with those subnets automatically. No `10n` instance feature edit is
+  needed (the instance already expresses the intent; the engine simply now
+  honours it).
+
+### Test plan (amendment)
+
+- `modules/network/tests/agent_subnet_nat_egress.tftest.hcl` (new) — a spoke
+  plan with `enable_spoke_nat_gateway = true` and subnets including `agents`,
+  `container-apps`, an ordinary egress role (`development`) and a non-egress
+  role (`api-management`) asserts: (a) `subnet_nat_attached` is `true` for
+  `agents` and `container-apps` (FR-231), (b) `subnet_route_table_attached` is
+  `false` for both (FR-226 preserved — NAT without route table), (c)
+  `subnet_nat_attached` is `true` for `development` (FR-230 unchanged), (d)
+  both `subnet_nat_attached` and `subnet_route_table_attached` are `false` for
+  `api-management` (genuine non-egress role), and a second run with the toggle
+  off asserts no subnet (incl. `agents`/`container-apps`) attaches the NAT
+  gateway.
+- `modules/network/tests/optional_nat_gateway_spoke.tftest.hcl` (updated) — the
+  former assertion that `container-apps` is NOT NAT-attached is corrected to
+  assert it IS NAT-attached under FR-231 (Run 1); the toggle-off run is
+  unchanged (nothing attaches).
+
+### Out of scope for FR-231
+
+Any new NSG egress rules / FQDN allow-listing (the spoke NAT gateway provides
+unrestricted outbound; the hub firewall is already torn down — there is no FQDN
+filtering layer to maintain), idle-timeout / diagnostic tuning on the NAT
+gateway (defaults), `api-management` egress (left `needs_nat_egress = false` —
+unchanged behaviour, out of scope), and live applies (handled by the `deploy`
+workflow: roll out `service=vnet -f tenant=sp01 -f environment=npd`).

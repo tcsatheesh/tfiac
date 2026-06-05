@@ -8,6 +8,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"]
       delegation        = []
     }
@@ -16,6 +17,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"]
       delegation        = []
     }
@@ -24,6 +26,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = false
+      needs_nat_egress  = false
       service_endpoints = []
       delegation        = []
     }
@@ -32,6 +35,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = []
     }
@@ -40,6 +44,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = ["Microsoft.Web/serverFarms"]
     }
@@ -48,6 +53,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = ["Microsoft.Web/serverFarms"]
     }
@@ -56,6 +62,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = ["Microsoft.Web/serverFarms"]
     }
@@ -64,6 +71,7 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = true
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = ["Microsoft.Web/serverFarms"]
     }
@@ -72,6 +80,13 @@ locals {
       literal_name      = null
       needs_nsg         = true
       needs_route_table = false
+      # FR-231: an injected Container Apps managed environment
+      # (Microsoft.App/environments) requires OUTBOUND egress (control plane,
+      # MCR platform images, ACR image pull, Entra/Managed-Identity auth). It
+      # does NOT attach the shared 0.0.0.0/0 firewall route (needs_route_table
+      # = false — a forced-tunnel UDR is neither required nor recommended for
+      # the managed environment), but it MUST have a NAT-gateway egress path.
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = ["Microsoft.App/environments"]
     }
@@ -80,12 +95,19 @@ locals {
     # but a DISTINCT role so a spoke can carry both an ACA managed-environment
     # subnet (`cae`) and a separate, exclusive agent subnet (`agt`). Recommended
     # /24; the CIDR is supplied per-instance via var.subnets. No route table
-    # (the managed environment handles its own egress).
+    # (FR-226: no forced-tunnel UDR on the injected environment), but it DOES
+    # need NAT-gateway egress (FR-231): the injected Container Apps managed
+    # environment runs with useMicrosoftManagedNetwork=false (CUSTOMER owns
+    # egress) and must reach the Container Apps control plane, MCR, the agent
+    # image's public ACR endpoint, and Entra/Managed-Identity over the internet
+    # to initialise — without an egress path the agent runtime never comes up
+    # healthy and the data plane returns 503.
     "agents" = {
       abbr3             = "agt"
       literal_name      = null
       needs_nsg         = true
       needs_route_table = false
+      needs_nat_egress  = true
       service_endpoints = []
       delegation        = ["Microsoft.App/environments"]
     }
@@ -94,6 +116,7 @@ locals {
       literal_name      = "AzureBastionSubnet"
       needs_nsg         = true
       needs_route_table = false
+      needs_nat_egress  = false
       service_endpoints = []
       delegation        = []
     }
@@ -102,6 +125,7 @@ locals {
       literal_name      = "AzureFirewallSubnet"
       needs_nsg         = false
       needs_route_table = false
+      needs_nat_egress  = false
       service_endpoints = []
       delegation        = []
     }
@@ -110,6 +134,7 @@ locals {
       literal_name      = "AzureFirewallManagementSubnet"
       needs_nsg         = false
       needs_route_table = false
+      needs_nat_egress  = false
       service_endpoints = []
       delegation        = []
     }
@@ -119,6 +144,14 @@ locals {
   active_roles    = sort(keys(var.subnets))
   nsg_roles       = sort([for r in local.active_roles : r if try(local.role_catalogue[r].needs_nsg, false)])
   rt_attach_roles = sort([for r in local.active_roles : r if try(local.role_catalogue[r].needs_route_table, false)])
+
+  # FR-231: the set of subnet roles that need an internet egress path via the
+  # NAT gateway. Superset of rt_attach_roles: it ADDS the delegated
+  # managed-environment roles (`agents`, `container-apps`) which must NOT carry
+  # the shared 0.0.0.0/0 firewall route (needs_route_table = false) yet still
+  # require outbound egress to initialise. Decoupling NAT egress from
+  # needs_route_table is the core of FR-231.
+  nat_attach_roles = sort([for r in local.active_roles : r if try(local.role_catalogue[r].needs_nat_egress, false)])
 
   # ----- Route-table activation (FR-228) -----
   # A workload subnet attaches the shared route table ONLY when a real 0.0.0.0/0
