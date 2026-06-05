@@ -94,3 +94,22 @@ variable "agent_finalization_enabled" {
   type        = bool
   default     = true
 }
+
+# ----- FR-063 (Amendment 2026-06-05) — project ContainerRegistry connection -----
+variable "container_registry_connection_enabled" {
+  description = "FR-063 / C-079: known-at-plan toggle that gates a project-level Microsoft.CognitiveServices/accounts/projects/connections of category \"ContainerRegistry\" (authType=ManagedIdentity, isDefault=true), letting the Hosted-Agent runtime pull the agent container image from the registry over its public data-plane endpoint using the project's system-assigned managed identity. Kept separate from container_registry_login_server (whose value is computed, hence unknown at plan) so count never depends on an unknown — mirrors network_injection_enabled. When true, BOTH container_registry_login_server and container_registry_id MUST be non-null (enforced by a precondition). Default false preserves day-one behaviour (no registry connection)."
+  type        = bool
+  default     = false
+}
+
+variable "container_registry_login_server" {
+  description = "FR-063 / C-079: the registry login server (e.g. <name>.azurecr.io) used as the ContainerRegistry connection target. Required (non-null) when container_registry_connection_enabled = true; ignored otherwise. Provisioned by the services stack as a `container_registry` selection, never by this module."
+  type        = string
+  default     = null
+}
+
+variable "container_registry_id" {
+  description = "FR-063 / C-079: full Azure resource ID of the container registry, stamped into the connection metadata.ResourceId (mirrors the azd-provisioned reference connection). Required (non-null) when container_registry_connection_enabled = true; ignored otherwise."
+  type        = string
+  default     = null
+}

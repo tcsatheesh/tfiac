@@ -313,6 +313,21 @@ check "aifoundry_keyvault_connection_prereqs" {
   }
 }
 
+# aifoundry_container_registry_connection_prereqs (spec.md FR-063 / C-079): when
+# the project ContainerRegistry connection is enabled the stack must hold an
+# aifoundry PROJECT plus EXACTLY ONE 'container_registry' selection (the
+# connection target), so the one(...) registry resolver in main.tf yields a
+# single login server + id.
+check "aifoundry_container_registry_connection_prereqs" {
+  assert {
+    condition = !var.enable_aifoundry_container_registry_connection || (
+      length([for s in var.services : s if s.type == "aifoundry_project"]) == 1 &&
+      length([for s in var.services : s if s.type == "container_registry"]) == 1
+    )
+    error_message = "FR-063 — enable_aifoundry_container_registry_connection = true requires EXACTLY ONE 'aifoundry_project' and EXACTLY ONE 'container_registry' selected (the project's ContainerRegistry connection target)."
+  }
+}
+
 # private_by_default_unwired_types (spec.md FR-041 §4 / C-053): the master
 # private-by-default switch only flips the public-access + private-endpoint
 # surface for the service types that are already wired for it (aifoundry,

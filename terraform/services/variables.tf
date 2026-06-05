@@ -415,6 +415,14 @@ variable "enable_aifoundry_keyvault_connection" {
   default     = false
 }
 
+# ----- C-079 / FR-063 (Amendment 2026-06-05) — ContainerRegistry connection on
+# the Foundry PROJECT (Hosted-Agent image pull) -----
+variable "enable_aifoundry_container_registry_connection" {
+  description = "FR-063 / C-079: when true, attach the selected 'container_registry' to the selected aifoundry PROJECT as a Microsoft.CognitiveServices/accounts/projects/connections of category 'ContainerRegistry' (authType ManagedIdentity, isDefault=true, fixed name 'containerregistry'), so the Hosted-Agent runtime can pull the agent container image using the project's system-assigned MI. Pairs with the project-MI AcrPull grant owned by 007-rbac (FR-061). Requires exactly one 'container_registry' selection. The registry is public (VC-7 / Microsoft Hosted-Agent ACR limitation). Default false preserves day-one behaviour (no registry connection)."
+  type        = bool
+  default     = false
+}
+
 variable "enable_aifoundry_agent_finalization" {
   description = "FR-060 / C-069: gates the three resources that depend on grants issued by the SEPARATE 007-rbac stack — the App Insights tracing connection (its ApiKey secret is written to the account's BYO Key Vault) and BOTH Agents capability hosts (account-level in modules/aifoundry and project-level in modules/aifoundryproject; both need the project-MI storage/cosmos/search data-plane grants). Default true preserves the post-FR-043 single-pass behaviour for steady-state re-applies where the grants already exist. Set false for the FIRST pass of a brand-new injected environment so the bootstrap runs services(off) -> rbac -> services(on)."
   type        = bool

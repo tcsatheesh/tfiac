@@ -13,6 +13,7 @@ variables {
   }
   enable_aifoundry_user_owned_storage  = true
   enable_aifoundry_keyvault_connection = true
+  enable_project_acr_pull              = true
   agent_storage_purpose                = "agt"
   account_storage_purpose              = "act"
 }
@@ -32,6 +33,7 @@ override_data {
         cos   = { service_type = "cosmosdb", service_purpose = "cos" }
         stagt = { service_type = "storage", service_purpose = "agt" }
         stact = { service_type = "storage", service_purpose = "act" }
+        acr   = { service_type = "container_registry", service_purpose = "acr" }
       }
       resource_ids = {
         acct  = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.CognitiveServices/accounts/acct"
@@ -41,6 +43,7 @@ override_data {
         cos   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.DocumentDB/databaseAccounts/cos"
         stagt = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/stagt"
         stact = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/stact"
+        acr   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.ContainerRegistry/registries/acr"
       }
       resource_group_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg"
     }
@@ -65,10 +68,10 @@ run "full_matrix" {
   command = plan
 
   # 2 account-KV + 1 account-RG + 1 account-UOS + 3 project-storage + 2
-  # project-search + 2 project-cosmos = 11 control-plane grants.
+  # project-search + 2 project-cosmos + 1 project-acr = 12 control-plane grants.
   assert {
-    condition     = length(output.role_assignment_ids) == 11
-    error_message = "Expected exactly 11 control-plane role assignments for the full portal-matching matrix (VC-30)."
+    condition     = length(output.role_assignment_ids) == 12
+    error_message = "Expected exactly 12 control-plane role assignments for the full portal-matching matrix incl. AcrPull (VC-30 / FR-064)."
   }
 
   assert {
@@ -90,6 +93,7 @@ run "full_matrix" {
       "project-search-service-contributor",
       "project-cosmos-operator",
       "project-cosmos-documentdb-account-contributor",
+      "project-acr-pull",
     ], keys(output.role_assignment_ids))) == 0
     error_message = "VC-30: the full grant key set must be present."
   }
@@ -117,5 +121,17 @@ run "full_matrix" {
   assert {
     condition     = output.grant_scopes["account-kv-crypto-user"] == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.KeyVault/vaults/kv"
     error_message = "FR-047: KV Crypto User grant must be scoped to the key vault."
+  }
+
+  # FR-064 — the project AcrPull grant is scoped to the container registry and
+  # carries the AcrPull role GUID (7f951dda-…).
+  assert {
+    condition     = output.grant_scopes["project-acr-pull"] == "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.ContainerRegistry/registries/acr"
+    error_message = "FR-064: project-acr-pull must be scoped to the container registry."
+  }
+
+  assert {
+    condition     = endswith(output.grant_role_definition_ids["project-acr-pull"], "/7f951dda-4ed3-4680-a7ca-43fe172d538d")
+    error_message = "FR-064: project-acr-pull must use the AcrPull role GUID 7f951dda-4ed3-4680-a7ca-43fe172d538d."
   }
 }

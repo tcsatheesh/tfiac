@@ -12,6 +12,7 @@ locals {
   keyvault_name = one([for k, v in local.naming : k if v.service_type == "keyvault"])
   search_name   = one([for k, v in local.naming : k if v.service_type == "search"])
   cosmos_name   = one([for k, v in local.naming : k if v.service_type == "cosmosdb"])
+  registry_name = one([for k, v in local.naming : k if v.service_type == "container_registry"])
 
   # Agent storage: filter by purpose when set; otherwise fall back to the single
   # storage when exactly one is present (null when ambiguous/absent).
@@ -33,6 +34,7 @@ locals {
   keyvault_present        = local.keyvault_name != null
   search_present          = local.search_name != null
   cosmos_present          = local.cosmos_name != null
+  registry_present        = local.registry_name != null
   agent_storage_present   = local.agent_storage_name != null
   account_storage_present = local.account_storage_name != null
 
@@ -44,6 +46,7 @@ locals {
   cosmos_id          = local.cosmos_present ? local.resource_ids[local.cosmos_name] : null
   agent_storage_id   = local.agent_storage_present ? local.resource_ids[local.agent_storage_name] : null
   account_storage_id = local.account_storage_present ? local.resource_ids[local.account_storage_name] : null
+  registry_id        = local.registry_present ? local.resource_ids[local.registry_name] : null
 
   # ---- Principal ids (computed at apply; C-062) ------------------------------
   account_principal_id = local.account_present ? data.azapi_resource.account[0].output.identity.principalId : null
@@ -61,6 +64,7 @@ locals {
     search_service_contributor     = "7ca78c08-252a-4471-8644-bb5ff32d4ba0" # FR-054
     cosmos_operator                = "230815da-be43-4aae-9cb4-875f7bd000aa" # FR-055
     documentdb_account_contributor = "5bd9cd88-fe45-4216-938b-f97437e15450" # FR-056
+    acr_pull                       = "7f951dda-4ed3-4680-a7ca-43fe172d538d" # FR-064 (AcrPull)
   }
 
   role_def_prefix = "/subscriptions/${var.subscription_id}/providers/Microsoft.Authorization/roleDefinitions"
@@ -76,6 +80,7 @@ locals {
   project_storage_enabled   = local.project_present && local.agent_storage_present
   project_search_enabled    = local.project_present && local.search_present
   project_cosmos_enabled    = local.project_present && local.cosmos_present
+  project_acr_grant_enabled = local.project_present && local.registry_present && var.enable_project_acr_pull
 
   # ---- Control-plane role-assignment fan-out ---------------------------------
   role_assignments = merge(
@@ -164,6 +169,18 @@ locals {
       project-cosmos-documentdb-account-contributor = {
         scope_id           = local.cosmos_id
         role_definition_id = local.role_def_ids.documentdb_account_contributor
+        principal_id       = local.project_principal_id
+        principal_type     = "ServicePrincipal"
+      }
+    } : {},
+
+    # Project MI — AcrPull on the container registry (FR-064). Lets the
+    # Hosted-Agent runtime pull the agent container image via the project MI;
+    # pairs with the project ContainerRegistry connection (006 FR-063).
+    local.project_acr_grant_enabled ? {
+      project-acr-pull = {
+        scope_id           = local.registry_id
+        role_definition_id = local.role_def_ids.acr_pull
         principal_id       = local.project_principal_id
         principal_type     = "ServicePrincipal"
       }

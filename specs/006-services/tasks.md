@@ -1145,3 +1145,40 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 - [ ] T-FR062-6 Branch → PR → CI green → squash-merge → sync master, then
   re-run bootstrap pass 3 (`services`, `finalize=true`) — only the project
   capability host is created; the account host is platform-supplied. (FR-062)
+
+## Phase FR-063 (2026-06-05) — Foundry project ContainerRegistry connection
+
+- [x] T-FR063-1 `modules/cntreg/outputs.tf`: add `login_server` output (=
+  `azurerm_container_registry.this.login_server`) so the data-plane endpoint is
+  sourced from the resource, not string-built. (FR-063/VC-31)
+- [x] T-FR063-2 `modules/aifoundryproject/variables.tf`: add
+  `container_registry_connection_enabled` (bool/false, known-at-plan gate),
+  `container_registry_login_server` (string/null),
+  `container_registry_id` (string/null). (FR-063/C-079)
+- [x] T-FR063-3 `modules/aifoundryproject/main.tf`: add count-gated
+  `azapi_resource.container_registry_connection` (project-scoped, name
+  `containerregistry`, `category = ContainerRegistry`, `authType =
+  ManagedIdentity`, `isSharedToAll = true`, `isDefault = true`, target = login
+  server, `metadata.ResourceId` = registry id, `schema_validation_enabled =
+  false`) + a precondition (enabled ⇒ both inputs non-null). (FR-063/C-079/C-080)
+- [x] T-FR063-4 `terraform/services/variables.tf`: add
+  `enable_aifoundry_container_registry_connection` (bool/false). (FR-063)
+- [x] T-FR063-5 `terraform/services/main.tf` `module.aifoundry_project`: wire
+  `container_registry_connection_enabled = toggle && registry_selected`,
+  `container_registry_login_server` / `container_registry_id` resolved from the
+  selected `container_registry` module (gated so the module is never handed
+  `enabled = true` + null on a misconfig). (FR-063)
+- [x] T-FR063-6 `terraform/services/check.tf`: add
+  `aifoundry_container_registry_connection_prereqs` (toggle ⇒ exactly one
+  `aifoundry_project` AND exactly one `container_registry`). (FR-063/VC-30)
+- [x] T-FR063-7 tests: `modules/cntreg` `login_server_output_exposed`;
+  `modules/aifoundryproject` `container_registry_connection.tftest.hcl` (+
+  `_negative`); `terraform/services` `aifoundry_registry_connection_happy.tftest.hcl`
+  + `reject_registry_connection_without_registry.tftest.hcl`. (FR-063/VC-28..31)
+- [x] T-FR063-8 `terraform fmt -recursive` clean; full `terraform test` green
+  for `modules/cntreg`, `modules/aifoundryproject`, `terraform/services`.
+  (FR-063)
+- [ ] T-FR063-9 Branch → PR → CI green → squash-merge → sync master. Engine-only,
+  additive (default-off ⇒ zero new resources / behaviour-preserving). The
+  `103-sp01-dev-services` instance flips the toggle on its own pipeline; the
+  project-MI AcrPull grant lands in `007-rbac` (FR-064). (FR-063)

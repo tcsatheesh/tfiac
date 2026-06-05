@@ -41,6 +41,19 @@ variable "enable_aifoundry_keyvault_connection" {
   default     = false
 }
 
+variable "enable_project_acr_pull" {
+  description = <<-EOT
+    FR-064 (Amendment 2026-06-05). Gates the PROJECT managed identity AcrPull
+    grant on the selected container registry, so the Foundry Hosted-Agent
+    runtime can pull the agent container image. Pairs with the project
+    ContainerRegistry connection created by the services stack (006 FR-063).
+    Requires a 'container_registry' in the consumed services state. Default
+    false preserves day-one behaviour (no ACR grant).
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "agent_storage_purpose" {
   description = <<-EOT
     service_purpose (3 chars [a-z0-9]) identifying the AGENT storage account

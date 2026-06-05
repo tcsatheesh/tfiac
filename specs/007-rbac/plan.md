@@ -88,3 +88,28 @@
 ## Out of scope (this engine PR)
 
 Instance tfvars (`104`), live apply, human RBAC, CMK grants.
+
+## Amendment plan — Project-MI AcrPull (FR-064, 2026-06-05)
+
+**Approach.** One opt-in, default-off control-plane grant in `terraform/rbac`,
+paired with `006-services` FR-063 (the project ContainerRegistry connection).
+The registry scope is resolved from the consumed services remote state (no
+hard-coding); the principal is the project system-assigned MI (mirroring the
+working public reference). Engine-only; the sp01/dev opt-in is the `104` instance.
+
+- **A-064-01** — `terraform/rbac/variables.tf`: add `enable_project_acr_pull`
+  (bool/false).
+- **A-064-02** — `terraform/rbac/locals.tf`: resolve `registry_name` /
+  `registry_present` / `registry_id` from `data.terraform_remote_state.services`;
+  add `role_guids.acr_pull = 7f951dda-…`; add `project_acr_grant_enabled =
+  project_present ∧ registry_present ∧ var.enable_project_acr_pull`; add the
+  `project-acr-pull` entry to the `role_assignments` merge (scope = registry,
+  role = AcrPull, principal = project MI, `ServicePrincipal`).
+- **A-064-03** — `terraform/rbac/check.tf`: add `project_acr_pull_rbac_prereqs`
+  (toggle ⇒ project present ∧ registry present).
+- **A-064-04** — tests: extend `happy_full_matrix.tftest.hcl` (12th grant) +
+  add `reject_acr_pull_without_registry.tftest.hcl`.
+
+**Verification.** `terraform fmt -recursive` clean; `terraform/rbac` suite green
+(6 pass). Engine-only, additive (default-off ⇒ zero new grants /
+behaviour-preserving). The `104-sp01-dev-rbac` instance flips the toggle.

@@ -76,3 +76,31 @@ Legend: `[ ]` todo · `[x]` done. Engine-only; instance (104) is separate.
   `kv_crypto_service_encryption_user` reference (VC-36/VC-37).
 - [ ] T-031 `terraform fmt -recursive` clean; `terraform test` green for
   `modules/rbac` + `terraform/rbac` (VC-35).
+
+## Phase 8 — Project-MI AcrPull on the container registry (FR-064, 2026-06-05)
+
+> Paired with `006-services` FR-063 (the project ContainerRegistry connection).
+> The project system-assigned MI needs **AcrPull** so the Hosted-Agent runtime
+> can pull the image; without it `create_agent` fails 503. Engine-only,
+> default-off; the sp01/dev opt-in is the `104-sp01-dev-rbac` instance.
+
+- [x] T-032 `terraform/rbac/variables.tf`: add `enable_project_acr_pull`
+  (bool/false). (FR-064)
+- [x] T-033 `terraform/rbac/locals.tf`: resolve `registry_name` /
+  `registry_present` / `registry_id` from the consumed services state; add
+  `role_guids.acr_pull = 7f951dda-…`; add `project_acr_grant_enabled =
+  project_present ∧ registry_present ∧ var.enable_project_acr_pull`; add the
+  `project-acr-pull` role-assignment entry (scope = registry, role = AcrPull,
+  principal = project MI, ServicePrincipal). (FR-064/C-069/C-070)
+- [x] T-034 `terraform/rbac/check.tf`: add `project_acr_pull_rbac_prereqs`
+  (toggle ⇒ project present ∧ registry present). (FR-064/VC-39)
+- [x] T-035 Tests: extend `happy_full_matrix.tftest.hcl` (registry + toggle on
+  ⇒ 12th grant `project-acr-pull`, scope = registry, GUID `7f951dda-…`); add
+  `reject_acr_pull_without_registry.tftest.hcl` (toggle on, no registry ⇒
+  prereq fails). (FR-064/VC-38/VC-39)
+- [x] T-036 `terraform fmt -recursive` clean; `terraform test` green for
+  `terraform/rbac`. (FR-064/VC-40)
+- [ ] T-037 Branch → PR → CI green → squash-merge → sync master. Engine-only,
+  additive (default-off ⇒ zero new grants / behaviour-preserving). The
+  `104-sp01-dev-rbac` instance flips `enable_project_acr_pull` on its own
+  pipeline. (FR-064)

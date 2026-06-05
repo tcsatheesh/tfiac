@@ -22,3 +22,12 @@ check "aifoundry_keyvault_connection_rbac_prereqs" {
     error_message = "enable_aifoundry_keyvault_connection requires a keyvault in the consumed services state (FR-046 / FR-047)."
   }
 }
+
+# VC-38 (FR-064) — enabling the project AcrPull grant requires both an aifoundry
+# project and a container registry in the consumed services state.
+check "project_acr_pull_rbac_prereqs" {
+  assert {
+    condition     = !var.enable_project_acr_pull || (local.project_present && local.registry_present)
+    error_message = "enable_project_acr_pull requires both an aifoundry_project and a container_registry in the consumed services state (FR-064)."
+  }
+}
