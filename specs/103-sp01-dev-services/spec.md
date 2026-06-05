@@ -587,3 +587,140 @@ instance parameterization; the engine is unchanged.
   already-merged FR-063 engine toggle).
 - The project-MI AcrPull grant (104-sp01-dev-rbac FR-104-05 / engine FR-064).
 - Any ACR network-posture change (public data-plane stays per FR-103-11 / VC-7).
+
+---
+
+## AMENDMENT 2026-06-05 — drop Foundry account + project (FR-103-13)
+
+> **What.** Permanently remove the Azure AI Foundry **account**
+> (`aifoundry`), its **project** (`aifoundry_project`), and the account's
+> **private endpoint** from the sp01/dev services selection. **Every other
+> service stays** — the two storage accounts (`agt`/`act`), `cosmosdb`,
+> `search`, `keyvault` (`fdy`), and `container_registry` remain selected and
+> keep their private endpoints. This is a **pure instance re-pin**: ONLY this
+> `specs/103-*` folder + `variables/sp01/dev/services.tfvars.json` change; no
+> 006-services / 007-rbac engine code is touched (FR-103-01 / FR-103-07).
+
+**Motivation.** The Foundry Hosted-Agent runtime in sp01/dev repeatedly failed
+to reach a serving data plane (persistent 503), and the operator has directed
+that the Foundry account + project + its private endpoint be removed from sp01,
+while retaining all other services. The supporting stores (storage/cosmos/
+search) and `keyvault`/`container_registry` — originally provisioned as the
+Hosted-Agent BYO/connection targets — are independent selectable services and
+are explicitly retained.
+
+### Re-pinned selection (source of truth: the tfvars)
+
+Selected services (Foundry account + project removed):
+
+- `storage` × 2 — purposes `agt` and `act` (retained; independent stores).
+- `cosmosdb` (retained, private-only).
+- `search` (retained, private).
+- `keyvault` (`fdy`) (retained, private).
+- `container_registry` (retained).
+
+Removed:
+
+- `aifoundry` — the Cognitive Services Foundry account.
+- `aifoundry_project` — the project parented by that account.
+
+### Re-pinned toggles
+
+All six `enable_aifoundry_*` toggles flip to `false` (each has a 006-engine
+plan-time `check` that hard-fails if the toggle is on without the account/
+project — see C-103-13-02):
+
+- `enable_aifoundry_private_endpoint`: `true` → `false`
+- `enable_aifoundry_application_insights`: `true` → `false`
+- `enable_aifoundry_network_injection`: `true` → `false`
+- `enable_aifoundry_user_owned_storage`: `true` → `false`
+- `enable_aifoundry_keyvault_connection`: `true` → `false`
+- `enable_aifoundry_container_registry_connection`: `true` → `false`
+
+Unchanged: `enable_storage_private_endpoint`, `enable_search_private_endpoint`,
+`enable_keyvault_private_endpoint` stay `true` (those services stay private);
+`enable_container_registry_private_endpoint` stays `false` (see C-103-13-05);
+`agent_storage_purpose`/`account_storage_purpose` stay set (harmless — they
+disambiguate the two retained storages and are only consumed by the now-off
+Foundry legs).
+
+### Clarifications — Session 2026-06-05 (FR-103-13, resolved; no round-trip)
+
+- **C-103-13-01 — Removal via tfvars deselection (engine/instance split).** The
+  Foundry account/project are removed by dropping them from `services[*]` in the
+  tfvars, NOT by editing engine code. Per the `10n ⇏ 00n` rule this instance
+  feature touches ONLY `specs/103-*` + the tfvars.
+- **C-103-13-02 — Six `enable_aifoundry_*` toggles MUST go `false`.** The
+  006-engine carries plan-time `check` blocks (`aifoundry_pe_requires_account`,
+  `aifoundry_appinsights_requires_account`, `aifoundry_network_injection_prereqs`,
+  `aifoundry_user_owned_storage_prereqs`, `aifoundry_keyvault_connection_prereqs`,
+  `aifoundry_container_registry_connection_prereqs`) that hard-fail when the
+  corresponding toggle is on while the account/project is absent. All six are
+  set `false` so the plan stays green.
+- **C-103-13-03 — The Foundry tracing App Insights goes with the account.** The
+  `appi-aif-uc1-uc1-sp01-dev-swc-001` App Insights is created INSIDE
+  `module.aifoundry` (`application_insights_enabled`), i.e. it is the account's
+  own telemetry resource, not an independently-selected service. Removing the
+  account destroys it; this does NOT violate "keep all other services".
+- **C-103-13-04 — BYO/supporting services are RETAINED.** The two storages,
+  cosmos, search, keyvault and ACR were provisioned as the Hosted-Agent BYO /
+  connection targets, but they are independent selectable services. The operator
+  said "all other services stay", so they remain selected and keep their
+  private endpoints. Only the Foundry-specific connection wiring (which lived
+  inside the account/project modules) disappears with the account/project.
+- **C-103-13-05 — ACR network posture unchanged (scope boundary).** ACR stays
+  public (`enable_container_registry_private_endpoint: false`, VC-7 / FR-103-11).
+  With the Hosted-Agent gone, the public-pull justification no longer applies, so
+  flipping ACR to private is now defensible under the private-by-default mandate
+  — BUT that is a network-posture change to a retained service (forces Premium +
+  PE recreate), beyond "remove Foundry / keep other services as-is". It is
+  tracked as a SEPARATE follow-up (a future 103 amendment), not done here.
+- **C-103-13-06 — `import.aifoundry.tf` is engine code; leave it inert.**
+  `terraform/services/import.aifoundry.tf` is 006-engine code. Once `aifoundry`
+  is deselected its `for_each` (filtered on `service_type == "aifoundry"`) is
+  empty, so the import block is a complete no-op — no import target, no error.
+  The `10n ⇏ 00n` rule forbids this instance feature from editing/deleting it;
+  removing the now-dead TEMPORARY file is a tracked 006 engine-cleanup follow-up.
+- **C-103-13-07 — Reconcile the prior out-of-band deletes.** During the incident
+  the Foundry account, project, and account PE were deleted (and the account
+  purged) directly via `az`, ahead of this pipeline (a deviation from the
+  workflow-only rule, acknowledged). The next `services` apply RECONCILES state:
+  `terraform` refresh drops the now-404'd account/project/PE/capability-host from
+  state (no-op destroys), and the still-present `appi-aif-…` App Insights is the
+  one real destroy. The end state matches this re-pinned config exactly.
+- **C-103-13-08 — Workflow-only rollout (FR-103-04).** The live reconcile runs
+  through the GitHub `deploy` workflow (`service=services tenant=sp01
+  environment=dev action=apply apply=true`); never a local `terraform apply`.
+  The tfstate SA firewall is never opened.
+
+### FR-103-13 (new requirement)
+
+`variables/sp01/dev/services.tfvars.json` MUST drop the `aifoundry` and
+`aifoundry_project` selections and set all six `enable_aifoundry_*` toggles to
+`false`, while retaining the two storages, `cosmosdb`, `search`, `keyvault`, and
+`container_registry` (with their existing private-endpoint toggles unchanged).
+No 006-services / 007-rbac engine spec or code may change. The live deployment
+is reconciled to this selection via the GitHub `deploy` workflow.
+
+### Acceptance (FR-103-13)
+
+23. `variables/sp01/dev/services.tfvars.json` no longer contains `aifoundry` or
+    `aifoundry_project` in `services[*]`, and all six `enable_aifoundry_*`
+    toggles are `false`.
+24. `terraform validate -backend=false` on `terraform/services` with the updated
+    tfvars succeeds, with NO `check` block failing (all six Foundry guards pass
+    because their toggles are off).
+25. Engine `terraform test` stays green (no engine change).
+26. Live (after rollout): RG `rg-svc-uc1-sp01-dev-swc-001` retains the two
+    storages, cosmos, search, keyvault, ACR and all their PEs; the Foundry
+    account, project, account PE, and `appi-aif-…` App Insights are absent;
+    `terraform plan` is clean (no drift) on the following apply.
+
+### Out of scope for FR-103-13
+
+- Any 006-services / 007-rbac engine change (including removing the now-inert
+  `import.aifoundry.tf` — tracked engine-cleanup follow-up per C-103-13-06).
+- Flipping ACR to a private endpoint (tracked follow-up per C-103-13-05).
+- Any change to the other retained services' configuration or networking.
+- The 104-sp01-dev-rbac instance (its Foundry-MI grants become inert once the
+  account/project are gone; pruning them is a separate 104 amendment).
