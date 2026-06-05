@@ -152,3 +152,24 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
 - [ ] T-103-11-6 Roll out via the `deploy` workflow (`service=services
   tenant=sp01 environment=dev action=apply apply=true`); verify ACR
   `cruc1uc1sp01devswc001` is public (PNA Enabled, no PE). **No local apply.**
+
+## Phase FR-103-12 (2026-06-05) — opt into the project ContainerRegistry connection
+
+> Flip the engine FR-063 toggle on for sp01/dev so the project gets a
+> `ContainerRegistry` connection (the Hosted-Agent 503 fix). Supersedes the
+> FR-103-11 "no connection required" assumption. Engine unchanged; paired with
+> the AcrPull grant in 104 (FR-104-05).
+
+- [x] T-103-12-1 Set `enable_aifoundry_container_registry_connection: true` in
+  `variables/sp01/dev/services.tfvars.json`. (FR-103-12)
+- [ ] T-103-12-2 Confirm NO engine change: the connection capability is the
+  already-merged FR-063 engine toggle; the gate (one aifoundry_project + one
+  container_registry) is satisfied by the existing selection. (C-103-12-01)
+- [ ] T-103-12-3 `terraform fmt -recursive` clean; `terraform validate
+  -backend=false` OK; engine `terraform test` on `terraform/services` green.
+  (FR-103-12)
+- [ ] T-103-12-4 Branch → PR → CI green → squash-merge → sync master. (FR-103-12)
+- [ ] T-103-12-5 Roll out via the `deploy` workflow (`service=services
+  tenant=sp01 environment=dev action=apply apply=true`) BEFORE the 104 rbac
+  apply; verify the project `aifp-uc1-uc1-sp01-dev-swc-001` has a
+  `containerregistry` connection. **No local apply.**

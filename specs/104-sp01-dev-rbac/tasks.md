@@ -44,3 +44,25 @@
   Blob Data Contributor; agent Blob Data Owner / File Data Privileged
   Contributor; search Index/Service Contributor; cosmos Operator / Account
   Contributor + the Cosmos SQL Data Contributor data-plane assignment).
+
+## Phase 5 — FR-104-05 project-MI AcrPull opt-in (2026-06-05)
+
+> Flip the engine FR-064 toggle on for sp01/dev so the project MI gets AcrPull
+> on the registry (the Hosted-Agent 503 fix). Engine unchanged; paired with the
+> ContainerRegistry connection in 103 (FR-103-12). Roll out AFTER the 103
+> `services` apply.
+
+- [x] T-104-13 Set `enable_project_acr_pull: true` in
+  `variables/sp01/dev/rbac.tfvars.json`. (FR-104-05)
+- [ ] T-104-14 Confirm NO engine change: the grant capability is the
+  already-merged FR-064 engine toggle; the gate (project + container_registry
+  present in services state) is satisfied. (FR-104-05)
+- [ ] T-104-15 `terraform fmt -recursive` clean; `terraform validate
+  -backend=false` on `terraform/rbac` OK; engine `terraform test` green.
+  (FR-104-05)
+- [ ] T-104-16 Branch → PR → CI green → squash-merge → sync master. (FR-104-05)
+- [ ] T-104-17 Operator: dispatch `deploy.yaml`
+  (`service=rbac tenant=sp01 environment=dev action=apply apply=true`) AFTER the
+  103 FR-103-12 `services` apply; verify the project MI
+  `502bbe0f-257c-4d33-9327-f8dc96ae71a2` holds AcrPull on
+  `cruc1uc1sp01devswc001`. **No local apply.**
