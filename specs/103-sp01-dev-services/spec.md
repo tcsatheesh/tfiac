@@ -724,3 +724,98 @@ is reconciled to this selection via the GitHub `deploy` workflow.
 - Any change to the other retained services' configuration or networking.
 - The 104-sp01-dev-rbac instance (its Foundry-MI grants become inert once the
   account/project are gone; pruning them is a separate 104 amendment).
+
+---
+
+## AMENDMENT 2026-06-05 — add a standalone Application Insights (FR-103-14)
+
+> **What.** Add a first-class, standalone `app_insights` selectable service to
+> the sp01/dev selection (canonical `appi-uc1-uc1-sp01-dev-swc-001`). This is a
+> pure instance re-pin: ONLY this `specs/103-*` folder +
+> `variables/sp01/dev/services.tfvars.json` change; the `app_insights` type, its
+> wrapper (`modules/appinsights/`), and its naming row are already in the engine.
+
+**Motivation.** Microsoft Foundry requires an Application Insights component for
+agent/runtime telemetry. The earlier sp01/dev shape created that telemetry
+*inside* the Foundry account module via `enable_aifoundry_application_insights`
+(the now-removed `appi-aif-…`), so when the Foundry account was dropped
+(FR-103-13) the telemetry resource went with it. The operator wants a standalone
+App Insights in sp01 — a first-class, independently-managed resource — so it
+exists on its own and a future Foundry rebuild can connect to it as a BYO
+telemetry target rather than the account minting its own.
+
+### Re-pinned selection (source of truth: the tfvars)
+
+Add to `services[*]`:
+
+- `app_insights` — standalone, workspace-based Application Insights.
+
+(All FR-103-13 retained services stay: 2× `storage` `agt`/`act`, `cosmosdb`,
+`search`, `keyvault` `fdy`, `container_registry`.)
+
+### Clarifications — Session 2026-06-05 (FR-103-14, resolved; no round-trip)
+
+- **C-103-14-01 — Standalone selectable, NOT the account-internal toggle.** This
+  is the first-class `app_insights` selectable service (its own
+  `module.app_insights`, canonical `appi-uc1-uc1-sp01-dev-swc-001`), distinct
+  from `enable_aifoundry_application_insights` (which minted `appi-aif-…` inside
+  `module.aifoundry` and was removed with the account in FR-103-13). That toggle
+  stays `false`.
+- **C-103-14-02 — Required for Foundry telemetry; provisioned now as BYO.**
+  Foundry needs an App Insights for runtime/agent telemetry. Provisioning it as a
+  standalone service means it persists independently of the Foundry lifecycle; a
+  future Foundry rebuild connects to it (the connect-wiring is a separate concern
+  — no engine change here).
+- **C-103-14-03 — Engine/instance split.** The `app_insights` type is already a
+  v1 selectable (`local.v1_selectable_types`), already has a wrapper
+  (`modules/appinsights/`) and an engine naming row
+  (`modules/naming/catalogue/services.tf`: `abbr=appi`). This instance only
+  *selects* it — no engine spec/code/naming change (FR-103-01 / FR-103-07).
+- **C-103-14-04 — Shared hub LA dependency already wired.** The App Insights
+  wrapper anchors at the SHARED hub Log Analytics workspace
+  (`terraform/log/` → `hub/npd/log.tfstate`, mapped via
+  `local.hub_log_environment`) and emits its diagnostic setting there (C-014).
+  That remote state is already consumed by every other wrapper in this stack —
+  no new backend is added.
+- **C-103-14-05 — Private-by-default telemetry surface (FR-041 §2).** Under the
+  estate's `private_by_default = true`, the component is created with
+  `internet_ingestion_enabled = false` / `internet_query_enabled = false`
+  (App Insights has no classic private endpoint; full privacy is AMPLS, a tracked
+  follow-up). Telemetry ingress from a future Foundry runtime then requires AMPLS
+  — noted as the tracked follow-up, not provisioned here.
+- **C-103-14-06 — No guard conflict.** Selecting a standalone `app_insights` is
+  independent of all six (off) `enable_aifoundry_*` toggles; the
+  `aifoundry_appinsights_requires_account` check only governs the account-internal
+  toggle, which is `false`. No `check` blocks a standalone `app_insights`.
+- **C-103-14-07 — Workflow-only rollout (FR-103-04).** The apply runs through the
+  GitHub `deploy` workflow (`service=services tenant=sp01 environment=dev
+  action=apply apply=true`); never a local `terraform apply`. The tfstate SA
+  firewall is never opened.
+
+### FR-103-14 (new requirement)
+
+`variables/sp01/dev/services.tfvars.json` MUST add a standalone
+`{ "type": "app_insights" }` entry to `services[*]`, retaining all FR-103-13
+services and the six `enable_aifoundry_*` toggles at `false`. No 006-services /
+007-rbac engine spec or code may change. The live deployment is reconciled via
+the GitHub `deploy` workflow.
+
+### Acceptance (FR-103-14)
+
+27. `variables/sp01/dev/services.tfvars.json` contains
+    `{ "type": "app_insights" }` in `services[*]`.
+28. `terraform validate -backend=false` on `terraform/services` succeeds with no
+    `check` failing; engine `terraform test` stays green (no engine change).
+29. Live (after rollout): RG `rg-svc-uc1-sp01-dev-swc-001` contains an
+    Application Insights component `appi-uc1-uc1-sp01-dev-swc-001`
+    (workspace-based, anchored at the shared hub LA, internet ingestion/query
+    disabled), alongside the retained services; the follow-up plan is clean.
+
+### Out of scope for FR-103-14
+
+- Any 006-services / 007-rbac engine change (the `app_insights` capability is
+  already in the engine).
+- Rebuilding the Foundry account/project or wiring the App Insights to a Foundry
+  account (separate future instance amendment).
+- AMPLS / private telemetry ingress (tracked estate-wide follow-up per
+  C-103-14-05).

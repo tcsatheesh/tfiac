@@ -146,3 +146,30 @@ Cross-artifact analysis of the FR-103-13 amendment (remove `aifoundry` +
   added by this instance (pure selection re-pin).
 
 **FR-103-13 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement.**
+
+## Addendum 2026-06-05 — FR-103-14 add a standalone Application Insights
+
+Cross-artifact analysis of the FR-103-14 amendment (add a standalone
+`app_insights` selectable to sp01/dev).
+
+| ID | Severity | Finding | Resolution |
+|---|---|---|---|
+| A-114-1 | MAJOR | Engine/instance split — does FR-103-14 touch any `00n` engine artifact? | RESOLVED. Only `specs/103-*` + the tfvars change. `app_insights` is already a v1 selectable with a wrapper + naming row; no engine spec/code/naming edit. (FR-103-01 / FR-103-07 / C-103-14-03) |
+| A-114-2 | MAJOR | Is the standalone App Insights distinct from the removed `appi-aif-…`? | RESOLVED. Standalone = `module.app_insights`, canonical `appi-uc1-uc1-sp01-dev-swc-001`; the removed one was `appi-aif-…` minted inside `module.aifoundry` via the (now-`false`) `enable_aifoundry_application_insights`. No name collision. (C-103-14-01) |
+| A-114-3 | MAJOR | Does any `check` block a standalone `app_insights`? | RESOLVED. None. `aifoundry_appinsights_requires_account` only governs the account-internal toggle (off). `terraform validate` passes with no check failing. (C-103-14-06) |
+| A-114-4 | MAJOR | Is the shared hub LA dependency satisfied (the wrapper requires a workspace id)? | RESOLVED. The wrapper anchors at `hub/npd/log.tfstate` (already consumed by every other wrapper in the stack); no new backend. The `terraform/log` stack is already deployed. (C-103-14-04) |
+| A-114-5 | MINOR | Private-by-default disables internet ingestion — does that strand Foundry telemetry? | RESOLVED (scope boundary). The estate standard disables internet ingestion/query; private ingress is AMPLS, a tracked estate-wide follow-up. Not provisioned here. (C-103-14-05) |
+| A-114-6 | MINOR | Rollout — workflow only, no local apply, tfstate SA firewall untouched? | RESOLVED. FR-103-04 governs; apply via `deploy.yaml`; SA firewall never opened. (C-103-14-07) |
+
+## Constitution / standing-rule check (FR-103-14)
+
+- Engine/instance split (`10n ⇏ 00n`): honoured — only `specs/103-*` + the
+  tfvars change; engine 006 / 007 untouched.
+- Private-by-default: the component uses the FR-041 §2 telemetry surface
+  (internet ingestion/query disabled); AMPLS follow-up tracked (C-103-14-05).
+- Workflow-only live ops + tfstate SA firewall never opened: honoured
+  (C-103-14-07).
+- Tests: engine `terraform test` unchanged + green; no new variable/code path
+  added by this instance (pure selection add).
+
+**FR-103-14 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement.**

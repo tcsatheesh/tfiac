@@ -253,3 +253,36 @@ Hosted-Agent image pull per VC-7 + the Microsoft limitation).
   `gh workflow run deploy.yaml -f service=services -f tenant=sp01
   -f environment=dev -f action=apply -f apply=true`. Never a local apply
   (FR-103-04). The tfstate SA firewall is never opened.
+
+## Amendment plan — FR-103-14 add a standalone Application Insights (2026-06-05)
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  add `{ "type": "app_insights" }` to the `services` list. No engine
+  (`006-services`/`007-rbac`) or module change — `app_insights` is already a v1
+  selectable type with a wrapper (`modules/appinsights/`) and an engine naming
+  row (`appi`).
+- **Why standalone.** Foundry telemetry previously lived inside
+  `module.aifoundry` (`enable_aifoundry_application_insights` → `appi-aif-…`) and
+  was destroyed with the account (FR-103-13). A standalone `app_insights` is a
+  first-class, independently-managed component (`appi-uc1-uc1-sp01-dev-swc-001`)
+  that persists across the Foundry lifecycle (C-103-14-01/02). The
+  account-internal toggle stays `false`.
+- **Shared hub LA.** The wrapper anchors the workspace-based component at the
+  shared hub LA (`hub/npd/log.tfstate`, already consumed by every other wrapper
+  in this stack) and wires a `to-hub-la` diagnostic setting (C-014). No new
+  remote-state backend (C-103-14-04).
+- **Private-by-default telemetry surface.** `internet_access_enabled =
+  !private_by_default = false` ⇒ `internet_ingestion_enabled` /
+  `internet_query_enabled` set `false` (App Insights has no classic PE; AMPLS is
+  the tracked follow-up). Foundry telemetry ingress then needs AMPLS — noted, not
+  provisioned here (C-103-14-05).
+- **No guard conflict.** No `check` blocks a standalone `app_insights`; the
+  `aifoundry_appinsights_requires_account` guard only governs the (off)
+  account-internal toggle (C-103-14-06).
+- **Verification (no live apply locally).** `terraform fmt -recursive` clean;
+  `terraform init -backend=false` + `terraform validate -backend=false` +
+  `terraform test` on `terraform/services` green (engine unchanged).
+- **Rollout** via the GitHub `deploy` workflow only:
+  `gh workflow run deploy.yaml -f service=services -f tenant=sp01
+  -f environment=dev -f action=apply -f apply=true`. Never a local apply
+  (FR-103-04). The tfstate SA firewall is never opened.
