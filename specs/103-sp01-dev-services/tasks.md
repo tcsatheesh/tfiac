@@ -204,3 +204,30 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
   `rg-svc-uc1-sp01-dev-swc-001` retains the two storages, cosmos, search,
   keyvault, ACR + PEs, and the Foundry account/project/account-PE/`appi-aif-…`
   App Insights are absent with a clean follow-up plan. **No local apply.**
+
+## Phase FR-103-14 (2026-06-05) — add a standalone Application Insights
+
+> Add a first-class `app_insights` selectable to sp01/dev (canonical
+> `appi-uc1-uc1-sp01-dev-swc-001`) — Foundry telemetry as a standalone,
+> independently-managed resource. Pure instance re-pin; engine unchanged.
+
+- [ ] T-103-14-1 Add `{ "type": "app_insights" }` to `services[*]` in
+  `variables/sp01/dev/services.tfvars.json`. (FR-103-14 / C-103-14-01)
+- [ ] T-103-14-2 Confirm NO engine change: `app_insights` is already a v1
+  selectable with a wrapper (`modules/appinsights/`) + naming row (`appi`); the
+  six `enable_aifoundry_*` toggles stay `false`. (FR-103-07 / C-103-14-03/06)
+- [ ] T-103-14-3 Confirm the shared hub LA dependency is already satisfied
+  (`hub/npd/log.tfstate` consumed by the stack); no new backend; component is
+  workspace-based + `to-hub-la` diag setting (C-014). (C-103-14-04)
+- [ ] T-103-14-4 Note the private-by-default telemetry surface
+  (`internet_ingestion_enabled`/`internet_query_enabled` = `false`; AMPLS is the
+  tracked follow-up for private ingress). (C-103-14-05)
+- [ ] T-103-14-5 `terraform fmt -recursive` clean; `terraform init
+  -backend=false` + `terraform validate -backend=false` OK with NO `check`
+  failing; engine `terraform test` on `terraform/services` green. (FR-103-14)
+- [ ] T-103-14-6 Branch → PR → CI green → squash-merge → sync master. (FR-103-14)
+- [ ] T-103-14-7 Roll out via the `deploy` workflow (`service=services
+  tenant=sp01 environment=dev action=apply apply=true`); verify the component
+  `appi-uc1-uc1-sp01-dev-swc-001` exists (workspace-based, internet
+  ingestion/query disabled) alongside the retained services, clean follow-up
+  plan. **No local apply.**
