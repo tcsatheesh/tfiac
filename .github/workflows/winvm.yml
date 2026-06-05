@@ -1,0 +1,53 @@
+name: winvm
+
+on:
+  pull_request:
+    paths:
+      - modules/winvm/**
+      - terraform/winvm/**
+      - variables/sp01/dev/winvm.tfvars.json
+      - .github/workflows/winvm.yml
+  push:
+    branches: [master, main]
+    paths:
+      - modules/winvm/**
+      - terraform/winvm/**
+      - variables/sp01/dev/winvm.tfvars.json
+      - .github/workflows/winvm.yml
+
+permissions:
+  contents: read
+
+jobs:
+  fmt-validate-test:
+    name: ${{ matrix.dir }} fmt / validate / test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - modules/winvm
+          - terraform/winvm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: terraform fmt -check
+        working-directory: ${{ matrix.dir }}
+        run: terraform fmt -check -recursive
+
+      - name: terraform init -backend=false
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+
+      - name: terraform test
+        working-directory: ${{ matrix.dir }}
+        run: terraform test
