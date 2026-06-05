@@ -101,12 +101,12 @@ variable "services" {
       for s in var.services :
       contains([
         "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
-        "user_assigned_identity", "search", "openai", "aifoundry", "aifoundry_project",
+        "user_assigned_identity", "search", "openai",
         "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
         "container_app_environment", "cosmosdb",
       ], s.type)
     ])
-    error_message = "services[*].type must be one of the 18 v1 selectable types (spec.md C-001 + C-015 + C-021 + FR-032). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
+    error_message = "services[*].type must be one of the 16 v1 selectable types (spec.md C-001 + C-015 + C-021 + FR-032). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
   }
 
   validation {
@@ -185,20 +185,13 @@ variable "tfstate_container" {
 
 # ----- C-048 (Amendment 2026-06-03) — private-by-default master switch (FR-041) -----
 variable "private_by_default" {
-  description = "FR-041 / C-048: master switch. When true (the default), every Private-Link-capable selectable service is deployed with public network access disabled and a private endpoint enabled UNLESS its own per-service toggle is explicitly set. Each per-service toggle (enable_*_private_endpoint, enable_aifoundry_application_insights) is resolved as coalesce(<explicit>, var.private_by_default): an explicit true/false always wins; null (the new default) inherits this master. Set false to reproduce pre-FR-041 (public, opt-in) behaviour byte-for-byte (C-052). EXCLUDES enable_aifoundry_network_injection (destructive/creation-time — C-031/VC-1). Requires both remote-state backends when any PE-capable service is selected (C-049)."
+  description = "FR-041 / C-048: master switch. When true (the default), every Private-Link-capable selectable service is deployed with public network access disabled and a private endpoint enabled UNLESS its own per-service toggle is explicitly set. Each per-service toggle (enable_*_private_endpoint) is resolved as coalesce(<explicit>, var.private_by_default): an explicit true/false always wins; null (the new default) inherits this master. Set false to reproduce pre-FR-041 (public, opt-in) behaviour byte-for-byte (C-052). Requires both remote-state backends when any PE-capable service is selected (C-049)."
   type        = bool
   default     = true
 }
 
-# ----- C-018 (Amendment 2026-05-31) — Foundry account private endpoint (FR-027) -----
-variable "enable_aifoundry_private_endpoint" {
-  description = "C-018 / FR-041: when true, attach an Azure private endpoint (+ hub private DNS) to the AI Foundry Cognitive Services account so it is reachable only from the spoke VNet, defaulting publicNetworkAccess to Disabled. null (default) inherits var.private_by_default (private). Explicit false forces day-one (public) behaviour even when the master is on."
-  type        = bool
-  default     = null
-}
-
 variable "private_endpoint_subnet_role" {
-  description = "C-018: spoke VNet subnet role (from the network-stack role catalogue) the Foundry private-endpoint NIC lands in. Looked up via the vnet remote state. Only consulted when enable_aifoundry_private_endpoint = true."
+  description = "C-018: spoke VNet subnet role (from the network-stack role catalogue) the private-endpoint NIC lands in. Looked up via the vnet remote state. Only consulted when a private endpoint is enabled."
   type        = string
   default     = "development"
 
@@ -213,7 +206,7 @@ variable "private_endpoint_subnet_role" {
 }
 
 variable "vnet_state_backend" {
-  description = "C-018: remote-state backend coordinates for the spoke VNet stack (terraform/vnet/) whose subnets host the Foundry private endpoint. Required (non-null) when enable_aifoundry_private_endpoint = true."
+  description = "C-018: remote-state backend coordinates for the spoke VNet stack (terraform/vnet/) whose subnets host the private endpoints. Required (non-null) when any private endpoint or Container Apps environment is enabled."
   type = object({
     resource_group_name  = string
     storage_account_name = string
@@ -228,17 +221,10 @@ variable "vnet_state_backend" {
     condition     = !var.enable_container_apps || var.vnet_state_backend != null
     error_message = "enable_container_apps = true requires vnet_state_backend to be set."
   }
-
-  # C-031 (FR-033): Hosted-Agent network injection needs the spoke VNet remote
-  # state to resolve the agent subnet.
-  validation {
-    condition     = !var.enable_aifoundry_network_injection || var.vnet_state_backend != null
-    error_message = "enable_aifoundry_network_injection = true requires vnet_state_backend to be set (to resolve the agent subnet)."
-  }
 }
 
 variable "dns_state_backend" {
-  description = "C-018: remote-state backend coordinates for the hub private-DNS stack (terraform/dns/) supplying the cogsvc/openai/aiservices zone IDs. Required (non-null) when enable_aifoundry_private_endpoint = true."
+  description = "C-018: remote-state backend coordinates for the hub private-DNS stack (terraform/dns/) supplying the private-link DNS zone IDs. Required (non-null) when any private endpoint is enabled."
   type = object({
     resource_group_name  = string
     storage_account_name = string
@@ -246,11 +232,6 @@ variable "dns_state_backend" {
     key                  = string
   })
   default = null
-
-  validation {
-    condition     = !(coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default) && length([for s in var.services : s if s.type == "aifoundry"]) > 0) || (var.vnet_state_backend != null && var.dns_state_backend != null)
-    error_message = "a private AI Foundry endpoint (enable_aifoundry_private_endpoint = true, or inherited from private_by_default = true) with an 'aifoundry' selected requires both vnet_state_backend and dns_state_backend to be set."
-  }
 
   # C-020 (FR-029): the ACR private endpoint needs both the spoke VNet (subnet)
   # and the hub DNS (acr zone) remote states.
@@ -288,13 +269,6 @@ variable "dns_state_backend" {
   }
 }
 
-# ----- C-019 (Amendment 2026-06-01) — Foundry Application Insights (FR-028) -----
-variable "enable_aifoundry_application_insights" {
-  description = "C-019 / FR-041: when true, the aifoundry wrapper provisions a workspace-based Application Insights anchored at the SHARED hub Log Analytics workspace (the C-014 hub LA already wired via shared_log_analytics_workspace_id) and attaches it to the Foundry account as an AppInsights tracing connection. Only meaningful when an 'aifoundry' is selected (enforced by check.aifoundry_appinsights_requires_account). null (default) inherits var.private_by_default; explicit false disables it even when the master is on."
-  type        = bool
-  default     = null
-}
-
 # ----- C-020 (Amendment 2026-06-01) — Container registry private endpoint (FR-029) -----
 variable "enable_container_registry_private_endpoint" {
   description = "C-020 / FR-041: when true, every selected container_registry is deployed as Premium with public_network_access disabled and an Azure private endpoint (+ hub privatelink.azurecr.io DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the acr zone) and private_endpoint_subnet_role. Only meaningful when a 'container_registry' is selected (enforced by check.acr_pe_requires_registry). null (default) inherits var.private_by_default; explicit false forces day-one (Standard, public) behaviour."
@@ -311,14 +285,14 @@ variable "enable_keyvault_private_endpoint" {
 
 # ----- C-035 (Amendment 2026-06-02) — Storage account private endpoint (FR-034) -----
 variable "enable_storage_private_endpoint" {
-  description = "C-035 / FR-041: when true, every selected storage account is deployed with public_network_access disabled and an Azure private endpoint (subresource 'blob', + hub privatelink.blob.core.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the blob zone) and private_endpoint_subnet_role. Only meaningful when a 'storage' is selected (enforced by check.storage_pe_requires_storage). null (default) inherits var.private_by_default; explicit false forces day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO thread/file store stays private (FR-033)."
+  description = "C-035 / FR-041: when true, every selected storage account is deployed with public_network_access disabled and an Azure private endpoint (subresource 'blob', + hub privatelink.blob.core.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the blob zone) and private_endpoint_subnet_role. Only meaningful when a 'storage' is selected (enforced by check.storage_pe_requires_storage). null (default) inherits var.private_by_default; explicit false forces day-one (public) behaviour."
   type        = bool
   default     = null
 }
 
 # ----- C-039 (Amendment 2026-06-02) — AI Search private endpoint (FR-035) -----
 variable "enable_search_private_endpoint" {
-  description = "C-039 / FR-041: when true, every selected search service is deployed with public_network_access disabled and an Azure private endpoint (subresource 'searchService', + hub privatelink.search.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the search zone) and private_endpoint_subnet_role. Only meaningful when a 'search' is selected (enforced by check.search_pe_requires_search). null (default) inherits var.private_by_default; explicit false forces day-one (public) behaviour. Required by Foundry Hosted-Agent network injection so the BYO vector store stays private (FR-033)."
+  description = "C-039 / FR-041: when true, every selected search service is deployed with public_network_access disabled and an Azure private endpoint (subresource 'searchService', + hub privatelink.search.windows.net DNS) so it is reachable only from the spoke VNet. Reuses vnet_state_backend + dns_state_backend (the search zone) and private_endpoint_subnet_role. Only meaningful when a 'search' is selected (enforced by check.search_pe_requires_search). null (default) inherits var.private_by_default; explicit false forces day-one (public) behaviour."
   type        = bool
   default     = null
 }
@@ -343,88 +317,4 @@ variable "container_apps_subnet_role" {
     ], var.container_apps_subnet_role)
     error_message = "container_apps_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
   }
-}
-
-# ----- C-031/C-032 (Amendment 2026-06-02) — Hosted-Agent network injection passthrough (FR-033) -----
-variable "enable_aifoundry_network_injection" {
-  description = "FR-033 / C-031: when true, the selected aifoundry account is created with Hosted-Agent network injection — bound to the spoke agent subnet (var.agent_subnet_role) and wired to the BYO Storage + Cosmos DB + AI Search trio selected in this same stack. Requires enable_aifoundry_private_endpoint = true and exactly one each of aifoundry/storage/cosmosdb/search (enforced by check.aifoundry_network_injection_prereqs). Injection is creation-time only (VC-1) — flipping this on a live account requires an operator-approved recreate. Default false preserves the post-FR-032 behaviour."
-  type        = bool
-  default     = false
-
-  validation {
-    condition     = !var.enable_aifoundry_network_injection || coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default)
-    error_message = "enable_aifoundry_network_injection = true requires a private Foundry account (enable_aifoundry_private_endpoint = true, or inherited from private_by_default = true) — Hosted-Agent injection is only valid on a private Foundry account (FR-031 step 4 / VC-1)."
-  }
-}
-
-variable "agent_subnet_role" {
-  description = "FR-033 / C-032 / VC-5: spoke VNet subnet role (delegated to Microsoft.App/environments, the 004-vnet FR-226 'agents' role) the Foundry Hosted-Agent runtime is injected into. Looked up via the vnet remote state. Only consulted when enable_aifoundry_network_injection = true."
-  type        = string
-  default     = "agents"
-
-  validation {
-    condition = contains([
-      "development", "pre-production", "api-management", "buildsvr",
-      "function-app", "logic-app", "preprod-func", "preprod-logic",
-      "container-apps", "agents", "bastion", "firewall", "firewall-mgmt",
-    ], var.agent_subnet_role)
-    error_message = "agent_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
-  }
-}
-
-# ----- C-060 / FR-044 (Amendment 2026-06-04) — userOwnedStorage (the account's
-# own 2nd storage), template-exact-match -----
-variable "enable_aifoundry_user_owned_storage" {
-  description = "FR-044 / C-060: when true, the selected aifoundry account gets a SECOND storage attached as properties.userOwnedStorage + an 'accountstorage' connection — the portal Standard-Agent template's userOwnedStorage (fndrystrg00002), distinct from the BYO agent thread/file store. Requires TWO 'storage' selections in this stack with distinct purposes, disambiguated by var.agent_storage_purpose (the BYO agent store) and var.account_storage_purpose (the userOwned store) — enforced by check.aifoundry_user_owned_storage_prereqs. Default false preserves day-one behaviour (single storage, no userOwnedStorage)."
-  type        = bool
-  default     = false
-}
-
-variable "agent_storage_purpose" {
-  description = "FR-044 / C-060: service_purpose (3 lowercase alphanumerics) of the 'storage' selection used as the BYO AGENT thread/file store (the capability host storageConnections leg). Required when enable_aifoundry_user_owned_storage = true (to disambiguate the two storages); when null and exactly one storage is selected, that single storage is used (back-compat). Must differ from account_storage_purpose."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.agent_storage_purpose == null || can(regex("^[a-z0-9]{3}$", var.agent_storage_purpose))
-    error_message = "agent_storage_purpose (when set) must match ^[a-z0-9]{3}$ (engine service_purpose regex)."
-  }
-}
-
-variable "account_storage_purpose" {
-  description = "FR-044 / C-060: service_purpose (3 lowercase alphanumerics) of the 'storage' selection used as the account's own userOwnedStorage (the 2nd storage). Required when enable_aifoundry_user_owned_storage = true. Must differ from agent_storage_purpose."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.account_storage_purpose == null || can(regex("^[a-z0-9]{3}$", var.account_storage_purpose))
-    error_message = "account_storage_purpose (when set) must match ^[a-z0-9]{3}$ (engine service_purpose regex)."
-  }
-
-  validation {
-    condition     = var.account_storage_purpose == null || var.agent_storage_purpose == null || var.account_storage_purpose != var.agent_storage_purpose
-    error_message = "account_storage_purpose must differ from agent_storage_purpose so the two storages are distinguishable."
-  }
-}
-
-# ----- C-061 / FR-045 (Amendment 2026-06-04) — Key Vault connection on the
-# Foundry account, template-exact-match -----
-variable "enable_aifoundry_keyvault_connection" {
-  description = "FR-045 / C-061: when true, attach the selected 'keyvault' to the selected aifoundry account as a Microsoft.CognitiveServices/accounts/connections of category 'AzureKeyVault' (authType AccountManagedIdentity, fixed name 'keyvault'), mirroring the portal Standard-Agent template's '<account>-keyvault' connection. Requires exactly one 'keyvault' selection (enforced by check.aifoundry_keyvault_connection_prereqs). The vault is deployed private-by-default. Default false preserves day-one behaviour (no Key Vault connection)."
-  type        = bool
-  default     = false
-}
-
-# ----- C-079 / FR-063 (Amendment 2026-06-05) — ContainerRegistry connection on
-# the Foundry PROJECT (Hosted-Agent image pull) -----
-variable "enable_aifoundry_container_registry_connection" {
-  description = "FR-063 / C-079: when true, attach the selected 'container_registry' to the selected aifoundry PROJECT as a Microsoft.CognitiveServices/accounts/projects/connections of category 'ContainerRegistry' (authType ManagedIdentity, isDefault=true, fixed name 'containerregistry'), so the Hosted-Agent runtime can pull the agent container image using the project's system-assigned MI. Pairs with the project-MI AcrPull grant owned by 007-rbac (FR-061). Requires exactly one 'container_registry' selection. The registry is public (VC-7 / Microsoft Hosted-Agent ACR limitation). Default false preserves day-one behaviour (no registry connection)."
-  type        = bool
-  default     = false
-}
-
-variable "enable_aifoundry_agent_finalization" {
-  description = "FR-060 / C-069: gates the three resources that depend on grants issued by the SEPARATE 007-rbac stack — the App Insights tracing connection (its ApiKey secret is written to the account's BYO Key Vault) and BOTH Agents capability hosts (account-level in modules/aifoundry and project-level in modules/aifoundryproject; both need the project-MI storage/cosmos/search data-plane grants). Default true preserves the post-FR-043 single-pass behaviour for steady-state re-applies where the grants already exist. Set false for the FIRST pass of a brand-new injected environment so the bootstrap runs services(off) -> rbac -> services(on)."
-  type        = bool
-  default     = true
 }

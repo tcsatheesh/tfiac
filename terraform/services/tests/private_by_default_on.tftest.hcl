@@ -1,9 +1,8 @@
 # VC-12 / FR-041 — private-by-default master ON (default).
 # With private_by_default = true (the new default) and NO explicit per-service
 # enable_* flags, every selected Private-Link-capable service resolves its
-# private-endpoint requirement to TRUE via coalesce(null, true), the vnet/dns
-# remote-state stubs resolve subnet + zone ids, and the Foundry-tracing App
-# Insights is enabled.
+# private-endpoint requirement to TRUE via coalesce(null, true) and the vnet/dns
+# remote-state stubs resolve subnet + zone ids.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -14,7 +13,6 @@ variables {
   usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "aifoundry" },
     { type = "storage" },
     { type = "search" },
     { type = "keyvault" },
@@ -110,10 +108,6 @@ run "private_by_default_resolves_all_pe" {
   command = plan
 
   assert {
-    condition     = local.aifoundry_pe_required
-    error_message = "VC-12: aifoundry_pe_required must resolve true from the master (coalesce(null, true))."
-  }
-  assert {
     condition     = local.storage_pe_required
     error_message = "VC-12: storage_pe_required must resolve true from the master."
   }
@@ -128,10 +122,6 @@ run "private_by_default_resolves_all_pe" {
   assert {
     condition     = local.acr_pe_required
     error_message = "VC-12: acr_pe_required must resolve true from the master."
-  }
-  assert {
-    condition     = local.appinsights_enabled
-    error_message = "VC-12: Foundry App Insights must resolve enabled from the master."
   }
   assert {
     condition     = length(local.keyvault_pe_zone_ids) == 1 && local.keyvault_pe_subnet_id != null

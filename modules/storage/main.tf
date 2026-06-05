@@ -39,8 +39,8 @@ resource "azurerm_monitor_diagnostic_setting" "to_hub_la" {
 # var.private_endpoint_subnet_id, the private_service_connection targets the
 # account with subresource group id "blob", and the private_dns_zone_group
 # registers A-records in the hub privatelink.blob.core.windows.net zone
-# (var.private_dns_zone_ids). Needed so a Foundry Hosted-Agent BYO thread/file
-# store stays private (006 FR-031/FR-033).
+# (var.private_dns_zone_ids). Needed so the storage account stays reachable
+# only from the spoke VNet (006 FR-034).
 resource "azurerm_private_endpoint" "this" {
   count               = var.private_endpoint_enabled ? 1 : 0
   name                = local.pe_name

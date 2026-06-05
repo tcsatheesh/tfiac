@@ -72,11 +72,10 @@ run "login_server_output_exposed" {
     diagnostic_settings_enabled = false
   }
 
-  # FR-063 (Amendment 2026-06-05) — the module exposes the registry login
-  # server so the services stack can use it as the Foundry project
-  # ContainerRegistry connection target.
+  # The module exposes the registry login server so the services stack can
+  # surface it to downstream consumers.
   assert {
     condition     = output.login_server == azurerm_container_registry.this.login_server
-    error_message = "FR-063: login_server output must equal the registry login_server attribute."
+    error_message = "login_server output must equal the registry login_server attribute."
   }
 }

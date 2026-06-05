@@ -90,7 +90,7 @@ locals {
       service_endpoints = []
       delegation        = ["Microsoft.App/environments"]
     }
-    # FR-226 (Amendment 2026-06-02) — dedicated Foundry Hosted-Agent subnet
+    # FR-226 (Amendment 2026-06-02) — dedicated agent-runtime subnet
     # (VC-5). Delegated to Microsoft.App/environments like `container-apps`,
     # but a DISTINCT role so a spoke can carry both an ACA managed-environment
     # subnet (`cae`) and a separate, exclusive agent subnet (`agt`). Recommended

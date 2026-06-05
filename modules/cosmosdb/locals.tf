@@ -1,9 +1,8 @@
 locals {
   defaults = {
-    # SQL (Core/NoSQL) API account — the surface a Foundry Hosted-Agent thread
-    # store (CosmosDB connection) consumes.
+    # SQL (Core/NoSQL) API account.
     consistency_level = "Session"
-    # AAD-only: Foundry agent connections authenticate with authType="AAD"
+    # AAD-only: connections authenticate with authType="AAD"
     # (managed identity). Disabling key-based local auth removes the shared-key
     # attack surface entirely.
     local_authentication_disabled = true

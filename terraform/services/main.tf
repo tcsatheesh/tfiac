@@ -38,20 +38,6 @@ resource "azurerm_resource_group" "svc" {
         var.topology,
       )
     }
-    # C-017 / FR-026 — aifoundry_project requires exactly one aifoundry
-    # (Cognitive Services Foundry account) selection in the same services
-    # stack so the project wrapper can resolve parent_id. Defence-in-depth
-    # pair for `check "aifoundry_project_requires_account"` in check.tf —
-    # the precondition fires BEFORE module-variable validation so an
-    # operator gets a meaningful error instead of "var.parent_account_id
-    # is null".
-    precondition {
-      condition = !(
-        length([for s in var.services : s if s.type == "aifoundry_project"]) > 0 &&
-        length([for s in var.services : s if s.type == "aifoundry"]) != 1
-      )
-      error_message = "C-017 / FR-026 — aifoundry_project requires exactly one 'aifoundry' (Cognitive Services account) selection in the same services stack. Add an 'aifoundry' entry to services[*] alongside the 'aifoundry_project' entry, or remove the project."
-    }
   }
 }
 
@@ -104,8 +90,6 @@ module "storage" {
   # C-035 (Amendment 2026-06-02) — private endpoint (FR-034). Resolved from the
   # private-by-default master (local.storage_pe_required, FR-041): inert
   # defaults (false / null / []) only when public is explicitly chosen.
-  # Required so a Foundry Hosted-Agent BYO thread/file store stays private
-  # (FR-033).
   private_endpoint_enabled   = local.storage_pe_required
   private_endpoint_subnet_id = local.storage_pe_subnet_id
   private_dns_zone_ids       = local.storage_pe_zone_ids
@@ -225,9 +209,7 @@ module "container_app_environment" {
 # (SQL/NoSQL API). Reachable only from the spoke VNet via an always-on private
 # endpoint into the hub privatelink.documents.azure.com zone. The PE subnet (by
 # role) + cosmos-sql zone id come from the vnet/dns remote state, which is
-# required whenever a cosmosdb is selected (local.cosmosdb_selected). Usable as
-# a standalone service or as the BYO thread store for a Foundry Hosted-Agent
-# capability host.
+# required whenever a cosmosdb is selected (local.cosmosdb_selected).
 module "cosmosdb" {
   source = "../../modules/cosmosdb"
   for_each = {
@@ -282,7 +264,6 @@ module "search" {
   # C-039 (Amendment 2026-06-02) — private endpoint (FR-035). Resolved from the
   # private-by-default master (local.search_pe_required, FR-041): inert
   # defaults (false / null / []) only when public is explicitly chosen.
-  # Required so a Foundry Hosted-Agent BYO vector store stays private (FR-033).
   private_endpoint_enabled   = local.search_pe_required
   private_endpoint_subnet_id = local.search_pe_subnet_id
   private_dns_zone_ids       = local.search_pe_zone_ids
@@ -302,127 +283,6 @@ module "openai" {
   overrides           = lookup(var.overrides, each.key, {})
   # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
-}
-
-module "aifoundry" {
-  source = "../../modules/aifoundry"
-  for_each = {
-    for n, e in module.naming.names : n => e if e.service_type == "aifoundry"
-  }
-
-  canonical_name      = each.key
-  resource_group_name = azurerm_resource_group.svc.name
-  location            = azurerm_resource_group.svc.location
-  tags                = each.value.tags
-  engine_record       = each.value
-  overrides           = lookup(var.overrides, each.key, {})
-  # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
-  shared_log_analytics_workspace_id = local.shared_la_workspace_id
-  # C-017 (Amendment 2026-05-30) — the Cognitive Services Foundry account
-  # manages its own storage/secrets; sibling KV/SA wiring removed.
-
-  # C-018 (Amendment 2026-05-31) — account private endpoint (FR-027). Resolved
-  # from the private-by-default master (local.aifoundry_pe_required, FR-041):
-  # inert defaults (false / null / []) only when public is explicitly chosen.
-  private_endpoint_enabled   = local.aifoundry_pe_required
-  private_endpoint_subnet_id = local.pe_subnet_id
-  private_dns_zone_ids       = local.pe_zone_ids
-
-  # C-019 (Amendment 2026-06-01) — App Insights tracing (FR-028). Resolved from
-  # the private-by-default master (local.appinsights_enabled, FR-041). The hub
-  # LA id is already supplied via shared_log_analytics_workspace_id above.
-  application_insights_enabled = local.appinsights_enabled
-
-  # C-051 (Amendment 2026-06-03) — telemetry public-access surface (FR-041 §2).
-  # Under private-by-default the Foundry-tracing App Insights disables internet
-  # ingestion/query (no classic PE; AMPLS is the tracked follow-up).
-  telemetry_internet_access_enabled = !var.private_by_default
-
-  # C-031 (Amendment 2026-06-02) — opt-in Hosted-Agent network injection
-  # (FR-033). Default false leaves all four inputs inert (false / null), so the
-  # account body is identical to the post-FR-028 form. When enabled, bind the
-  # account to the spoke agent subnet and thread the single selected BYO
-  # Storage/Cosmos/Search instances; one(...) enforces exactly-one (C-033) and
-  # is only evaluated when injection is on.
-  network_injection_enabled = var.enable_aifoundry_network_injection
-  agent_subnet_id           = local.agent_subnet_id
-  agent_storage_account_id  = var.enable_aifoundry_network_injection ? local.agent_byo_storage_id : null
-  agent_cosmosdb_account_id = var.enable_aifoundry_network_injection ? one([for k, v in module.cosmosdb : v.resource_id]) : null
-  agent_search_service_id   = var.enable_aifoundry_network_injection ? one([for k, v in module.search : v.resource_id]) : null
-
-  # FR-044 / C-060 (Amendment 2026-06-04) — userOwnedStorage. When enabled, the
-  # account's own (2nd) storage is attached as properties.userOwnedStorage plus
-  # an 'accountstorage' connection. Resolved from the account_storage_purpose
-  # leg so it stays distinct from the BYO agent store. The known-at-plan toggle
-  # gates the connection/body; the id (computed) carries the value. Gated on the
-  # two-storage prereq as well so the module is never handed an inconsistent
-  # (enabled = true, id = null) pair on a misconfiguration — check.tf is the
-  # loud guard. Default false ⇒ off / null.
-  account_storage_connection_enabled = var.enable_aifoundry_user_owned_storage && local.storage_count == 2
-  account_storage_account_id         = var.enable_aifoundry_user_owned_storage ? local.account_owned_storage_id : null
-
-  # FR-045 / C-061 (Amendment 2026-06-04) — Key Vault connection. When enabled,
-  # the single selected (private-by-default) keyvault is attached to the account
-  # as a 'keyvault' connection (AccountManagedIdentity). Gated on a keyvault
-  # actually being selected (see above). Default false ⇒ null.
-  keyvault_connection_enabled = var.enable_aifoundry_keyvault_connection && local.keyvault_selected
-  keyvault_account_id         = var.enable_aifoundry_keyvault_connection && local.keyvault_selected ? one([for k, v in module.keyvault : v.resource_id]) : null
-
-  # FR-060 / C-069 (Amendment 2026-06-04) — agent-finalization phasing. Defers
-  # the App Insights connection + account capability host (which depend on
-  # 007-rbac grants) to a second services pass during a brand-new injected
-  # bootstrap. Default true ⇒ single-pass steady-state behaviour unchanged.
-  agent_finalization_enabled = var.enable_aifoundry_agent_finalization
-}
-
-module "aifoundry_project" {
-  source = "../../modules/aifoundryproject"
-  for_each = {
-    for n, e in module.naming.names : n => e if e.service_type == "aifoundry_project"
-  }
-
-  canonical_name      = each.key
-  resource_group_name = azurerm_resource_group.svc.name
-  location            = azurerm_resource_group.svc.location
-  engine_record       = each.value
-  overrides           = lookup(var.overrides, each.key, {})
-  # C-014 (Amendment 2026-05-31) — shared hub LA wiring.
-  shared_log_analytics_workspace_id = local.shared_la_workspace_id
-  # C-017 (Amendment 2026-05-30) — Project parented directly by the Foundry
-  # account (Microsoft.CognitiveServices/accounts). v1 enforces exactly one
-  # aifoundry account per stack when aifoundry_project is selected
-  # (root-stack precondition aifoundry_project_requires_account in check.tf).
-  # Tags are inherited from the parent account; `location` is re-declared
-  # on the child only because the RP returns 400 LocationRequired without it
-  # (confirmed live 2026-05-30).
-  parent_account_id = one([for k, v in module.aifoundry : v.resource_id])
-
-  # FR-043 (Amendment 2026-06-04) — project-level capability host. Driven by the
-  # SAME injection master as the account-level host (FR-031/FR-033/FR-040) so the
-  # two Agents capability hosts are always provisioned together. depends_on the
-  # aifoundry module guarantees the account, its three shared BYO connections,
-  # and the account capability host exist before this project host references
-  # those connections by name (C-058/C-059).
-  network_injection_enabled = var.enable_aifoundry_network_injection
-
-  # FR-060 / C-069 (Amendment 2026-06-04) — defers the project capability host
-  # (depends on 007-rbac project-MI grants) to the finalization pass. Default
-  # true ⇒ provisioned in the same pass as injection (steady-state unchanged).
-  agent_finalization_enabled = var.enable_aifoundry_agent_finalization
-
-  # FR-063 / C-079 (Amendment 2026-06-05) — project ContainerRegistry connection.
-  # When enabled, the single selected (public — VC-7) container_registry is
-  # attached to the PROJECT as a 'containerregistry' connection
-  # (authType=ManagedIdentity, isDefault) so the Hosted-Agent runtime pulls the
-  # agent image via the project MI. Pairs with the project-MI AcrPull grant in
-  # 007-rbac (FR-061). The known-at-plan toggle gates the connection; the
-  # (computed) login server + id carry the values. Gated on a registry actually
-  # being selected. Default false ⇒ off / null.
-  container_registry_connection_enabled = var.enable_aifoundry_container_registry_connection && local.registry_selected
-  container_registry_login_server       = var.enable_aifoundry_container_registry_connection && local.registry_selected ? one([for k, v in module.container_registry : v.login_server]) : null
-  container_registry_id                 = var.enable_aifoundry_container_registry_connection && local.registry_selected ? one([for k, v in module.container_registry : v.resource_id]) : null
-
-  depends_on = [module.aifoundry]
 }
 
 module "language" {

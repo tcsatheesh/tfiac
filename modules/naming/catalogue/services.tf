@@ -21,7 +21,7 @@
 
 locals {
   services = {
-    # ----- Top-level resources (30 rows) -----
+    # ----- Top-level resources (28 rows) -----
     "resource_group" = { abbr = "rg", shape = "rg_hyphenated", azure_max = 90, level = "top" }
     "vnet"           = { abbr = "vnet", shape = "hyphenated", azure_max = 64, level = "top" }
     "nsg"            = { abbr = "nsg", shape = "hyphenated", azure_max = 80, level = "top" }
@@ -49,8 +49,6 @@ locals {
     "logic_app"              = { abbr = "logic", shape = "hyphenated", azure_max = 80, level = "top" }
     "aml_workspace"          = { abbr = "mlw", shape = "hyphenated", azure_max = 33, level = "top" }
     "openai"                 = { abbr = "oai", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry"              = { abbr = "aif", shape = "hyphenated", azure_max = 64, level = "top" }
-    "aifoundry_project"      = { abbr = "aifp", shape = "hyphenated", azure_max = 32, level = "top" }
     "language"               = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
     "doc_intel"              = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
     "search"                 = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }

@@ -16,7 +16,7 @@ locals {
   # ----- v1 selectable type allowlist (spec.md C-001 + C-015) -----
   v1_selectable_types = [
     "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
-    "user_assigned_identity", "search", "openai", "aifoundry", "aifoundry_project",
+    "user_assigned_identity", "search", "openai",
     "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
     "container_app_environment", "cosmosdb",
   ]
@@ -49,8 +49,6 @@ locals {
     user_assigned_identity    = "uai"
     search                    = "srh"
     openai                    = "oai"
-    aifoundry                 = "aif"
-    aifoundry_project         = "aifp"
     language                  = "lan"
     doc_intel                 = "dci"
     function_app              = "fna"
@@ -102,36 +100,11 @@ locals {
 
 # FR-041 / FR-042 (Amendment 2026-06-03) — per-type selection helpers. Used by
 # the private-by-default resolution (data.vnetdns.tf) to gate each PE toggle on
-# the relevant service actually being selected, and by the Foundry
-# private-endpoint dependency guard (check.tf) to enumerate selected supporting
-# services. Mirrors the existing local.cosmosdb_selected (data.vnetdns.tf).
+# the relevant service actually being selected. Mirrors the existing
+# local.cosmosdb_selected (data.vnetdns.tf).
 locals {
-  aifoundry_selected = length([for s in var.services : s if s.type == "aifoundry"]) > 0
-  registry_selected  = length([for s in var.services : s if s.type == "container_registry"]) > 0
-  storage_selected   = length([for s in var.services : s if s.type == "storage"]) > 0
-  search_selected    = length([for s in var.services : s if s.type == "search"]) > 0
-  keyvault_selected  = length([for s in var.services : s if s.type == "keyvault"]) > 0
-}
-
-# ----- FR-044 / C-060 (Amendment 2026-06-04): storage-role resolution -----
-# The aifoundry account can consume up to TWO distinct storage accounts: the BYO
-# AGENT thread/file store (capability-host storageConnections leg, gated by
-# var.enable_aifoundry_network_injection) and the account's own userOwnedStorage
-# (gated by var.enable_aifoundry_user_owned_storage). When two storages are
-# selected they are disambiguated by their engine service_purpose via
-# var.agent_storage_purpose / var.account_storage_purpose. When a single storage
-# is selected and the purposes are null, both resolvers collapse to that one
-# storage (back-compat with the single-storage injection case).
-locals {
-  storage_count = length([for s in var.services : s if s.type == "storage"])
-
-  agent_byo_storage_id = var.agent_storage_purpose != null ? one([
-    for k, v in module.storage : v.resource_id
-    if module.naming.names[k].service_purpose == var.agent_storage_purpose
-  ]) : one([for k, v in module.storage : v.resource_id])
-
-  account_owned_storage_id = var.account_storage_purpose != null ? one([
-    for k, v in module.storage : v.resource_id
-    if module.naming.names[k].service_purpose == var.account_storage_purpose
-  ]) : one([for k, v in module.storage : v.resource_id])
+  registry_selected = length([for s in var.services : s if s.type == "container_registry"]) > 0
+  storage_selected  = length([for s in var.services : s if s.type == "storage"]) > 0
+  search_selected   = length([for s in var.services : s if s.type == "search"]) > 0
+  keyvault_selected = length([for s in var.services : s if s.type == "keyvault"]) > 0
 }

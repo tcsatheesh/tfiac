@@ -56,7 +56,7 @@ against the shipped 004-vnet engine. Tasks `[x]` shipped on master.
 
 ## Phase FR-102-05 — revert the agent subnet (`/23` → `/24`)
 
-> Reverts FR-102-04 now that the Foundry injection program (legacy backend) is
+> Reverts FR-102-04 now that the network-injected agent runtime is
 > decommissioned (feature 103 FR-103-06). MUST run AFTER the services teardown.
 
 - [ ] T016 [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json):
@@ -77,8 +77,8 @@ against the shipped 004-vnet engine. Tasks `[x]` shipped on master.
 ## Phase FR-104 — re-instate the agent subnet (`/24` → `/23`; supersedes FR-102-05)
 
 > Restores the FR-102-04 footprint (`address_space /23`, `agents = 10.240.3.0/24`)
-> now that Foundry moves to the network-secured **Standard Agent** injection
-> topology (006-services FR-043, PR #52). Supersedes the FR-102-05 revert.
+> now that the spoke again hosts a network-injected agent runtime
+> (the services stack consumes this subnet by role). Supersedes the FR-102-05 revert.
 
 - [x] T022 [variables/sp01/npd/vnet.tfvars.json](../../variables/sp01/npd/vnet.tfvars.json):
   `address_space` `10.240.2.0/24` → `10.240.2.0/23`; add subnet

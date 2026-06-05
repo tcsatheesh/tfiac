@@ -1,8 +1,7 @@
 # VC-14 / FR-041 — master OFF reproduces pre-amendment behaviour byte-for-byte.
 # private_by_default = false and no explicit per-service enable_* flags. Every
-# PE-capable service resolves coalesce(null, false) => false, no remote-state is
-# required, and the Foundry App Insights stays disabled — exactly the
-# pre-FR-041 day-one parity shape.
+# PE-capable service resolves coalesce(null, false) => false and no remote-state
+# is required — exactly the pre-FR-041 day-one parity shape.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -13,7 +12,6 @@ variables {
   usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "aifoundry" },
     { type = "storage" },
     { type = "search" },
     { type = "keyvault" },
@@ -66,10 +64,6 @@ run "master_off_parity" {
   command = plan
 
   assert {
-    condition     = local.aifoundry_pe_required == false
-    error_message = "VC-14: aifoundry_pe_required must be false under master off (coalesce(null, false))."
-  }
-  assert {
     condition     = local.storage_pe_required == false
     error_message = "VC-14: storage_pe_required must be false under master off."
   }
@@ -84,10 +78,6 @@ run "master_off_parity" {
   assert {
     condition     = local.acr_pe_required == false
     error_message = "VC-14: acr_pe_required must be false under master off."
-  }
-  assert {
-    condition     = local.appinsights_enabled == false
-    error_message = "VC-14: Foundry App Insights must stay disabled under master off (parity)."
   }
   assert {
     condition     = local.vnet_state_required == false && local.dns_state_required == false

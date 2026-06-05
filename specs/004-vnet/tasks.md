@@ -307,9 +307,9 @@ in [plan.md](plan.md).
 
 ---
 
-## Phase FR-226 — Dedicated Foundry agent subnet role (engine)
+## Phase FR-226 — Dedicated agent-runtime subnet role (engine)
 
-- [ ] T-FR226-001 Add `agents` role to `local.role_catalogue` in [modules/network/locals.tf](../../modules/network/locals.tf): abbr3=agt, literal_name=null, needs_nsg=true, needs_route_table=false, service_endpoints=[], delegation=["Microsoft.App/environments"]. (FR-226 / VC-5)
+- [ ] T-FR226-001 Add `agents` role to `local.role_catalogue` in [modules/network/locals.tf](../../modules/network/locals.tf): abbr3=agt, literal_name=null, needs_nsg=true, needs_route_table=false, service_endpoints=[], delegation=["Microsoft.App/environments"]. (FR-226)
 - [ ] T-FR226-001b Add `agents` to the static VNET-INV-5 `var.subnets` allow-list in [modules/network/variables.tf](../../modules/network/variables.tf). (FR-226)
 - [ ] T-FR226-001c Add test-support outputs `subnet_delegations` + `subnet_route_table_attached` to [modules/network/outputs.tf](../../modules/network/outputs.tf). (FR-226)
 - [ ] T-FR226-002 [P] Add [modules/network/tests/agents_role_delegation.tftest.hcl](../../modules/network/tests/agents_role_delegation.tftest.hcl): spoke plan with subnets incl. agents asserts delegation Microsoft.App/environments, NSG present, no shared route table, snet-…-agt-… canonical name. (FR-226)

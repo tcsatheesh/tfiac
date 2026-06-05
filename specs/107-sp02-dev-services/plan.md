@@ -11,8 +11,7 @@
   line. No `.tf` is added or edited (`10n` ⇏ `00n`).
 - Local work: `terraform fmt -recursive`, `terraform init -backend=false`,
   `terraform validate`, `terraform test` on `terraform/services` (must stay
-  green) + a JSON lint of the new tfvars and a manual check that the override
-  key equals the engine-emitted canonical name `kvfdyuc1sp02devswc001`.
+  green) + a JSON lint of the new tfvars.
 - Live state operations (`plan`/`apply` against `sp02/dev/services.tfstate`)
   run ONLY through `.github/workflows/deploy.yaml`.
 
@@ -36,14 +35,12 @@ variables/sp02/dev/
 |---|---|
 | `topology` / `tenant` / `environment` | `spoke` / `sp02` / `dev` |
 | `region` / `usecase` | `swc` / `uc1` |
-| `services` | storage `agt`, storage `act`, cosmosdb, search, keyvault `fdy`, container_registry, app_insights |
-| `overrides` | `kvfdyuc1sp02devswc001.purge_protection_enabled=false` |
-| `enable_aifoundry_*` | all `false` |
+| `services` | storage, cosmosdb, search, keyvault, container_registry, app_insights |
+| `overrides` | `{}` (empty) |
 | `enable_storage/search/keyvault_private_endpoint` | `true` |
 | `enable_container_registry_private_endpoint` | `false` |
 | `enable_container_apps` | `false` |
-| `agent_storage_purpose` / `account_storage_purpose` | `agt` / `act` |
-| `private_endpoint_subnet_role` / `agent_subnet_role` | `development` / `agents` |
+| `private_endpoint_subnet_role` | `development` |
 | `vnet_state_backend.key` | `sp02/npd/vnet.tfstate` |
 | `dns_state_backend.key` | `hub/prd/dns.tfstate` |
 | `subscription_id` | runtime placeholder (workflow-injected) |
@@ -54,10 +51,6 @@ variables/sp02/dev/
 - ✅ Runtime-configurable: every sp02 value is in tfvars.
 - ✅ Private-by-default: storage/search/keyvault PEs on; only the single
   documented ACR public-data-plane deviation (carried from 103) remains.
-- ✅ KV override is clean at create-time on the fresh `kvfdyuc1sp02devswc001`
-  name — no Azure ON→OFF conflict (the sp01 blocker does not apply).
-- ✅ Override key validity: matches engine-emitted canonical name ⇒ CA-006
-  (`overrides_keys_resolved`) passes.
 - ✅ Workflow-only live rollout; tfstate SA firewall never touched.
 
 ## Rollout (operator-run, AFTER merge; depends on 106)

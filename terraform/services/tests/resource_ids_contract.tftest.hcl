@@ -1,11 +1,11 @@
 # FR-061 (Amendment 2026-06-04) — the `resource_ids` / `resource_names`
 # cross-stack contract MUST expose EVERY emitted service (except the svc RG),
 # byte-identical to keys(module.naming.names) minus the RG entry
-# (contracts/cross-stack-outputs.md). This regression guards the gap that broke
-# the 007-rbac plan: `module.aifoundry_project` and `module.cosmosdb` (and
-# `module.container_app_environment`) were silently omitted from the map, so
-# `local.resource_ids[project_name]` / `[cosmos_name]` failed with "Invalid
-# index" in the downstream rbac stack.
+# (contracts/cross-stack-outputs.md). This regression guards the gap that
+# silently omitted `module.cosmosdb` (and
+# `module.container_app_environment`) from the map, so
+# `local.resource_ids[cosmos_name]` failed with "Invalid
+# index" in a downstream consumer.
 
 variables {
   subscription_id = "00000000-0000-0000-0000-000000000000"
@@ -16,20 +16,14 @@ variables {
   usecase         = "uc1"
   repo            = "tcsatheesh/tfiac"
   services = [
-    { type = "aifoundry" },
-    { type = "aifoundry_project" },
     { type = "storage", purpose = "agt" },
     { type = "cosmosdb" },
     { type = "search" },
     { type = "keyvault" },
   ]
-  overrides                          = {}
-  private_by_default                 = true
-  enable_aifoundry_private_endpoint  = true
-  enable_aifoundry_network_injection = true
-  agent_storage_purpose              = "agt"
-  private_endpoint_subnet_role       = "development"
-  agent_subnet_role                  = "agents"
+  overrides                    = {}
+  private_by_default           = true
+  private_endpoint_subnet_role = "development"
   vnet_state_backend = {
     resource_group_name  = "rg-tfs-shd-hub-npd-swc-001"
     storage_account_name = "sttfsshdhubnpdswc001"
@@ -139,12 +133,12 @@ run "resource_ids_and_names_cover_every_service" {
     error_message = "FR-061: resource_ids and resource_names must share an identical key set."
   }
 
-  # Explicit guards for the three services that were previously omitted.
+  # Explicit guards for the services that were previously omitted.
   assert {
     condition = alltrue([
       for k, e in module.naming.names : contains(keys(output.resource_names), k)
-      if contains(["aifoundry_project", "cosmosdb", "container_app_environment"], e.service_type)
+      if contains(["cosmosdb", "container_app_environment"], e.service_type)
     ])
-    error_message = "FR-061: aifoundry_project, cosmosdb and container_app_environment canonical names must appear in the cross-stack contract."
+    error_message = "FR-061: cosmosdb and container_app_environment canonical names must appear in the cross-stack contract."
   }
 }

@@ -17,7 +17,7 @@ resource group plus a flat operator-selectable set of Azure services.
 | 8 | `services`        | yes      | List of selectable entries; MAY be `[]`. |
 | 9 | `overrides`       | no       | `map(map(any))` keyed by canonical name. |
 
-## v1 selectable types (15 — spec.md C-001)
+## v1 selectable types (14 — spec.md C-001)
 
 | type | wrapper | AVM-covered? |
 |------|---------|--------------|
@@ -29,7 +29,6 @@ resource group plus a flat operator-selectable set of Azure services.
 | `user_assigned_identity`  | `modules/uai/`           | yes |
 | `search`                  | `modules/search/`        | yes |
 | `openai`                  | `modules/openai/`        | no — hand-roll (`azurerm_cognitive_account`); README tracker |
-| `aifoundry`               | `modules/aifoundry/`     | no — hand-roll (`azapi_resource`); README tracker |
 | `language`                | `modules/language/`      | no — hand-roll |
 | `doc_intel`               | `modules/docint/`        | no — hand-roll |
 | `function_app`            | `modules/fnapp/`         | no — hand-roll |

@@ -1,10 +1,10 @@
-# C-018 (Amendment 2026-05-31) — VNet + hub-DNS remote-state lookups (FR-027).
+# C-018 (Amendment 2026-05-31) — VNet + hub-DNS remote-state lookups.
 # Broadened by C-020/C-021 (Amendment 2026-06-01) to also serve the ACR private
 # endpoint (FR-029) and the internal Container Apps environment (FR-030).
 #
-# Consulted whenever ANY private-network feature is requested: the Foundry PE
-# (var.enable_aifoundry_private_endpoint), the ACR PE
-# (var.enable_container_registry_private_endpoint), or a Container Apps internal
+# Consulted whenever ANY private-network feature is requested: the ACR PE
+# (var.enable_container_registry_private_endpoint), the storage/search/keyvault
+# private endpoints, a Cosmos DB selection, or a Container Apps internal
 # environment (var.enable_container_apps). The remote-state data sources are
 # count-gated so that the default (everything disabled) path reads NEITHER
 # backend — keeping day-one plans free of any vnet/dns dependency. The
@@ -21,31 +21,21 @@ locals {
   # master for a stack that selects no PE-capable service neither reads a remote
   # state nor demands the backends (C-049 — backends are only required when a
   # PE-capable service is actually selected).
-  aifoundry_pe_required = local.aifoundry_selected && coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default)
   acr_pe_required       = local.registry_selected && coalesce(var.enable_container_registry_private_endpoint, var.private_by_default)
   storage_pe_required   = local.storage_selected && coalesce(var.enable_storage_private_endpoint, var.private_by_default)
   search_pe_required    = local.search_selected && coalesce(var.enable_search_private_endpoint, var.private_by_default)
   keyvault_pe_required  = local.keyvault_selected && coalesce(var.enable_keyvault_private_endpoint, var.private_by_default)
   container_apps_active = var.enable_container_apps
 
-  # FR-041 (C-051) — Foundry Application Insights telemetry connection follows
-  # the master too (null = inherit); only meaningful when an aifoundry is
-  # selected.
-  appinsights_enabled = local.aifoundry_selected && coalesce(var.enable_aifoundry_application_insights, var.private_by_default)
-
   # FR-032 (Amendment 2026-06-02) — Cosmos DB is private-ONLY: selecting it
   # ALWAYS requires the spoke VNet (PE subnet) + hub DNS (cosmos-sql zone)
   # remote states. There is no toggle — selection implies private wiring.
   cosmosdb_selected = length([for s in var.services : s if s.type == "cosmosdb"]) > 0
 
-  # FR-033 (Amendment 2026-06-02) — Hosted-Agent network injection needs the
-  # spoke VNet remote state to resolve the dedicated agent subnet (by role).
-  agent_injection_enabled = var.enable_aifoundry_network_injection
-
   # Any feature that needs the spoke VNet remote state.
-  vnet_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || local.container_apps_active || local.agent_injection_enabled || (local.cosmosdb_selected && var.vnet_state_backend != null)
+  vnet_state_required = local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || local.container_apps_active || (local.cosmosdb_selected && var.vnet_state_backend != null)
   # Any feature that needs the hub DNS remote state (PE zone ids).
-  dns_state_required = local.aifoundry_pe_required || local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
+  dns_state_required = local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
 }
 
 data "terraform_remote_state" "vnet" {
@@ -75,21 +65,6 @@ data "terraform_remote_state" "dns" {
 }
 
 locals {
-  # Subnet id for the configured Foundry PE role (null when PE disabled). The
-  # vnet stack `subnets` output is map(role => { id, name, address_prefix }).
-  pe_subnet_id = local.aifoundry_pe_required ? try(
-    data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
-    null,
-  ) : null
-
-  # Hub private DNS zone IDs the AIServices account PE registers into:
-  # cogsvc + openai + aiservices (the latter added by C-018 to the DNS
-  # catalogue). Empty list when PE disabled.
-  pe_zone_ids = local.aifoundry_pe_required ? [
-    for z in ["cogsvc", "openai", "aiservices"] :
-    data.terraform_remote_state.dns[0].outputs.zone_ids[z]
-  ] : []
-
   # C-020 (FR-029) — ACR PE: same spoke subnet (by role) + the hub acr zone.
   acr_pe_subnet_id = local.acr_pe_required ? try(
     data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
@@ -155,12 +130,4 @@ locals {
   cosmosdb_pe_zone_ids = local.cosmosdb_selected ? [
     data.terraform_remote_state.dns[0].outputs.zone_ids["cosmos-sql"]
   ] : []
-
-  # FR-033 — Hosted-Agent network injection: the dedicated agent subnet (by
-  # role, default 'agents') from the spoke VNet remote state. null when the
-  # injection toggle is off.
-  agent_subnet_id = local.agent_injection_enabled ? try(
-    data.terraform_remote_state.vnet[0].outputs.subnets[var.agent_subnet_role].id,
-    null,
-  ) : null
 }

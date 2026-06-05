@@ -1,4 +1,4 @@
-# FR-226 (Amendment 2026-06-02) — dedicated Foundry Hosted-Agent subnet role.
+# FR-226 (Amendment 2026-06-02) — dedicated agent-runtime subnet role.
 # A spoke selecting the `agents` role asserts (a) the subnet is delegated to
 # Microsoft.App/environments, (b) it carries an NSG, (c) it does NOT attach the
 # shared spoke default route table, and (d) the engine emits the canonical

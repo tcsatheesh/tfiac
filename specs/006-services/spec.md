@@ -50,7 +50,7 @@ Resolved per CLAUDE.md standing directive (no operator interview; defensible ans
 
 - **C-001 — v1 selectable inventory scope (narrows A2 / FR-007; see C-016 for the environment allowlist narrowing)**
   Q: Should v1 ship every service type listed in Assumption A2, or a tighter MVP subset?
-  A: Ship a tight MVP subset limited to service types that already have a wrapper module under `modules/` today AND that operationally belong in a workload `svc` RG. The v1 selectable list is exactly: `keyvault`, `storage`, `log_analytics`, `app_insights`, `container_registry`, `user_assigned_identity`, `search`, `openai`, `aifoundry`, `language`, `doc_intel`, `function_app`, `logic_app`, `aml_workspace`, `apim`. The per-stack `resource_group` is always emitted by the engine (FR-009) and is not operator-selectable. EXPLICITLY DEFERRED to a follow-up: `vnet`, `nsg`, `route_table`, `public_ip` (owned by `terraform/vnet/`, feature 004); `firewall`, `bastion`, `vpn_gateway`, `expressroute_gateway` (hub-only platform primitives); `vm`, `app_service_plan` (pure-compute, no clear MVP consumer). Selecting any deferred-but-catalogued type in v1 MUST hard-fail at plan time with a "deferred to follow-up" message naming the type and pointing at the owning stack (where applicable). The engine's broader catalogue (feature 001 FR-026) is unchanged; the narrowing is a stack-level allowlist on top of FR-007.
+  A: Ship a tight MVP subset limited to service types that already have a wrapper module under `modules/` today AND that operationally belong in a workload `svc` RG. The v1 selectable list is exactly: `keyvault`, `storage`, `log_analytics`, `app_insights`, `container_registry`, `user_assigned_identity`, `search`, `openai`, `language`, `doc_intel`, `function_app`, `logic_app`, `aml_workspace`, `apim`. The per-stack `resource_group` is always emitted by the engine (FR-009) and is not operator-selectable. EXPLICITLY DEFERRED to a follow-up: `vnet`, `nsg`, `route_table`, `public_ip` (owned by `terraform/vnet/`, feature 004); `firewall`, `bastion`, `vpn_gateway`, `expressroute_gateway` (hub-only platform primitives); `vm`, `app_service_plan` (pure-compute, no clear MVP consumer). Selecting any deferred-but-catalogued type in v1 MUST hard-fail at plan time with a "deferred to follow-up" message naming the type and pointing at the owning stack (where applicable). The engine's broader catalogue (feature 001 FR-026) is unchanged; the narrowing is a stack-level allowlist on top of FR-007.
 
 - **C-002 — `for_each` key shape and stability (pins FR-011 / FR-015)**
   Q: What `for_each` key shape satisfies the idempotence and reorder-zero-diff promises?
@@ -72,9 +72,9 @@ Resolved per CLAUDE.md standing directive (no operator interview; defensible ans
   Q: Same hub-internal storage account as bootstrap, and same `deploy.yaml` integration as the vnet stack?
   A: Yes. The remote backend uses the same hub-internal state SA provisioned by `terraform/bootstrap/` with a partial-config key of `"{tenant}/{environment}/services.tfstate"` (mirroring the vnet stack's pattern). The repo's `.github/workflows/deploy.yaml` `service` input MUST be extended to accept `"services"` and dispatch to `terraform/services/` with the same OIDC login, the same `TF_VAR_subscription_id` injection, and the same state-SA firewall handling used for `vnet`. No new workflow file is introduced.
 
-- **C-007 — RBAC contract for the OIDC service principal (pins A2 against the rbac stack)**
-  Q: Does this stack require any new subscription-scope role assignments on the OIDC SP beyond what bootstrap / rbac already grant?
-  A: No new roles required. The deploying SP's existing `Contributor` + `User Access Administrator` at subscription scope (granted by `terraform/rbac/`) covers every operation this stack performs, including the emission of the `svc` RG, every selectable AVM-backed resource, and any tag updates. Per-service data-plane access (e.g. Key Vault Secrets User / Officer, Storage Blob Data Owner for the operator and for the per-stack UAI) is granted by the wrapper modules using the engine's per-service default RBAC bindings (feature 001 `local.defaults[type].rbac`), NOT by adding new subscription-scope role assignments. The `terraform/rbac/` stack remains the sole owner of cross-stack / subscription-scope RBAC.
+- **C-007 — RBAC contract for the OIDC service principal (pins A2 against the deploying SP)**
+  Q: Does this stack require any new subscription-scope role assignments on the OIDC SP beyond what bootstrap already grants?
+  A: No new roles required. The deploying SP's existing `Contributor` + `User Access Administrator` at subscription scope (granted at bootstrap) covers every operation this stack performs, including the emission of the `svc` RG, every selectable AVM-backed resource, and any tag updates. Per-service data-plane access (e.g. Key Vault Secrets User / Officer, Storage Blob Data Owner for the operator and for the per-stack UAI) is granted by the wrapper modules using the engine's per-service default RBAC bindings (feature 001 `local.defaults[type].rbac`), NOT by adding new subscription-scope role assignments.
 
 - **C-008 — Output map key contract (pins FR-019 / FR-020)**
   Q: Do `resource_ids` and `resource_names` map keys equal canonical names exactly?
@@ -268,10 +268,7 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 #### Environment allowlist (services stack)
 
 - **FR-025**: The services stack rejects `environment ∈ {npd}` and accepts only `{dev, pre, prd}`; hub stacks (`terraform/log/`, `terraform/vnet/`, `terraform/dns/`) are unaffected and retain their `{npd, prd}` allowlist. Enforcement is defence-in-depth: (i) `terraform/services/variables.tf` `validation` block on `var.environment`; (ii) root-stack `check "environment_workload_only"` in `terraform/services/check.tf`; (iii) negative test `terraform/services/tests/reject_npd_environment.tftest.hcl`. See C-016 for rationale and full rollout decisions.
-- **FR-026**: Foundry account+project replaces ML Workspace Hub+Project pair. The `aifoundry` wrapper MUST emit `Microsoft.CognitiveServices/accounts` (kind=`AIServices`, `properties.allowProjectManagement=true`, `properties.customSubDomainName = var.canonical_name`, `properties.publicNetworkAccess="Enabled"`, `sku.name="S0"`, system-assigned identity) and MUST NOT require sibling `storage` or `keyvault` selections. The `aifoundry_project` wrapper MUST emit `Microsoft.CognitiveServices/accounts/projects` as a child of the parent account, taking `var.parent_account_id` in place of the legacy `var.hub_resource_id`. Both wrappers preserve the existing `var.canonical_name` / `var.engine_record` / diagnostic-settings contract. Pinned API versions: `Microsoft.CognitiveServices/accounts@2025-09-01`, `Microsoft.CognitiveServices/accounts/projects@2025-09-01`. The `aifoundry_project_requires_account` check (renamed from `aifoundry_project_requires_hub` per C-015 §4) enforces 1:1 project→account in the same stack; the `aifoundry_requires_hub_deps` check is REMOVED. The `aifp` catalogue row `azure_max` drops from 64 to 32 to match the Foundry projects RP hard limit. See C-017 for full rationale, migration, and out-of-scope items.
-- **FR-027**: When `var.enable_aifoundry_private_endpoint = true` (default `false`), the `aifoundry` wrapper MUST provision an `azurerm_private_endpoint` for the Cognitive Services account in a spoke subnet (resolved by role from the spoke VNet remote state), attach a `private_dns_zone_group` to the hub private DNS zones `privatelink.cognitiveservices.azure.com` (`cogsvc`), `privatelink.openai.azure.com` (`openai`), and `privatelink.services.ai.azure.com` (`aiservices`, newly added to the DNS catalogue), use subresource group ID `account`, and default `properties.publicNetworkAccess` to `"Disabled"` (override-able). With the default `false`, behaviour is identical to FR-026 (PE absent, `publicNetworkAccess="Enabled"`, no VNet/DNS remote-state reads). The services stack reads the spoke VNet and hub DNS via count-gated `data "terraform_remote_state"` blocks (`var.vnet_state_backend`, `var.dns_state_backend`) only when the toggle is on and an `aifoundry` is selected. The generic `services[*].private_endpoints` field of Assumption A4 stays reserved and hard-failed. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "aifoundry_pe_requires_account"`, and positive+negative tests. See C-018 for full rationale and rollout ordering.
-- **FR-028**: When `var.enable_aifoundry_application_insights = true` (default `false`), the `aifoundry` wrapper MUST (i) provision a workspace-based `azurerm_application_insights` resource anchored at the SHARED hub Log Analytics workspace (`workspace_id = var.shared_log_analytics_workspace_id`, the same C-014 hub LA) so all Foundry trace/telemetry data lands in the hub LA, and (ii) attach that App Insights to the Foundry Cognitive Services account as a tracing connection via `Microsoft.CognitiveServices/accounts/connections@2025-09-01` with `properties.category = "AppInsights"`, `properties.target` + `properties.metadata.ResourceId` = the App Insights resource ID, `properties.authType = "ApiKey"`, `properties.isSharedToAll = true`, and `properties.credentials.key` = the App Insights connection string (supplied via azapi `sensitive_body` so it never appears in plaintext state diff). With the default `false`, behaviour is identical to FR-026/FR-027 (no App Insights, no connection). The App Insights and the connection are count-gated; the connection's `parent_id` is the account `azapi_resource.this.id` so it is inherited by all projects. Enforcement is defence-in-depth: module variable validators (the always-required `shared_log_analytics_workspace_id` regex already guarantees a valid hub LA), root-stack `check "aifoundry_appinsights_requires_account"`, and positive+negative tests. See C-019 for full rationale and rollout ordering.
-- **FR-029**: When `var.enable_container_registry_private_endpoint = true` (default `false`), every selected `container_registry` wrapper instance MUST (i) set `sku = "Premium"` (Azure Private Link requires the Premium ACR SKU), (ii) set `public_network_access_enabled = false`, and (iii) provision an `azurerm_private_endpoint` (subresource group id `registry`) whose NIC lands in the spoke subnet resolved by role from the spoke VNet remote state and whose `private_dns_zone_group` registers A-records in the hub `privatelink.azurecr.io` (`acr`) private DNS zone. With the default `false`, behaviour is identical to the pre-amendment module (the engine-default `Standard` SKU, public access, no PE, no VNet/DNS remote-state reads). The services stack reuses the same count-gated `data "terraform_remote_state"` (`var.vnet_state_backend`, `var.dns_state_backend`) plumbing introduced by FR-027 (the gate is broadened to fire whenever ANY private endpoint — Foundry or ACR — is requested). Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "acr_pe_requires_registry"`, and positive+negative tests. See C-020 for full rationale and rollout ordering.
+- **FR-029**: When `var.enable_container_registry_private_endpoint = true` (default `false`), every selected `container_registry` wrapper instance MUST (i) set `sku = "Premium"` (Azure Private Link requires the Premium ACR SKU), (ii) set `public_network_access_enabled = false`, and (iii) provision an `azurerm_private_endpoint` (subresource group id `registry`) whose NIC lands in the spoke subnet resolved by role from the spoke VNet remote state and whose `private_dns_zone_group` registers A-records in the hub `privatelink.azurecr.io` (`acr`) private DNS zone. With the default `false`, behaviour is identical to the pre-amendment module (the engine-default `Standard` SKU, public access, no PE, no VNet/DNS remote-state reads). The services stack reads the spoke VNet and hub DNS via count-gated `data "terraform_remote_state"` blocks (`var.vnet_state_backend`, `var.dns_state_backend`), with the gate broadened to fire whenever any private endpoint is requested. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "acr_pe_requires_registry"`, and positive+negative tests. See C-020 for full rationale and rollout ordering.
 - **FR-030**: A new spoke-eligible selectable type `container_app_environment` MUST be added to the v1 selectable inventory (and the engine catalogue, feature 001, as a top-level row `abbr = "cae"`, `shape = "hyphenated"`). Its wrapper (`modules/containerapps/`) MUST emit `azurerm_container_app_environment` as an **internal** (private) Managed Environment: `infrastructure_subnet_id` = a spoke subnet delegated to `Microsoft.App/environments` (resolved by role from the spoke VNet remote state), `internal_load_balancer_enabled = true` (no public ingress IP — this is the "public access denied" form), `log_analytics_workspace_id = var.shared_log_analytics_workspace_id` (the C-014 hub LA), and a `workload_profile` (`Consumption`). Because Azure Container Apps has **no** Azure Private Link / private-endpoint support, the wrapper MUST ALSO provision a private DNS zone named after the environment's `default_domain` with a wildcard `*` A-record pointing at the environment static IP, linked to the spoke VNet, so container apps in the environment resolve privately from the VNet. This default-domain zone is **owned by the spoke services stack** (not the hub DNS stack) because its name is generated by Azure at apply time (a random per-environment label) and cannot be declared in the static hub catalogue — an intentional, documented deviation from the otherwise hub-owned private-DNS pattern (see C-021 §4 for the full rationale). The internal environment + private default-domain zone together are the faithful equivalent of "private endpoint + public access denied" for a service type that cannot take a private endpoint; this documented exception is called out per the CLAUDE.md private-by-default mandate. Enforcement is defence-in-depth: module + root-stack variable validators, root-stack `check "container_app_env_requires_subnet"`, and positive+negative tests. See C-021 for full rationale and rollout ordering.
 
 ### Key Entities
@@ -298,7 +295,7 @@ If the operator misspells a service type, picks one not in the catalogue, or sel
 ## Assumptions
 
 - **A1**: The naming engine (feature 001) is consumed as a versioned module dependency; its `private_dns_zone` catalogue entry's `caf_abbr=pdnsz` correction from feature 002 is in effect. This stack does NOT modify the engine catalogue.
-- **A2**: The selectable inventory derives from the engine's day-one top-level catalogue (feature 001 FR-026) minus the two `prd-hub-only` entries. The day-one selectable list is therefore: `vnet`, `nsg`, `route_table`, `public_ip`, `log_analytics`, `app_insights`, `storage`, `keyvault`, `container_registry`, `user_assigned_identity`, `vm`, `app_service_plan`, `apim`, `firewall`, `bastion`, `vpn_gateway`, `expressroute_gateway`, `function_app`, `logic_app`, `aml_workspace`, `openai`, `aifoundry`, `language`, `doc_intel`, `search`, `resource_group`. *(The engine emits the RG automatically per FR-009; operators do not declare it explicitly.)*
+- **A2**: The selectable inventory derives from the engine's day-one top-level catalogue (feature 001 FR-026) minus the two `prd-hub-only` entries. The day-one selectable list is therefore: `vnet`, `nsg`, `route_table`, `public_ip`, `log_analytics`, `app_insights`, `storage`, `keyvault`, `container_registry`, `user_assigned_identity`, `vm`, `app_service_plan`, `apim`, `firewall`, `bastion`, `vpn_gateway`, `expressroute_gateway`, `function_app`, `logic_app`, `aml_workspace`, `openai`, `language`, `doc_intel`, `search`, `resource_group`. *(The engine emits the RG automatically per FR-009; operators do not declare it explicitly.)*
 - **A3**: Some of the selectable types overlap with dedicated existing stacks (`terraform/vnet/` for `vnet`+`nsg`+`route_table`, `terraform/log/` for `log_analytics`, `terraform/dns/` for DNS zones). The expectation is that operators do NOT duplicate those resources via `terraform/services/`; the stack does not enforce this in v1, and any double-deploy is a stack-selection error caught by Azure (resource-already-exists) at apply time. A follow-up feature MAY add a "this type is owned by stack X" allowlist guard.
 - **A4**: **Private endpoints and diagnostic settings are out of scope for v1**, even though feature 001 FR-026 catalogues them as child types. v1 ships service-stack creation without PE/diag wiring; a follow-up spec adds them once the engine's child-shape contracts are exercised by a working consumer (this stack qualifies). FR-005's `private_endpoints` and `diagnostic_settings` keys are reserved in the variable schema but MUST raise a friendly "deferred to follow-up" hard error if populated in v1.
 - **A5**: The root stack's remote backend is configured via env-injected partial config (Constitution VII). The `subscription_id` input is the destination Azure subscription; for `topology=hub` the prd-hub or npd-hub sub; for `topology=spoke` the spoke sub. One stack invocation targets exactly one subscription.
@@ -442,8 +439,8 @@ hand-built-name grep is:
 
 ```sh
 git grep -nE \
-  '(^|[^a-z])(rg-svc-|kv[a-z0-9]{3,4}[a-z0-9]{3,4}|st[a-z0-9]{3,4}[a-z0-9]{3,4}|cr[a-z0-9]{3,4}[a-z0-9]{3,4}|(log|appi|id|apim|func|logic|mlw|oai|aif|lang|di|srch)-[a-z0-9]{3}-[a-z0-9]{3,4}-(hub|sp[0-9]{2}))-' \
-  terraform/services modules/{keyvault,storage,appinsights,loganalytics,cntreg,uai,search,openai,aifoundry,language,docint,fnapp,lgapp,aml,apim} \
+  '(^|[^a-z])(rg-svc-|kv[a-z0-9]{3,4}[a-z0-9]{3,4}|st[a-z0-9]{3,4}[a-z0-9]{3,4}|cr[a-z0-9]{3,4}[a-z0-9]{3,4}|(log|appi|id|apim|func|logic|mlw|oai|lang|di|srch)-[a-z0-9]{3}-[a-z0-9]{3,4}-(hub|sp[0-9]{2}))-' \
+  terraform/services modules/{keyvault,storage,appinsights,loganalytics,cntreg,uai,search,openai,language,docint,fnapp,lgapp,aml,apim} \
   -- ':!*/tests/*' ':!*/README.md'
 ```
 
@@ -527,7 +524,7 @@ NOT to an operator-chosen workspace via `overrides`. The wiring is
 default-on for every wrapper whose underlying Azure resource supports
 the `Microsoft.Insights/diagnosticSettings` extension resource
 (keyvault, storage, app_insights, container_registry, search, openai,
-aifoundry, language, doc_intel, function_app, logic_app, aml_workspace,
+language, doc_intel, function_app, logic_app, aml_workspace,
 apim — i.e. everything except `user_assigned_identity` which has no
 diagnostic categories, and `log_analytics` itself which is the sink).
 
@@ -588,48 +585,6 @@ still get the A4 "deferred to follow-up" hard-fail; the C-014 default
 gives them the hub-LA wiring they need for v1 without exposing the
 deferred surface.
 
-### C-015 — AI Foundry Hub + Project (extends C-001 v1 selectable list)
-
-**Date:** 2026-05-31. **Status:** Resolved.
-
-Amends C-001 by:
-
-1. **Promoting `aifoundry` to a deployable wrapper.** v1 originally
-   listed `aifoundry` as a selectable type but the wrapper body emitted
-   only `friendlyName`. Azure rejects that for `kind="Hub"`:
-   `Microsoft.MachineLearningServices/workspaces` requires
-   `properties.storageAccount` and `properties.keyVault` (full resource
-   IDs) at create time. The wrapper now accepts two new required
-   variables — `storage_account_id` and `key_vault_id` — sourced via
-   sibling-module composition in `terraform/services/main.tf`.
-2. **Adding `aifoundry_project` to the v1 selectable list** (now 16
-   types). The Project is the same Azure type
-   (`Microsoft.MachineLearningServices/workspaces`) with
-   `kind="Project"` and `properties.hubResourceId` pointing at the
-   parent Hub. v1 enforces a 1:1 Hub→Project ratio per services stack
-   (single-instance Hub + single-instance Project) via root-stack
-   `check` blocks; multi-Project topologies are a follow-up.
-3. **Adding the `aifoundry_project` row to the engine catalogue** and
-   the §3.1 Naming Pattern Table: `abbr=aifp`, `shape=hyphenated`,
-   `azure_max=64`, `level=top`. The us6 catalogue-completeness test and
-   `check-naming-catalogue.sh` CI gate were updated in lockstep (27
-   top-level rows; 35 total `service_type` rows).
-4. **Adding three root-stack `check` blocks** in
-   `terraform/services/check.tf` (defence-in-depth per CA-003):
-   - `aifoundry_requires_hub_deps` — selecting `aifoundry` requires
-     exactly one `storage` AND exactly one `keyvault` selection in the
-     same stack.
-   - `aifoundry_project_requires_hub` — selecting `aifoundry_project`
-     requires exactly one `aifoundry` selection in the same stack.
-
-The Hub bumps the azapi API version from `2024-04-01` to `2024-10-01`
-(the earliest stable version that accepts the `properties.storageAccount`
-/ `properties.keyVault` IDs in the format azurerm wrappers emit).
-
-Out of scope for v1: multi-Hub or multi-Project topologies, Foundry
-connections / deployments, Foundry Agent service, customer-managed-key
-encryption on the Hub or Project. These are tracked as follow-ups.
-
 ### C-016 — Services stack environment allowlist (narrows C-001 / FR-025; supersedes the prior sp01/npd deploy attempt)
 
 **Date:** 2026-05-31. **Status:** Resolved.
@@ -686,9 +641,8 @@ interview):
    `usecase = "uc1"`.
 7. **Day-one tfvars (sp01/dev).**
    `variables/sp01/dev/services.tfvars.json` carries
-   `environment = "dev"`, `usecase = "uc1"`, `region = "swc"`, and the
-   same C-015 v1 service list (`keyvault`, `storage`, `aifoundry`,
-   `aifoundry_project`). The emitted RG is therefore
+   `environment = "dev"`, `usecase = "uc1"`, `region = "swc"`, and a
+   v1 service selection (e.g. `keyvault`, `storage`). The emitted RG is therefore
    `rg-svc-uc1-sp01-dev-swc-001`.
 8. **Backend state-key path.** The state-key path follows the existing
    `{tenant}/{environment}/services.tfstate` convention —
@@ -709,404 +663,6 @@ stack-aware (the union enum + per-stack validators is the chosen
 pattern); migrating any in-place `sp01/npd/services.*` state (none
 exists — the prior deploy was destroyed).
 
-### C-017 — Cognitive Services Foundry account + project replaces ML Workspace Hub+Project (replaces C-015 wrapper implementations)
-
-**Date:** 2026-05-30. **Status:** Resolved.
-
-Operator intent: the deployed `aif-uc1-uc1-sp01-dev-swc-001` and
-`aifp-uc1-uc1-sp01-dev-swc-001` resources (legacy Azure ML
-`Microsoft.MachineLearningServices/workspaces` Hub + Project) are the
-WRONG resource type. The intended Foundry pair is the Cognitive
-Services Foundry account/project shape used by the
-`admin-1364-resource` / `admin-1364` reference, i.e.
-`Microsoft.CognitiveServices/accounts` (kind=`AIServices`,
-`properties.allowProjectManagement=true`) plus its
-`Microsoft.CognitiveServices/accounts/projects` child.
-
-This amendment supersedes the wrapper implementations promised by
-C-015 §1 and §2; the C-015 §3 catalogue rows and §4 root-stack
-`check` blocks are retained (§4 with one rename and one removal as
-detailed below). The C-015 narrative remains historically accurate
-and is left untouched.
-
-Resolutions (encoded directly per CLAUDE.md autonomy rules; no
-operator interview):
-
-1. **`modules/aifoundry/` repurposed to Foundry account.** The
-   wrapper now emits a single `azapi_resource` of type
-   `Microsoft.CognitiveServices/accounts@2025-09-01` with:
-   - `kind = "AIServices"`.
-   - `sku.name = "S0"`.
-   - `identity.type = "SystemAssigned"`.
-   - `properties.allowProjectManagement = true` (this is what marks
-     the account as Foundry-capable).
-   - `properties.customSubDomainName = var.canonical_name` (required
-     for AAD token issuance and PE wiring).
-   - `properties.publicNetworkAccess = "Enabled"` (day-one default;
-     PE flips this to `"Disabled"` in a follow-up).
-   The wrapper's input contract is reduced: `var.storage_account_id`
-   and `var.key_vault_id` (introduced by C-015 §1) are REMOVED.
-   Foundry accounts manage their own underlying storage and secrets;
-   they are not subject to the legacy Hub-workspace prerequisite.
-   `var.canonical_name`, `var.engine_record`, and the diagnostic-
-   settings contract are unchanged.
-2. **`modules/aifoundryproject/` repurposed to Foundry project.** The
-   wrapper now emits a single `azapi_resource` of type
-   `Microsoft.CognitiveServices/accounts/projects@2025-09-01` as a
-   child of the parent Foundry account (parent_id =
-   `var.parent_account_id`). The legacy `var.hub_resource_id` input
-   (C-015 §2) is REPLACED by `var.parent_account_id` (the parent
-   Cognitive Services account resource ID). System-assigned identity
-   is retained. `var.canonical_name`, `var.engine_record`, and the
-   diagnostic-settings contract are unchanged. The
-   `customSubDomainName` field does NOT apply to projects (projects
-   inherit the parent account's endpoint).
-3. **API versions pinned.**
-   `Microsoft.CognitiveServices/accounts@2025-09-01` (stable) and
-   `Microsoft.CognitiveServices/accounts/projects@2025-09-01`
-   (stable, confirmed available in subscription
-   `883c9081-23ed-4674-95c5-45c74834e093` via `az rest` probe). Both
-   pinned in their respective azapi calls. The azapi provider stays
-   at `2.10.0`; azurerm stays at `4.74.0`; no provider bump.
-4. **C-015 §4 dependency rules update.** In
-   `terraform/services/check.tf`:
-   - `aifoundry_requires_hub_deps` is REMOVED. Foundry accounts no
-     longer require sibling `keyvault` / `storage` selections.
-   - `aifoundry_project_requires_hub` is RENAMED to
-     `aifoundry_project_requires_account` — the semantics
-     (exactly-one `aifoundry_project` requires exactly-one
-     `aifoundry` in the same stack) are unchanged; only the
-     condition message is reworded to "Foundry project requires a
-     Foundry account in the same stack". The defence-in-depth
-     pattern from C-016 §5 is preserved: variable validator on the
-     project wrapper + root-stack `check` block + negative test
-     `terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl`.
-5. **Naming engine catalogue retained, one `azure_max` change.**
-   C-015 §3 catalogue rows (`aifoundry` → abbr `aif`,
-   `aifoundry_project` → abbr `aifp`, both `level=top`,
-   `shape=hyphenated`) STAY. The `aifp` row's `azure_max` is dropped
-   from **64 → 32** to match the Foundry projects RP hard limit
-   (per `Microsoft.CognitiveServices/accounts/projects` schema); the
-   day-one canonical project name `aifp-uc1-uc1-sp01-dev-swc-001`
-   (31 chars) fits inside the new cap. The `aif` row stays at
-   `azure_max=64` (CAF cap for Cognitive Services accounts). The
-   us6 catalogue-completeness test and `check-naming-catalogue.sh`
-   CI gate are re-asserted (row count unchanged; only the `aifp`
-   `azure_max` value changes).
-6. **Day-one tfvars rewrite (sp01/dev).**
-   `variables/sp01/dev/services.tfvars.json` `services` array
-   becomes `[{type: "aifoundry"}, {type: "aifoundry_project"}]` only
-   — the `keyvault` and `storage` selections from C-016 §7 are
-   DROPPED because they were only present to satisfy the now-removed
-   `aifoundry_requires_hub_deps` check. Nothing in the catalogue is
-   removed; operators may add `keyvault` / `storage` back as
-   standalone selections at any time.
-7. **Pre-merge destroy gate (state / resource migration).** The
-   existing deployed pair `aif-uc1-uc1-sp01-dev-swc-001` (Hub
-   workspace, `Microsoft.MachineLearningServices/workspaces` kind
-   Hub) and `aifp-uc1-uc1-sp01-dev-swc-001` (Project workspace,
-   same RP kind Project), plus `kvuc1uc1sp01devswc001` and
-   `stuc1uc1sp01devswc001`, MUST be destroyed before this amendment
-   merges. They are different Azure resource types from the new
-   Foundry pair (cross-RP); `terraform plan` would force-replace
-   into the wrong RP otherwise. No `moved {}` block is possible
-   (cross-RP moves are not supported). The state blob
-   `sp01/dev/services.tfstate` is removed and recreated post-merge.
-   This mirrors the C-016 pre-merge destroy gate for the prior
-   `sp01/npd` deploy.
-8. **Defence-in-depth pattern preserved.** Per CA-003 and the
-   C-016 §5 precedent, the renamed `aifoundry_project_requires_account`
-   rule is enforced in three places: (i) variable validator on the
-   project wrapper's `parent_account_id` input (regex on the
-   Cognitive Services account resource-id shape); (ii) root-stack
-   `check "aifoundry_project_requires_account"`; (iii) negative
-   test asserting that selecting `aifoundry_project` without
-   `aifoundry` hard-fails at plan time with a message naming both
-   selections.
-
-Out of scope for this amendment: Foundry connections (model /
-search / storage connections inside the account), model deployments
-inside the Foundry account, Foundry Agent service, customer-managed-
-key encryption, private-endpoint wiring (including flipping
-`publicNetworkAccess` to `"Disabled"`), multi-project topologies
-within a single account. All tracked as follow-ups.
-
----
-
-## Clarifications Amendment 2026-05-31 (Foundry account private endpoint)
-
-### C-018 — Private endpoint + private DNS for the Foundry account (lifts the PE portion of C-017 "out of scope"; partially relaxes Assumption A4 and A8 for the `aifoundry` type only)
-
-**Date:** 2026-05-31. **Status:** Resolved.
-
-Operator intent: the Foundry Cognitive Services account
-`aif-uc1-uc1-sp01-dev-swc-001` (and, by inheritance, its
-`aifp-…` project — projects have no independent network surface and
-ride the parent account's data-plane endpoint) MUST be reachable only
-from inside the spoke VNet. This amendment adds a private endpoint to
-the `aifoundry` account, links it to the central hub private DNS
-zones, and flips `publicNetworkAccess` to `"Disabled"` when the PE is
-enabled. It explicitly lifts the "private-endpoint wiring (including
-flipping `publicNetworkAccess` to `Disabled`)" item that C-017 §"Out
-of scope" deferred — but only for the `aifoundry` account; the generic
-per-service `services[*].private_endpoints` / `diagnostic_settings`
-fields from Assumption A4 remain reserved and hard-failed (a fully
-generic multi-service PE framework is a separate follow-up).
-
-Resolutions (encoded directly per CLAUDE.md autonomy rules; no
-operator interview):
-
-1. **Opt-in, defaults preserve existing behaviour (C-011 (ii)).** The
-   PE is gated by a stack-level boolean
-   `var.enable_aifoundry_private_endpoint` (default `false`). With the
-   default, the stack behaves exactly as it does post-C-017
-   (account `publicNetworkAccess="Enabled"`, no PE, no VNet/DNS
-   remote-state reads). The day-one `variables/sp01/dev/services.tfvars.json`
-   sets it to `true` to satisfy the operator's secure-by-VNet intent.
-
-2. **`modules/aifoundry/` gains PE support (self-contained, no new
-   generic module).** Three new inputs:
-   - `private_endpoint_subnet_id` (string, default `null`) — the
-     spoke subnet resource ID the PE NIC lands in.
-   - `private_dns_zone_ids` (list(string), default `[]`) — the hub
-     private DNS zone resource IDs the PE A-records register into.
-   - `private_endpoint_enabled` (bool, default `false`) — master
-     toggle; when `true`, `private_endpoint_subnet_id` MUST be a valid
-     subnet resource ID (variable validation) and at least one zone ID
-     MUST be supplied.
-   When `private_endpoint_enabled = true` the wrapper:
-   - sets `properties.publicNetworkAccess` default to `"Disabled"`
-     (still override-able via `var.overrides.public_network_access` —
-     defence-in-depth / escape hatch per C-011);
-   - creates `azurerm_private_endpoint.this` (count-gated) in the
-     supplied subnet, with a single `private_service_connection`
-     targeting the account `azapi_resource.this.id` and
-     `subresource_names = ["account"]` (the group ID for
-     `Microsoft.CognitiveServices/accounts` PEs);
-   - attaches a `private_dns_zone_group` referencing
-     `private_dns_zone_ids`.
-   The PE canonical name is derived in-module as
-   `pep-${var.canonical_name}` (≤ 80 chars; `pep-aif-uc1-uc1-sp01-dev-swc-001`
-   = 32 chars). The generic naming-engine `private_endpoint`
-   catalogue row (abbr `pep`, positional child, `parent_type="*"`)
-   remains RESERVED for the future generic multi-service PE feature;
-   deriving the name in-module keeps this amendment self-contained and
-   avoids threading a child engine record per account. This deviation
-   is documented in the wrapper `README.md`.
-
-3. **Foundry private DNS zones — add the missing `aiservices` zone.**
-   A Cognitive Services Foundry (`AIServices`) account PE with group
-   ID `account` registers FQDNs across THREE private DNS zones:
-   - `privatelink.cognitiveservices.azure.com` (catalogue key
-     `cogsvc` — already present);
-   - `privatelink.openai.azure.com` (catalogue key `openai` — already
-     present);
-   - `privatelink.services.ai.azure.com` (catalogue key `aiservices`
-     — **MISSING**; added to `modules/dnszones/catalogue.tf`).
-   The hub DNS stack deploys all catalogue zones by default
-   (`disable_catalogue_zones = []`), so adding the row auto-creates the
-   zone on the next `hub/npd` + `hub/prd` dns apply. The us6 / DNS
-   catalogue-completeness assertions and any zone-count test are
-   updated for the new row.
-
-4. **Services stack consumes the spoke VNet + hub DNS via remote
-   state (relaxes A8 for this consumer).** Two new optional object
-   inputs mirror the vnet stack's pattern
-   (`var.vnet_state_backend`, `var.dns_state_backend`; each
-   `{resource_group_name, storage_account_name, container_name, key,
-   subscription_id}`). Two new `data "terraform_remote_state"` blocks
-   (`vnet`, `dns`) are COUNT-GATED on
-   `local.aifoundry_pe_required` (true iff
-   `var.enable_aifoundry_private_endpoint` AND an `aifoundry` is
-   selected) so stacks that don't enable the PE need not supply the
-   backends and incur no new reads. The subnet is resolved by role
-   from `data.terraform_remote_state.vnet.outputs.subnets[
-   var.private_endpoint_subnet_role].id`
-   (`var.private_endpoint_subnet_role`, default `"development"`); the
-   zone IDs are resolved from
-   `data.terraform_remote_state.dns.outputs.zone_ids` for the keys
-   `["cogsvc", "openai", "aiservices"]`. Day-one `sp01/dev` uses the
-   spoke vnet state key `sp01/npd/vnet.tfstate` (the spoke VNet is
-   shared across `dev`/`pre` in the `npd` keyspace) and the hub DNS
-   state key `hub/prd/dns.tfstate` (the central zones live in the
-   `hub/prd` keyspace), matching the existing
-   `variables/sp01/npd/vnet.tfvars.json` `hub_state_backend` /
-   `dns_state_backend` declarations.
-
-5. **`publicNetworkAccess` flip is opt-in via the PE toggle.** When
-   `enable_aifoundry_private_endpoint = true`, the account default for
-   `publicNetworkAccess` becomes `"Disabled"`; when `false`, it
-   remains `"Enabled"` (C-017 day-one behaviour). An operator may still
-   force `"Enabled"` alongside a PE via
-   `overrides."<aif name>".public_network_access = "Enabled"` for a
-   migration window. FR-026's "`publicNetworkAccess="Enabled"`"
-   statement is hereby qualified: Enabled is the default ONLY when no
-   PE is enabled.
-
-6. **Defence-in-depth validation (C-011 (iii)).** Enforced at every
-   boundary: (i) `modules/aifoundry/variables.tf` validators on
-   `private_endpoint_subnet_id` (subnet resource-id regex when set)
-   and on the enabled⇒subnet-present invariant; (ii)
-   `terraform/services/variables.tf` validators on
-   `private_endpoint_subnet_role` (must be a known spoke role) and on
-   the enable⇒backends-present invariant; (iii) a root-stack
-   `check "aifoundry_pe_requires_account"` ensuring the PE toggle is
-   only meaningful when an `aifoundry` is selected; (iv) the existing
-   A4 hard-fail on `services[*].private_endpoints` is UNCHANGED (the
-   generic field stays blocked).
-
-7. **Tests (C-011 (iv)).** New positive + negative coverage in the
-   same PR:
-   - `modules/aifoundry/tests/private_endpoint_positive.tftest.hcl` —
-     enabled PE emits `azurerm_private_endpoint.this` with group ID
-     `account`, the DNS zone group, and `publicNetworkAccess="Disabled"`.
-   - `modules/aifoundry/tests/private_endpoint_negative.tftest.hcl` —
-     `private_endpoint_enabled=true` with a null/blank subnet ID
-     hard-fails; and a malformed subnet ID hard-fails the regex.
-   - `terraform/services/tests/aifoundry_pe_happy.tftest.hcl` —
-     `enable_aifoundry_private_endpoint=true` with `override_data`
-     stubs for the `vnet` and `dns` remote state resolves the subnet
-     + three zone IDs and wires them into `module.aifoundry`.
-   - `terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl`
-     — toggle on but no `aifoundry` selected ⇒
-     `check.aifoundry_pe_requires_account` fails.
-   `terraform fmt -recursive` and all affected `terraform test`
-   suites MUST be green before merge.
-
-8. **Rollout ordering.** The hub DNS stack (`hub/npd` then `hub/prd`)
-   MUST be applied BEFORE the `sp01/dev` services stack so the
-   `aiservices` zone exists for the PE's `private_dns_zone_group`. The
-   spoke VNet (`sp01/npd/vnet`) MUST already be applied (it is) so the
-   `development` subnet ID resolves. Post-merge: apply hub dns, then
-   services; verify the account shows `publicNetworkAccess="Disabled"`
-   and exactly one private endpoint exists, resolving the
-   `cogsvc`/`openai`/`aiservices` FQDNs privately.
-
-Out of scope for this amendment: a fully generic per-service
-`services[*].private_endpoints` framework (the field stays reserved /
-hard-failed); private endpoints for any non-`aifoundry` service type;
-NSG/route-table changes on the PE subnet; private endpoints for the
-Foundry project child (projects share the parent account endpoint and
-need no separate PE); custom (non-catalogue) DNS zones for the PE.
-
-## Clarifications Amendment 2026-06-01 (Foundry Application Insights tracing)
-
-### C-019 — Application Insights for Foundry tracing + monitoring, anchored at the hub LA (extends C-014; lifts the "monitoring connection" portion deferred by C-017)
-
-**Date:** 2026-06-01. **Status:** Resolved.
-
-Operator intent: the Foundry Cognitive Services account
-`aif-uc1-uc1-sp01-dev-swc-001` MUST have an Application Insights
-resource attached for tracing and monitoring (agent runs, prompt
-traces, GenAI telemetry surfaced in the Foundry portal's Tracing
-tab), and that Application Insights MUST funnel its data into the
-SHARED hub Log Analytics workspace (the same C-014 hub LA), not a
-standalone classic instance. This amendment makes the `aifoundry`
-wrapper able to provision a workspace-based App Insights and wire it
-to the account as an `AppInsights` connection.
-
-Resolutions (encoded directly per CLAUDE.md autonomy rules; no
-operator interview):
-
-1. **Opt-in, defaults preserve existing behaviour (C-011 (ii)).** The
-   feature is gated by a stack-level boolean
-   `var.enable_aifoundry_application_insights` (default `false`). With
-   the default, the stack behaves exactly as it does post-C-018 (no
-   App Insights, no connection). The day-one
-   `variables/sp01/dev/services.tfvars.json` sets it to `true` to
-   satisfy the operator's tracing/monitoring intent.
-
-2. **`modules/aifoundry/` gains App Insights support (self-contained,
-   embedded — mirrors the C-018 embedded-PE pattern; no new generic
-   module).** One new input `application_insights_enabled` (bool,
-   default `false`). When `true` the wrapper:
-   - creates `azurerm_application_insights.tracing` (count-gated) with
-     `workspace_id = var.shared_log_analytics_workspace_id` (the
-     ALWAYS-required, already-validated C-014 hub LA id) so it is a
-     **workspace-based** App Insights writing into the hub LA —
-     satisfying "must connect to the hub Log Analytics" without a
-     redundant diagnostic-setting (a workspace-based component already
-     routes to its workspace). `application_type` defaults to `"web"`
-     (override-able via `var.overrides.application_insights_application_type`);
-   - creates `azapi_resource.appinsights_connection` (count-gated):
-     `Microsoft.CognitiveServices/accounts/connections@2025-09-01`,
-     `name = "appinsights"` (a fixed, pattern-valid connection name —
-     the connection-name RP pattern `^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$`
-     forbids the dots/length of the canonical name), `parent_id =
-     azapi_resource.this.id` (account-level so all projects inherit
-     it), `body.properties = { category = "AppInsights", target =
-     <appi id>, authType = "ApiKey", isSharedToAll = true, metadata =
-     { ApiType = "Azure", ResourceId = <appi id> } }`, and the
-     sensitive App Insights connection string supplied via azapi
-     `sensitive_body.properties.credentials.key` so it never appears
-     in plaintext state diff.
-   The App Insights canonical name is derived in-module as
-   `appi-${var.canonical_name}` (mirrors the C-018
-   `pep-${canonical_name}` deviation). The generic naming-engine
-   `app_insights` catalogue row stays the path for a STANDALONE
-   App Insights selection (`{ "type": "app_insights" }`); deriving the
-   dedicated Foundry-tracing component's name in-module keeps this
-   amendment self-contained and avoids threading a child engine record
-   per account. This deviation is documented in the wrapper
-   `README.md`.
-
-3. **Why a connection, not just a resource.** The Foundry portal's
-   Tracing feature reads an account/project **connection** of category
-   `AppInsights` to discover where to send/read traces. Provisioning
-   the App Insights alone (already possible via the `app_insights`
-   selectable type) does NOT attach it to the Foundry. The connection
-   resource is the attachment mechanism; `isSharedToAll = true` makes
-   the account-level connection visible to every child project.
-
-4. **Account-level, not project-level.** The connection is parented by
-   the account (`azapi_resource.this.id`), not an individual project,
-   so a single connection serves all current and future projects in
-   the account and the wrapper need not depend on the
-   `aifoundry_project` selection. This also keeps the `aifoundry` and
-   `aifoundry_project` wrappers decoupled.
-
-5. **Defence-in-depth validation (C-011 (iii)).** Enforced at every
-   boundary: (i) `modules/aifoundry/variables.tf` — the always-required
-   `shared_log_analytics_workspace_id` regex validator already
-   guarantees a valid hub LA id whenever App Insights is enabled (the
-   App Insights cannot be created without it); (ii)
-   `terraform/services/variables.tf` documents
-   `enable_aifoundry_application_insights`; (iii) a root-stack
-   `check "aifoundry_appinsights_requires_account"` ensuring the
-   toggle is only meaningful when an `aifoundry` is selected; (iv) the
-   existing A4 hard-fail on `services[*].diagnostic_settings` is
-   UNCHANGED.
-
-6. **Tests (C-011 (iv)).** New positive + negative coverage in the
-   same PR:
-   - `modules/aifoundry/tests/application_insights_positive.tftest.hcl`
-     — enabled emits one `azurerm_application_insights.tracing` with
-     `workspace_id` = the supplied hub LA id, and one
-     `azapi_resource.appinsights_connection` named `appinsights` with
-     `category = "AppInsights"` parented by the account.
-   - `modules/aifoundry/tests/application_insights_negative.tftest.hcl`
-     — default disabled emits zero App Insights and zero connection.
-   - `terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl`
-     — `enable_aifoundry_application_insights = true` wires
-     `application_insights_enabled = true` into `module.aifoundry`.
-   - `terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl`
-     — toggle on but no `aifoundry` selected ⇒
-     `check.aifoundry_appinsights_requires_account` fails.
-   `terraform fmt -recursive` and all affected `terraform test`
-   suites MUST be green before merge.
-
-7. **Rollout ordering.** The hub LA stack (`hub/npd`) is already
-   applied (C-014 prerequisite). Post-merge: apply the `sp01/dev`
-   services stack; verify the account shows an `AppInsights`
-   connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is
-   workspace-based against the hub LA.
-
-Out of scope for this amendment: project-level (per-project) tracing
-connections; a fully generic per-service App Insights / monitoring
-framework (the A4 `diagnostic_settings` field stays reserved);
-attaching App Insights to any non-`aifoundry` service type;
-dashboards, alerts, or workbooks on the new component.
-
 ## Clarifications Amendment 2026-06-01 (Container registry + Container Apps, private-by-default)
 
 This amendment also triggered a standing-policy change recorded in
@@ -1117,7 +673,7 @@ endpoint + matching private DNS zone; any service that genuinely cannot
 take a private endpoint (e.g. Azure Container Apps — see C-021) is the
 only exception and MUST be called out explicitly with its reason.
 
-### C-020 — Container registry with a private endpoint + public access denied (extends FR-007/C-014; reuses the FR-027 PE plumbing)
+### C-020 — Container registry with a private endpoint + public access denied (extends FR-007/C-014; reuses the shared PE plumbing)
 
 **Date:** 2026-06-01. **Status:** Resolved.
 
@@ -1135,8 +691,7 @@ interview):
    `variables/sp01/dev/services.tfvars.json` selects a
    `container_registry` AND sets the toggle `true`.
 
-2. **`modules/cntreg/` gains private-endpoint support (embedded —
-   mirrors the C-018 Foundry pattern).** Three new inputs:
+2. **`modules/cntreg/` gains private-endpoint support (embedded).** Three new inputs:
    `private_endpoint_enabled` (bool, default `false`),
    `private_endpoint_subnet_id` (string, default `null`),
    `private_dns_zone_ids` (list(string), default `[]`). When enabled
@@ -1150,20 +705,18 @@ interview):
    `privatelink.azurecr.io` (`acr`) zone. A `lifecycle.precondition`
    requires a non-null subnet id and a non-empty zone-id list whenever
    the toggle is on. The PE name is derived in-module as
-   `pep-${var.canonical_name}` (mirrors C-018).
+   `pep-${var.canonical_name}`.
 
-3. **Reuse the FR-027 remote-state plumbing.** The services stack already
+3. **Reuse the shared remote-state plumbing.** The services stack already
    reads the spoke VNet + hub DNS via count-gated
    `data "terraform_remote_state"` blocks
-   (`terraform/services/data.vnetdns.tf`). The gate
-   `local.aifoundry_pe_required` is generalised to
-   `local.any_pe_required = enable_aifoundry_private_endpoint ||
-   enable_container_registry_private_endpoint ||
-   <container-app selection>` so a single pair of remote-state reads
+   (`terraform/services/data.vnetdns.tf`). The private-endpoint gate
+   `local.any_pe_required = enable_container_registry_private_endpoint ||
+   <container-app selection>` (and any other PE toggle) ensures a single
+   pair of remote-state reads
    serves all private endpoints. The ACR PE NIC lands in the subnet
    named by `var.private_endpoint_subnet_role` (default `development`),
-   and its zone id is `data...dns.outputs.zone_ids["acr"]` (distinct
-   from the Foundry cogsvc/openai/aiservices set). No new state backends
+   and its zone id is `data...dns.outputs.zone_ids["acr"]`. No new state backends
    are introduced — the existing `vnet_state_backend` /
    `dns_state_backend` inputs are reused.
 
@@ -1307,227 +860,26 @@ KEDA scale rules.
 
 ---
 
-## AMENDMENT 2026-06-02 — Foundry Hosted-Agent network injection (FR-031)
-
-> **AMENDMENT NOTICE (2026-06-02).** This amendment adds the *engine
-> capability* for **Azure AI Foundry Hosted-Agent network injection** to the
-> `aifoundry` wrapper module. It is **engine-only** and **default-off**: with
-> the new toggle unset, the module's behaviour is byte-for-byte identical to
-> the post-FR-028 (App Insights) state. No live resource changes, no instance
-> selection, and no destructive recreate are part of this amendment — those
-> are separate, dependent features (see CA-013 "Dependent feature program").
-
-### Problem statement
-
-A Foundry account deployed by this stack with
-`enable_aifoundry_private_endpoint = true` (FR-027, C-018) has
-`properties.publicNetworkAccess = "Disabled"`. The **Hosted Agents** runtime
-executes in a **Microsoft-managed sandbox that is NOT in the customer VNet**;
-it can only reach the account's model endpoint over the *public* endpoint.
-With public access disabled, every hosted-agent run returns HTTP 500. The
-*only* supported fix is **network injection**: at account-creation time the
-account is bound to a dedicated, delegated **agent subnet** so the
-Microsoft-managed runtime is injected into the customer VNet. Microsoft Learn
-(`ai-foundry/agents/how-to/virtual-networks`) confirms network injection
-**cannot be added to an existing account** — the account must be recreated.
-
-### Verified Microsoft contract (drives this amendment)
-
-These facts are taken from Microsoft Learn + the
-`Microsoft.CognitiveServices/accounts@2025-09-01` /
-`.../accounts/capabilityHosts@2025-09-01` Bicep schemas and are recorded so
-the design is not guesswork:
-
-- **VC-1 — Injection is creation-time only.** `properties.networkInjections`
-  must be present when the account is first created. Adding it later is
-  unsupported → recreate (delete + purge) is required. (Operator-approved;
-  see CA-013.)
-- **VC-2 — `networkInjections` shape.** Array of
-  `{ scenario = "agent", subnetArmId = <agent subnet id>,
-  useMicrosoftManagedNetwork = false }`. `scenario` enum is `"agent"` |
-  `"none"`.
-- **VC-3 — Capability host is mandatory.** A
-  `Microsoft.CognitiveServices/accounts/capabilityHosts@2025-09-01`
-  child with `capabilityHostKind = "Agents"`, `customerSubnet = <agent
-  subnet id>`, and **all three** connection lists non-empty:
-  `storageConnections` (Azure Storage), `threadStorageConnections`
-  (Azure Cosmos DB), `vectorStoreConnections` (Azure AI Search). Omitting
-  any one hard-fails at create.
-- **VC-4 — BYO all three.** The three connection lists reference
-  `Microsoft.CognitiveServices/accounts/connections` resources on the
-  account that point at a **customer-owned** Storage account, Cosmos DB
-  account, and AI Search service. There is no Microsoft-managed default for
-  the injected scenario.
-- **VC-5 — Dedicated agent subnet.** A subnet delegated to
-  `Microsoft.App/environments`, **recommended /24**, **exclusive to a
-  single Foundry account** (cannot be shared with another account or with the
-  existing `container-apps` ACA subnet), RFC1918 only (CGNAT `100.64/10`
-  unsupported). Same region as the account.
-- **VC-6 — Private endpoints are NOT auto-created.** The BYO Storage, Cosmos
-  and Search private endpoints (and their DNS) must be provisioned
-  separately. Cosmos requires the `privatelink.documents.azure.com` zone,
-  which is **not** in the current hub private-DNS catalogue (feature 002).
-- **VC-7 — ACR must stay PUBLIC.** Hosted agents pull the agent container
-  image from an ACR that "can't currently be placed behind a private
-  network". This conflicts with FR-029 (private ACR) and is recorded as an
-  explicit, scoped mandate exception in the dependent `103` instance feature
-  (see CA-013), NOT in this engine amendment.
-- **VC-8 — Delete order.** When recreating, the Foundry account + its
-  capability host must be deleted **and purged** *before* the agent VNet/
-  subnet is deleted.
-
-### Functional requirement
-
-- **FR-031 — `aifoundry` Hosted-Agent network injection (engine,
-  default-off).** The `aifoundry` wrapper module MUST accept a new
-  `network_injection_enabled` input (bool, default `false`). With the
-  default `false`, the module renders **exactly** the post-FR-028 account
-  body and child set — no `networkInjections`, no capability host, no BYO
-  connections, no new remote-state reads — preserving day-one behaviour.
-  When `true`, the module MUST:
-  1. Add a single `properties.networkInjections` entry to the account
-     `azapi` body: `scenario = "agent"`, `subnetArmId = var.agent_subnet_id`,
-     `useMicrosoftManagedNetwork = false` (VC-2).
-  2. Create three `Microsoft.CognitiveServices/accounts/connections`
-     resources on the account pointing at the BYO Storage account
-     (`var.agent_storage_account_id`), Cosmos DB account
-     (`var.agent_cosmosdb_account_id`), and AI Search service
-     (`var.agent_search_service_id`) (VC-4).
-  3. Create one `Microsoft.CognitiveServices/accounts/capabilityHosts`
-     child (`capabilityHostKind = "Agents"`, `customerSubnet =
-     var.agent_subnet_id`) whose `storageConnections`,
-     `threadStorageConnections`, and `vectorStoreConnections` reference the
-     three connection names from step 2 (VC-3).
-  4. Enforce, via **module-level variable validation + a `precondition`**,
-     that when `network_injection_enabled = true`: (a)
-     `private_endpoint_enabled = true` (the account must be private —
-     injection is meaningless on a public account), (b) `agent_subnet_id` is
-     a non-null full subnet resource ID, and (c) all three BYO IDs
-     (`agent_storage_account_id`, `agent_cosmosdb_account_id`,
-     `agent_search_service_id`) are non-null full resource IDs. Any unmet
-     condition hard-fails at plan time naming the missing input (VC-3/VC-4/
-     VC-5). Defence-in-depth: module variable validators + module
-     `precondition` + (in the dependent `103` feature) a root-stack `check`.
-
-### Clarifications — Session 2026-06-02
-
-- **C-022 — Engine-only, no instance lit-up here.** FR-031 delivers ONLY the
-  module capability + plan-level tests. It does NOT add a services-stack
-  passthrough that any current instance selects, does NOT provision the BYO
-  Storage/Cosmos/Search, does NOT create the agent subnet, and does NOT
-  recreate any live account. The toggle stays `false` everywhere after this
-  amendment; lighting it up is the dependent `103` instance feature gated on
-  the prerequisite engine/instance features in CA-013. Rationale: keep the
-  engine change additive, reversible, and validatable at `terraform plan`
-  level (the live capability cannot be `apply`-validated because it requires
-  a destructive recreate, which is operator-approved).
-- **C-023 — `agent_subnet_id` is supplied, not created.** The engine treats
-  the dedicated /24 agent subnet (VC-5) as an *input*: it is created by the
-  **004-vnet engine** (new `agents` subnet role, delegated
-  `Microsoft.App/environments`) and an instance VNet, and its id is threaded
-  in via the services-stack remote-state plumbing in the dependent feature.
-  The `aifoundry` module never creates network. This honours the
-  engine/instance split (network lives in 004/10n-vnet, not 006).
-- **C-024 — BYO Storage/Cosmos/Search are supplied, not created here.** The
-  three connection lists reference customer-owned resources. Provisioning
-  them (notably a NEW `cosmosdb` selectable type + wrapper module + 001
-  naming row, plus their private endpoints and the Cosmos
-  `privatelink.documents.azure.com` DNS zone per VC-6) is **out of scope for
-  this FR-031 engine amendment** and is enumerated as dependent engine work
-  in CA-013. FR-031 only wires the *connection + capability-host* references
-  given the resource IDs as inputs.
-- **C-025 — Connection naming & body shape.** The three account connections
-  use FIXED short names `agentstorage`, `agentcosmos`, `agentsearch` —
-  required because the connection-name RP pattern
-  (`^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$`, no dots, max ~33 chars) cannot hold a
-  `${canonical_name}`-suffixed name. This mirrors the C-019 precedent (the
-  App Insights connection is the fixed name `appinsights`); the generic
-  naming-engine rows are not extended for these internal children. Each
-  connection sets `category` to its BYO type (`AzureStorageAccount`,
-  `CosmosDB`, `CognitiveSearch`), `target`/`metadata.ResourceId` to the BYO
-  resource id, `authType = "AAD"`, and `isSharedToAll = true` so child
-  projects inherit it. (The exact category/authType strings are confirmed at
-  the operator-approved live recreate, VC-1/VC-8; the engine is default-off so
-  no current deployment is affected.)
-- **C-026 — Capability host is a dependent child.** The
-  `capabilityHosts` resource `depends_on` the three connection resources so
-  the connection names exist before the capability host references them
-  (VC-3 hard-fails otherwise).
-
-### CA-013 — Dependent feature program (Hosted-Agent injection is a 6-feature epic)
-
-FR-031 is the **first** of a dependency-ordered set. The capability is not
-operational until all of the following land (each its own feature + PR per the
-`00n`/`10n` rules; this amendment delivers only #1):
-
-1. **006-services FR-031 (THIS amendment, engine, `00n`).** `aifoundry`
-   network-injection plumbing, default-off. ✅ delivered here.
-2. **006-services + 001-naming (engine, `00n`).** New `cosmosdb` selectable
-   service type + `modules/cosmosdb/` wrapper (private-by-default, PE +
-   `privatelink.documents.azure.com`) + a `cosmos` naming row. Required to
-   supply the BYO Cosmos for `threadStorageConnections` (VC-3/VC-4). The
-   existing `storage` and `search` wrappers already satisfy the other two
-   BYO legs.
-3. **004-vnet (engine, `00n`).** New `agents` subnet role delegated to
-   `Microsoft.App/environments`, dedicated **/24**, exclusive to one Foundry
-   account (VC-5). Distinct from the existing `container-apps` role.
-4. **102-sp01-npd-vnet (instance, `10n`).** Expand the spoke address space —
-   `10.240.2.0/24` is 100% consumed — to carve the /24 `agents` subnet.
-   **Decision (defensible default, encoded):** widen the spoke prefix to
-   `10.240.2.0/23` and place the agent subnet at `10.240.3.0/24`, leaving the
-   existing `10.240.2.0/24` subnet map untouched.
-5. **002-private-dns-zones (engine, `00n`).** Add the Cosmos
-   `privatelink.documents.azure.com` private DNS zone to the hub catalogue
-   (VC-6).
-6. **103-sp01-dev-services (instance, `10n`).** Flip the new toggle, select
-   `cosmosdb` + storage + search as the BYO trio, thread the agent subnet,
-   AND record the **ACR public-access mandate exception** (VC-7): hosted
-   agents require a *public* ACR, so `cruc1uc1sp01devswc001` must set
-   `public_network_access_enabled = true` for this one registry — an explicit
-   documented deviation from the private-by-default mandate, justified by the
-   mandate's own "no Private Link support for this scenario" carve-out.
-
-The **live recreate** (delete + purge the Foundry account + capability host
-before the VNet, per VC-8, then re-apply with injection on) is a
-**destructive, operator-approved** runbook step delivered alongside #6 — it
-is NOT executed by automation and NOT part of any of the above PRs' apply.
-
-### Out of scope for FR-031
-
-The `cosmosdb` wrapper module + naming row (#2), the `agents` subnet role
-(#3), the spoke address-space expansion (#4), the Cosmos DNS zone (#5), any
-instance toggle flip / ACR exception (#6), and the live destructive recreate
-(VC-8) — all are dependent features tracked in CA-013, not this engine
-amendment.
-
 ## AMENDMENT 2026-06-02 — `cosmosdb` private-by-default selectable service type (FR-032)
 
-> **AMENDMENT NOTICE (2026-06-02).** This amendment delivers **item #2** of the
-> CA-013 dependent-feature program: a brand-new `cosmosdb` selectable service
-> type + `modules/cosmosdb/` wrapper, plus the matching `cosmosdb` top-level
-> naming row in feature **001**. It is **additive and engine-only**: no current
-> instance selects `cosmosdb`, so day-one behaviour of every existing
-> deployment is byte-for-byte unchanged. The new type exists to supply the BYO
-> Cosmos DB account that the FR-031 Hosted-Agent capability host requires for
-> its `threadStorageConnections` leg (VC-3/VC-4). The existing `storage` and
-> `search` wrappers already satisfy the other two BYO legs.
+> **AMENDMENT NOTICE (2026-06-02).** This amendment adds a brand-new `cosmosdb`
+> selectable service type + `modules/cosmosdb/` wrapper, plus the matching
+> `cosmosdb` top-level naming row in feature **001**. It is **additive and
+> engine-only**: no current instance selects `cosmosdb`, so day-one behaviour of
+> every existing deployment is byte-for-byte unchanged.
 
 ### Problem statement
 
-Foundry Hosted-Agent network injection (FR-031) mandates a customer-owned
-Azure Cosmos DB account for the `threadStorageConnections` connection list of
-the `Agents` capability host (VC-3/VC-4). The services engine had no
-`cosmosdb` selectable type, so there was no way to provision that BYO Cosmos
-account from this stack. This amendment adds it, built to the CLAUDE.md
-**private-by-default mandate** from day one.
+The services engine had no `cosmosdb` selectable type, so there was no way to
+provision an Azure Cosmos DB account from this stack. This amendment adds it,
+built to the CLAUDE.md **private-by-default mandate** from day one.
 
 ### Verified facts (drive this amendment)
 
 - **VF-1 — DNS zone already present.** The Cosmos SQL private DNS zone
   `privatelink.documents.azure.com` ALREADY exists in the hub catalogue
   (`modules/dnszones/catalogue.tf`, key `cosmos-sql`, feature 002). **No new
-  DNS feature is required** — this supersedes CA-013 #5, which is now a no-op
-  (the zone the program assumed was missing is in fact present). The services
+  DNS feature is required.** The services
   stack resolves it from the hub DNS remote state via `zone_ids["cosmos-sql"]`.
 - **VF-2 — Private Link subresource.** An `azurerm_cosmosdb_account` of kind
   `GlobalDocumentDB` is reached privately via a private endpoint whose
@@ -1547,7 +899,7 @@ account from this stack. This amendment adds it, built to the CLAUDE.md
   `geo_location` at `failover_priority = 0`, `Session` consistency by default)
   built **private-by-default with NO public variant and NO enable toggle**:
   1. `public_network_access_enabled = false` **always** (there is no public
-     form of this service — unlike the toggle-gated FR-027/FR-029 services,
+     form of this service — unlike the toggle-gated private-endpoint services,
      Cosmos is private-only by construction).
   2. `local_authentication_disabled = true` by default (AAD-only data plane;
      override-able).
@@ -1579,17 +931,18 @@ account from this stack. This amendment adds it, built to the CLAUDE.md
 
 ### Clarifications — Session 2026-06-02 (FR-032)
 
-- **C-027 — Private-only, no toggle (deliberate divergence from FR-027/
-  FR-029).** Unlike the Foundry-PE and ACR-PE features (which default-off and
+- **C-027 — Private-only, no toggle (deliberate divergence from the
+  toggle-gated PE services).** Unlike the toggle-gated private-endpoint features
+  (e.g. ACR, FR-029) which default-off and
   expose an `enable_*_private_endpoint` toggle because those services have a
-  legitimate public form), `cosmosdb` has **no public variant**:
+  legitimate public form, `cosmosdb` has **no public variant**:
   `public_network_access_enabled = false` is hard-coded, the PE is always-on,
   and both PE inputs are required. This is the strictest, most
   mandate-compliant reading of "private-by-default" for a brand-new service
   with full Private Link support — there is no convenience public path to
   accidentally leave open. Selection alone (no toggle) drives the remote-state
   requirement.
-- **C-028 — No stack-level backend reject test (matches FR-027/FR-029
+- **C-028 — No stack-level backend reject test (matches the ACR-PE
   precedent).** The "selecting `cosmosdb` requires both backends" rule is
   covered by the `var.dns_state_backend` variable validation + the
   `cosmosdb_requires_backends` check + the module's own negative tests
@@ -1600,132 +953,24 @@ account from this stack. This amendment adds it, built to the CLAUDE.md
   cleanly — the same reason the FR-029 ACR backend-required validation has no
   dedicated stack reject test. Negative coverage lives in
   `modules/cosmosdb/tests/negative.tftest.hcl`.
-- **C-029 — Reuses existing DNS zone (CA-013 #5 retired).** Per VF-1 the
-  `cosmos-sql` zone already exists; CA-013 #5 ("add the Cosmos DNS zone") is
-  retired as already-satisfied. The Hosted-Agent program is therefore a
-  5-feature epic, not 6.
-- **C-030 — `agents` subnet role already landed (CA-013 #3 done).** Per the
-  004-vnet FR-226 amendment (PR #31), the dedicated `agents` subnet role
-  (delegated `Microsoft.App/environments`, distinct from `container-apps`)
-  already exists in the engine. CA-013 #3 is delivered; this FR-032 amendment
-  is #2 of the remaining work.
+- **C-029 — Reuses existing DNS zone.** Per VF-1 the
+  `cosmos-sql` zone already exists, so no DNS-catalogue change is required.
 
 ### Out of scope for FR-032
 
-Threading the BYO Cosmos (and Storage/Search) resource IDs into the
-`aifoundry` module's FR-031 inputs (`agent_cosmosdb_account_id` et al.), the
-services-stack network-injection passthrough + `agents` subnet-role wiring,
-the spoke address-space expansion (102), the instance toggle flip / ACR
-exception (103), and the live destructive recreate (VC-8) remain dependent
-features per the (now 5-item) CA-013 program — not this amendment.
-
-## AMENDMENT 2026-06-02 — services-stack Hosted-Agent network-injection passthrough (FR-033)
-
-> **AMENDMENT NOTICE (2026-06-02).** This amendment delivers **item #3** of the
-> CA-013 program: the **services-stack passthrough** that lets a deployment
-> turn on the FR-031 `aifoundry` Hosted-Agent network injection by selecting
-> the BYO trio (`storage` + `cosmosdb` + `search`) and flipping one stack
-> toggle. It is **engine-only** and **default-off**: with the new
-> `enable_aifoundry_network_injection` toggle unset, the stack renders exactly
-> the post-FR-032 graph (no agent-subnet read, no BYO wiring, no injection on
-> the `aifoundry` module). No instance flips it here — that is the dependent
-> `103` feature (CA-013 #6) gated on the operator-approved live recreate.
-
-### Problem statement
-
-FR-031 made the `aifoundry` **module** capable of Hosted-Agent network
-injection (`network_injection_enabled` + `agent_subnet_id` + three BYO
-resource-ID inputs), and FR-032 added the `cosmosdb` selectable type for the
-BYO Cosmos leg. But nothing in the **services root stack** wired those
-together: there was no stack toggle, no agent-subnet resolution from the spoke
-VNet remote state, and no plumbing to thread the selected `storage` /
-`cosmosdb` / `search` sibling module resource IDs into the `aifoundry`
-module's BYO inputs. This amendment adds exactly that passthrough.
-
-### Functional requirement
-
-- **FR-033 — services-stack network-injection passthrough (engine,
-  default-off).** The services root stack MUST accept a new
-  `enable_aifoundry_network_injection` input (bool, default `false`) and a
-  new `agent_subnet_role` input (string, default `"agents"`, validated against
-  the network-stack role catalogue, which now includes the `agents` role from
-  004-vnet FR-226). With the default `false`, the stack's behaviour is
-  byte-for-byte identical to the post-FR-032 state (no agent-subnet read, the
-  `aifoundry` module receives `network_injection_enabled = false` and `null`
-  BYO inputs — its day-one form). When `true`, the stack MUST:
-  1. Resolve `agent_subnet_id` from the spoke VNet remote state
-     (`subnets[var.agent_subnet_role].id`), reusing the existing count-gated
-     `data.terraform_remote_state.vnet` (its gate is broadened to fire when
-     injection is on).
-  2. Thread the **single** selected `storage`, `cosmosdb`, and `search`
-     sibling module instances' `resource_id` outputs into the `aifoundry`
-     module's `agent_storage_account_id`, `agent_cosmosdb_account_id`, and
-     `agent_search_service_id` inputs respectively (via
-     `one([for k, v in module.<svc> : v.resource_id])`, which also enforces
-     exactly-one), and set `network_injection_enabled = true` +
-     `agent_subnet_id = local.agent_subnet_id`.
-  3. Enforce, defence-in-depth, that when
-     `enable_aifoundry_network_injection = true`: (a)
-     `enable_aifoundry_private_endpoint = true` (injection requires a private
-     account — VC-1/FR-031 step 4); (b) `vnet_state_backend != null` (to read
-     the agent subnet); and (c) **exactly one** of each of `aifoundry`,
-     `storage`, `cosmosdb`, and `search` is selected (the capability host
-     needs exactly one BYO of each leg — VC-3/VC-4). Enforcement: variable
-     validations on `enable_aifoundry_network_injection` /
-     `vnet_state_backend`, a root-stack `check
-     "aifoundry_network_injection_prereqs"`, and the `aifoundry` module's own
-     FR-031 validators/precondition. A positive plan test asserts the wiring;
-     the negative paths are covered by the module's FR-031 reject tests + the
-     check.
-
-### Clarifications — Session 2026-06-02 (FR-033)
-
-- **C-031 — Passthrough only; no new resources.** FR-033 adds NO new Azure
-  resources to the stack — it only wires existing module instances together
-  and flips the `aifoundry` module's pre-existing FR-031 inputs. The agent
-  subnet (004/102), the BYO Storage/Cosmos/Search (selected as ordinary
-  services), the live recreate (VC-8), and the ACR public exception (103) are
-  all outside this amendment.
-- **C-032 — `agents` added to the stack subnet-role allow-lists.** The
-  three stack subnet-role validators (`private_endpoint_subnet_role`,
-  `container_apps_subnet_role`, and the new `agent_subnet_role`) are widened
-  from 12 to **13** roles to include `agents` (the 004-vnet FR-226 role). The
-  agent subnet is resolved by the `agents` role by default.
-- **C-033 — Exactly-one BYO enforced by `one()` + check.** The BYO wiring uses
-  `one([for k, v in module.<svc> : v.resource_id])`, which errors if zero or
-  more than one instance of that service is selected. The root-stack `check`
-  gives the friendlier, earlier diagnostic; `one()` is the defence-in-depth
-  backstop. When injection is off, the BYO inputs are `null` (the `one()` call
-  is not evaluated — the ternary selects the `null` branch), so multi-instance
-  `storage`/`search` deployments are unaffected.
-- **C-034 — BYO Storage/Search privacy is the instance's concern.** FR-033
-  threads resource IDs only; it does not force the BYO Storage account or AI
-  Search service private. Making those private (their own private endpoints)
-  is the responsibility of the selecting `103` instance + any future
-  storage/search PE engine support, and is a tracked follow-up — NOT part of
-  this passthrough. The Cosmos BYO leg is already private-by-default (FR-032).
-
-### Out of scope for FR-033
-
-The spoke address-space expansion + agent subnet carve (102, CA-013 #4), the
-instance toggle flip / BYO selection / ACR public exception (103, CA-013 #6),
-the live destructive recreate (VC-8), and BYO Storage/Search PE-ification
-(C-034 follow-up) are all outside this engine passthrough.
-
----
+Multi-region Cosmos topologies, per-database/container provisioning, and
+throughput (RU/s) tuning beyond the wrapper defaults — each a candidate
+follow-up.
 
 ## AMENDMENT 2026-06-02 — storage account private endpoint (FR-034)
 
-> **Why now.** FR-033 wired Hosted-Agent network injection but threaded the BYO
-> Storage account by resource ID only (C-034), leaving it on public network
-> access. The standing **private-by-default mandate** requires every service
+> **Why now.** The standing **private-by-default mandate** requires every service
 > that supports Private Link to disable public access and be reached via a
-> private endpoint — Azure Storage does support Private Link, so the BYO thread/
-> file store MUST be private. This amendment closes the first half of the C-034
-> follow-up by giving `modules/storage` + the services stack an opt-in private
-> endpoint, mirroring the ACR pattern (FR-029 / C-020). The search half is
-> FR-035 (a sibling amendment); the `103` instance then selects both fully
-> private (CA-013 #6).
+> private endpoint — Azure Storage does support Private Link, so a storage
+> account MUST be able to be deployed private. This amendment gives
+> `modules/storage` + the services stack an opt-in private
+> endpoint, mirroring the ACR pattern (FR-029 / C-020). The search equivalent is
+> FR-035 (a sibling amendment).
 
 - **FR-034 — storage account private endpoint (engine, opt-in, default-off).**
   `modules/storage` gains `private_endpoint_enabled` (bool, default false),
@@ -1746,16 +991,14 @@ the live destructive recreate (VC-8), and BYO Storage/Search PE-ification
   `public_network_access` on already-deployed public accounts and could break
   consumers), FR-034 follows the established repo convention: an opt-in
   `enable_storage_private_endpoint` toggle, default false (day-one parity). The
-  private-by-default mandate is satisfied at the point of use — the `103`
-  instance turns it ON for the BYO agent store.
-- **C-036 — Subresource `blob`.** The Foundry Hosted-Agent capability host uses
-  blob storage for the thread/file store, so the private endpoint targets the
+  private-by-default mandate is satisfied at the point of use.
+- **C-036 — Subresource `blob`.** The private endpoint targets the
   `blob` subresource + the `privatelink.blob.core.windows.net` zone. (Other
   storage subresources/zones — file/queue/table — are out of scope; add them as
   a future amendment if a consumer needs them.)
 - **C-037 — Reuses existing plumbing.** No new remote-state backends or subnet
   roles: storage PE reuses `vnet_state_backend` + `dns_state_backend` +
-  `private_endpoint_subnet_role` (the same trio the ACR/Foundry PEs use). The
+  `private_endpoint_subnet_role` (the same trio the ACR PE uses). The
   `blob` zone already exists in the 002 DNS catalogue
   (`modules/dnszones/catalogue.tf`) — no 002 change.
 - **C-038 — Defence-in-depth.** `enable_storage_private_endpoint = true` is
@@ -1766,23 +1009,19 @@ the live destructive recreate (VC-8), and BYO Storage/Search PE-ification
 
 ### Out of scope for FR-034
 
-Search private endpoint (FR-035, the sibling amendment), the `103` instance
-toggle flip + BYO selection (CA-013 #6), and any non-`blob` storage subresource
-(file/queue/table) PE support.
+Search private endpoint (FR-035, the sibling amendment) and any non-`blob`
+storage subresource (file/queue/table) PE support.
 
 ---
 
 ## AMENDMENT 2026-06-02 — AI Search private endpoint (FR-035)
 
-> **Why now.** Sibling to FR-034. FR-033 threaded the BYO AI Search service by
-> resource ID only (C-034), leaving it on public network access. The standing
+> **Why now.** Sibling to FR-034. The standing
 > **private-by-default mandate** requires every Private-Link-capable service to
 > disable public access and be reached via a private endpoint — Azure AI Search
-> supports Private Link, so the BYO vector store MUST be private. This amendment
-> closes the second (and final) half of the C-034 follow-up, mirroring FR-034 /
-> the ACR FR-029 precedent exactly. With both FR-034 and FR-035 merged, the
-> `103` instance can select Storage + Cosmos + Search all fully private and turn
-> on Hosted-Agent network injection (CA-013 #6).
+> supports Private Link, so a search service MUST be able to be deployed private.
+> This amendment mirrors FR-034 /
+> the ACR FR-029 precedent exactly.
 
 - **FR-035 — AI Search private endpoint (engine, opt-in, default-off).**
   `modules/search` gains `private_endpoint_enabled` (bool, default false),
@@ -1804,14 +1043,13 @@ toggle flip + BYO selection (CA-013 #6), and any non-`blob` storage subresource
   `public_network_access` on already-deployed public services), FR-035 follows
   the established repo convention: an opt-in `enable_search_private_endpoint`
   toggle, default false (day-one parity). The private-by-default mandate is
-  satisfied at the point of use — the `103` instance turns it ON for the BYO
-  agent vector store.
+  satisfied at the point of use.
 - **C-040 — Subresource `searchService`.** The Azure AI Search Private Link
   subresource (group id) is `searchService`, so the private endpoint targets
   that subresource + the `privatelink.search.windows.net` zone.
 - **C-041 — Reuses existing plumbing.** No new remote-state backends or subnet
   roles: search PE reuses `vnet_state_backend` + `dns_state_backend` +
-  `private_endpoint_subnet_role` (the same trio the storage/ACR/Foundry PEs
+  `private_endpoint_subnet_role` (the same trio the storage/ACR PEs
   use). The `search` zone already exists in the 002 DNS catalogue
   (`modules/dnszones/catalogue.tf`) — no 002 change.
 - **C-042 — Defence-in-depth.** `enable_search_private_endpoint = true` is
@@ -1822,136 +1060,13 @@ toggle flip + BYO selection (CA-013 #6), and any non-`blob` storage subresource
 
 ### Out of scope for FR-035
 
-The `103` instance toggle flip + BYO selection + injection (CA-013 #6), the
-live destructive recreate (VC-8), and the ACR public exception (103) are all
-outside this engine amendment.
-
-## AMENDMENT 2026-06-02 — injected-account body alignment with Microsoft's proven reference (FR-040)
-
-> **Why now.** Two consecutive LIVE `103` services applies (the destructive
-> Foundry recreate of CA-013 #6) FAILED at the **account-create** step
-> (`module.aifoundry.azapi_resource.this`). The first hit the azapi default
-> 30-minute deadline (fixed by the C-043 90-minute timeout); the second ran the
-> full 90-minute budget and STILL failed — the ARM account write itself hangs
-> ~3h then settles `Failed` with a generic `ResourceProviderExtensionError`
-> (the `OpenAI`/`TextAnalytics` sub-kinds report `Succeeded`, but the overall
-> injected account write does not). More timeout does not help: the platform
-> write genuinely fails, so the divergence must be in the **account body**.
->
-> Deep diagnosis cleared every networking suspect: the agent subnet
-> (`/24`, delegated `Microsoft.App/environments`, dedicated NSG with no custom
-> rules, no route table, no stale service-association-link), all required RPs
-> registered, and the `networkInjections` body shape exactly matches the
-> contract. The working internal ACA environment in the same spoke uses an
-> identical subnet shape. The remaining, decisive evidence is Microsoft's own
-> **network-secured Standard Agent** reference
-> (`microsoft-foundry/foundry-samples` ▸
-> `infrastructure/infrastructure-setup-bicep/15-private-network-standard-agent-setup`)
-> — the *exact* BYO-VNet injection scenario we deploy. Its account module
-> (`modules-network-secured/ai-account-identity.bicep`) creates the injected
-> account on a **different API version** and with **two body fields our wrapper
-> omits**:
->
-> | account body | Microsoft reference (proven) | our wrapper (failing) |
-> |---|---|---|
-> | API version | `Microsoft.CognitiveServices/accounts@2025-04-01-preview` | `…@2025-09-01` |
-> | `networkInjections` | `[{ scenario:"agent", subnetArmId, useMicrosoftManagedNetwork:false }]` | identical ✅ |
-> | `networkAcls` | `{ defaultAction:"Deny", virtualNetworkRules:[], ipRules:[], bypass:"AzureServices" }` | **absent** |
-> | `disableLocalAuth` | `false` | absent |
-> | `publicNetworkAccess` | `"Disabled"` | `"Disabled"` ✅ |
->
-> The reference **never** provisions a Key Vault — confirming Key Vault is NOT
-> an injection prerequisite (the portal wizard asks for it only as optional
-> secrets/observability). The two account-body divergences above are the only
-> material differences at the failing (account-create) stage, so this amendment
-> aligns the injected-account body byte-for-relevant-field with the proven
-> reference.
-
-- **FR-040 — injected-account body alignment (engine, injection-path only,
-  default-off parity).** When `network_injection_enabled = true`, the
-  `aifoundry` wrapper MUST create the account to match Microsoft's proven
-  network-secured reference:
-  1. **API version** — the `azapi_resource.this` type resolves to
-     `Microsoft.CognitiveServices/accounts@2025-04-01-preview` (the only
-     API version with a Microsoft-proven injection reference). With injection
-     OFF the type stays `…@2025-09-01` (no churn for any non-injected account).
-  2. **`networkAcls`** — `properties.networkAcls = { defaultAction = "Deny",
-     virtualNetworkRules = [], ipRules = [], bypass = "AzureServices" }` is
-     added to the account body (paired with `networkInjections`, exactly as the
-     reference does).
-  3. **`disableLocalAuth`** — `properties.disableLocalAuth = false` is set
-     explicitly (matches the reference; the BYO connections use `AAD` auth so
-     this is non-restrictive).
-  With injection OFF, the account body and type are **byte-for-byte identical**
-  to the post-FR-035 state (no `networkAcls`, no `disableLocalAuth`, GA API
-  version) — strict day-one parity for every existing deployment.
-
-### Clarifications — Session 2026-06-02 (FR-040)
-
-- **C-044 — Injection-path API version is `2025-04-01-preview`; the GA
-  `2025-09-01` is retained for the non-injected path.** The FR-031 design was
-  authored against the `2025-09-01` GA schema, but the *only* Microsoft-proven
-  injection reference (`15-private-network-standard-agent-setup`) creates the
-  injected account on `2025-04-01-preview`. Two live account-create failures on
-  `2025-09-01` (with an otherwise schema-correct body) plus a proven preview
-  reference make "match the reference" the defensible choice. The version is
-  selected by a `local.network_injection_enabled` ternary on the resource
-  `type`, so the preview API is scoped strictly to the injection path; every
-  non-injected account keeps the GA version (changing `type` would force-replace
-  — unacceptable for already-deployed public/private accounts, so it is gated).
-  Not exposed as a tfvar: the value is dictated by the Microsoft injection
-  contract, not an operator choice; if/when injection GAs on a stable API this
-  ternary is revisited as its own amendment.
-- **C-045 — `networkAcls` is added (with injection) to mirror the reference.**
-  Every Microsoft injection template pairs `networkInjections` with an explicit
-  `networkAcls { defaultAction = "Deny", …, bypass = "AzureServices" }`. Although
-  `publicNetworkAccess = "Disabled"` already blocks public inbound, the injected
-  managed-network provisioning path in the RP relies on the `networkAcls`
-  contract (notably `bypass = "AzureServices"`) being present; omitting it is the
-  leading suspect for the account-write hang. Added only when injection is on.
-- **C-046 — `disableLocalAuth = false` is explicit (with injection).** Matches
-  the reference. The three BYO connections authenticate via `AAD`
-  (`authType = "AAD"`), so a `false` here is non-restrictive and simply makes
-  the body match the proven shape rather than relying on an RP default.
-- **C-047 — Scope is the account-create stage only; RBAC + Cosmos RU/s are a
-  deferred, separate suspect.** Microsoft's reference also assigns the project
-  managed identity RBAC on the BYO resources (Storage Blob Data Contributor,
-  **Cosmos DB Operator** "before the caphost", AI Search roles) and requires the
-  Cosmos account to carry ≥ 3000 RU/s — but those are prerequisites of the
-  **capability-host** stage, which is *downstream* of the account create where
-  our applies actually fail. Folding cross-module RBAC + Cosmos-throughput
-  changes into this amendment would muddy the diagnostic signal of the next live
-  cycle and over-reach the observed failure. They are recorded here as the
-  explicit next suspect: if a future cycle clears the account create and then
-  fails at the caphost, a follow-up engine amendment (its own branch + full
-  pipeline) adds the pre-caphost role assignments + Cosmos RU/s floor.
-
-### Validation criteria (FR-040)
-
-- **VC-9 — Conditional API version.** With injection ON the
-  `azapi_resource.this` type is `…/accounts@2025-04-01-preview`; with injection
-  OFF it is `…/accounts@2025-09-01`.
-- **VC-10 — `networkAcls` present + correct on the injected account.**
-  `body.properties.networkAcls.defaultAction == "Deny"` and
-  `body.properties.networkAcls.bypass == "AzureServices"`; absent entirely when
-  injection is OFF.
-- **VC-11 — `disableLocalAuth` explicit on the injected account.**
-  `body.properties.disableLocalAuth == false` when injection ON; the key is
-  absent when injection OFF.
-
-### Out of scope for FR-040
-
-Cross-module RBAC role assignments and the Cosmos DB RU/s floor (deferred —
-C-047), any structural change to where connections/capability hosts are parented
-(the FR-031 account-level design stands), the live destructive recreate / rollout
-(CA-013 #6, executed via the `deploy` workflow), and all `103` instance changes.
-
----
+Any service-specific wiring beyond the AI Search private endpoint is outside
+this engine amendment.
 
 ## AMENDMENT 2026-06-02 — private-by-default master switch (FR-041)
 
-> **Why now.** Every Private-Link toggle shipped so far (FR-027 Foundry,
-> FR-029 ACR, FR-034 storage, FR-035 search) defaults to **`false`** ("day-one
+> **Why now.** Every Private-Link toggle shipped so far (FR-029 ACR,
+> FR-034 storage, FR-035 search) defaults to **`false`** ("day-one
 > parity"), and the CLAUDE.md **private-by-default mandate** was satisfied only
 > *at the point of use* — each instance (`103`) had to remember to flip every
 > toggle ON. An audit of all `modules/<service>/` wrappers confirmed the
@@ -1967,15 +1082,14 @@ C-047), any structural change to where connections/capability hosts are parented
 - **FR-041 — private-by-default master switch (engine).** The services stack
   gains one master input `private_by_default` (bool, **default `true`**). Every
   existing per-service private-endpoint toggle
-  (`enable_aifoundry_private_endpoint`, `enable_container_registry_private_endpoint`,
-  `enable_storage_private_endpoint`, `enable_search_private_endpoint`) and the
-  Foundry telemetry toggle (`enable_aifoundry_application_insights`) changes type
+  (`enable_container_registry_private_endpoint`,
+  `enable_storage_private_endpoint`, `enable_search_private_endpoint`) changes type
   from `bool (default false)` to `optional(bool, null)` and is **resolved** as
   `coalesce(<explicit>, var.private_by_default)`. With the shipped default
   (`private_by_default = true`, every per-service toggle left `null`) the stack
-  is private-by-default for all of: Foundry account (PE + `publicNetworkAccess =
-  "Disabled"`), ACR (Premium + PE), storage account (PE + blob zone), AI Search
-  (PE + search zone), and Foundry App Insights telemetry. An operator who needs
+  is private-by-default for all of: ACR (Premium + PE), storage account
+  (PE + blob zone), AI Search (PE + search zone), and Key Vault (PE + vault
+  zone). An operator who needs
   a specific service public sets that one toggle to an **explicit `false`**
   (explicit wins over the master). Setting `private_by_default = false` restores
   the old all-public day-one behaviour wholesale.
@@ -1994,20 +1108,13 @@ C-047), any structural change to where connections/capability hosts are parented
   2. **Telemetry services public-access-off (Azure-Monitor form).** App Insights
      and Log Analytics have **no classic private endpoint** — their private form
      is Azure Monitor Private Link Scope (AMPLS). Under `private_by_default =
-     true` the Foundry App Insights resource (FR-028) and any standalone
-     `app_insights` / `log_analytics` wrapper set `internet_ingestion_enabled =
+     true` any standalone
+     `app_insights` / `log_analytics` wrapper sets `internet_ingestion_enabled =
      false` and `internet_query_enabled = false` (the supported "public access
      disabled" surface for these RPs). Full AMPLS wiring is an explicit,
      documented follow-up; these two RPs are the **called-out mandate
      exception** (no Private Link) per CLAUDE.md.
-  3. **Network injection is NOT auto-enabled.**
-     `enable_aifoundry_network_injection` (FR-033) **stays `bool`, default
-     `false`** and is **excluded** from the master. Injection is a
-     creation-time-only, destructive operation (VC-1 / C-031) and must never be
-     turned on implicitly by a privacy default; an instance opts into injection
-     deliberately. Private-by-default gives a **private** Foundry account
-     (PE + public access disabled); injection is an orthogonal, explicit choice.
-  4. **Not-yet-wired selectable types (tracked follow-up).** The selectable
+  3. **Not-yet-wired selectable types (tracked follow-up).** The selectable
      types whose wrappers have **no** Private-Link implementation today —
      `openai`, `language`, `doc_intel` (standalone Cognitive accounts),
      `apim`, `function_app`, `logic_app`, `aml_workspace` — are **not** silently
@@ -2056,7 +1163,7 @@ C-047), any structural change to where connections/capability hosts are parented
 
 - **VC-12 — Master-on default is private.** With `private_by_default = true`
   (shipped default) and all per-service toggles `null`, a plan that selects
-  `aifoundry` + `storage` + `search` + `container_registry` + `keyvault`
+  `storage` + `search` + `container_registry` + `keyvault`
   provisions a private endpoint and `publicNetworkAccess`/`public_network_access_enabled
   = Disabled/false` for each.
 - **VC-13 — Explicit per-service `false` overrides the master.**
@@ -2078,527 +1185,30 @@ C-047), any structural change to where connections/capability hosts are parented
 
 Full AMPLS wiring for App Insights / Log Analytics (tracked follow-up); PE
 implementation for `openai` / `language` / `doc_intel` / `apim` / `function_app`
-/ `logic_app` / `aml_workspace` (each a future engine amendment); enabling
-network injection by default (explicitly excluded — C-031/VC-1); and all `103`
+/ `logic_app` / `aml_workspace` (each a future engine amendment); and all `103`
 instance tfvars changes (the instance simply inherits the new private default —
 covered by the `103` feature's own pipeline, not this engine amendment).
 
 ---
 
-## AMENDMENT 2026-06-02 — Foundry private-endpoint supporting-service dependency bundle (FR-042)
-
-> **Why now.** Microsoft's network-secured Standard Agent reference (researched
-> 2026-06-02) shows a private Foundry account does not stand alone: its
-> capability host depends on a **BYO trio** (Storage + Cosmos DB + AI Search),
-> all private, plus Key Vault for secrets and App Insights for telemetry. The
-> user instruction is explicit: *"ensure 006 Foundry is defaulted to private
-> endpoint with the supporting services also added as a dependency for Foundry
-> private endpoint like storage, search, cosmosdb, azure key vault and
-> application insights."* FR-041 makes the Foundry account private by default;
-> FR-042 makes the **supporting services a first-class dependency of the private
-> Foundry account** so a private Foundry can never silently sit alongside a
-> public dependency.
-
-- **FR-042 — Foundry private dependency bundle (engine).** When an `aifoundry`
-  is selected **and** its private endpoint is enabled (the FR-041 default), the
-  stack MUST enforce that every **supporting service that is also selected** is
-  private:
-  1. **Dependency set.** The supporting services are `storage`, `cosmosdb`,
-     `search`, `keyvault`, and the Foundry App Insights telemetry (FR-028).
-     `cosmosdb` is always private (FR-032) and `app_insights` follows FR-041 §2;
-     `storage`, `search`, and `keyvault` MUST have their resolved PE toggle
-     `true` (which they do under the FR-041 master default).
-  2. **Hard-fail guard.** A root-stack `check
-     "aifoundry_private_requires_private_deps"` hard-fails at plan time if a
-     private `aifoundry` is selected while any **selected** supporting service
-     (`storage` / `search` / `keyvault`) has its resolved private-endpoint toggle
-     `false`, listing each offending public dependency. (Unselected supporting
-     services are not forced into existence — the guard only fires on services
-     the operator actually selected; provisioning the full BYO trio is the
-     instance's selection choice, mirroring FR-033's injection prereq check.)
-  3. **Telemetry dependency on.** Under the FR-041 master,
-     `enable_aifoundry_application_insights` resolves `true`, so a private
-     Foundry account always lands its trace/telemetry in the hub Log Analytics
-     privately (FR-028), with `internet_ingestion/query` disabled per FR-041 §2.
-  4. **Day-one parity.** With `private_by_default = false` (or the Foundry PE
-     toggle explicitly `false`), the guard does **not** fire and behaviour is
-     byte-for-byte the pre-FR-042 state — the dependency bundle is strictly a
-     property of the *private* Foundry path.
-
-### Clarifications — Session 2026-06-02 (FR-042)
-
-- **C-053 — Guard, not auto-provision.** FR-042 does **not** silently create
-  Storage/Cosmos/Search/Key Vault the operator didn't select (that would violate
-  Principle II intent-only inputs and could surprise-bill). It enforces that any
-  supporting service the operator **does** select alongside a private Foundry is
-  itself private. The recommended full BYO selection lives in the `103`
-  instance's tfvars (its own pipeline); the engine guarantees consistency.
-- **C-054 — Key Vault is a supporting dependency, not an injection
-  prerequisite.** FR-040/C-047 established Key Vault is NOT required for
-  Hosted-Agent network injection. FR-042 adds Key Vault to the *private
-  dependency* set (for secret storage / connections) so that **if** a Key Vault
-  is selected with a private Foundry it is private too — it does not make Key
-  Vault mandatory for Foundry.
-- **C-055 — Cosmos + App Insights already satisfy the guard.** `cosmosdb` is
-  hardcoded private (FR-032) and the Foundry App Insights telemetry is
-  master-driven (FR-041 §2 / FR-028), so the only services the FR-042 guard can
-  flag are `storage`, `search`, and `keyvault` — each of which the FR-041 master
-  already flips private by default. In the shipped default the guard is
-  satisfied automatically; it exists to catch a *deliberate* public override of
-  a Foundry dependency.
-
-### Validation criteria (FR-042)
-
-- **VC-17 — Consistent private bundle passes.** `private_by_default = true` +
-  `aifoundry` + `storage` + `cosmosdb` + `search` + `keyvault` selected plans
-  clean (all private, guard satisfied).
-- **VC-18 — Public dependency hard-fails.** `private_by_default = true` +
-  `aifoundry` + `storage` with `enable_storage_private_endpoint = false`
-  hard-fails at plan time naming `storage` as a public Foundry dependency.
-- **VC-19 — Day-one parity.** `private_by_default = false` + the same selection
-  plans clean with no guard firing (pre-FR-042 behaviour).
-
-### Out of scope for FR-042
-
-Auto-provisioning unselected supporting services (rejected — C-053); the BYO
-RBAC role assignments + Cosmos RU/s floor (still deferred — C-047); the capability
--host / network-injection wiring (FR-033/FR-040 own that, default-off); and all
-`103` instance tfvars selection (the instance's own pipeline).
-
-## AMENDMENT 2026-06-04 — Foundry **project-level** capability host (FR-043)
-
-> **Why now.** A portal-exported "Standard Agent (vnet-injected)" Foundry
-> template (researched 2026-06-04) and Microsoft's network-secured Standard
-> Agent reference both provision **two** capability hosts on an injected
-> account: an **account-level** host (`accounts/capabilityHosts`,
-> kind=Agents, carrying `customerSubnet` — already shipped by FR-031/C-026)
-> **and** a **project-level** host (`accounts/projects/capabilityHosts`,
-> kind=Agents, carrying the same storage/thread/vector connection references,
-> **no** `customerSubnet`). The current `aifoundryproject` module
-> ([modules/aifoundryproject/](../../modules/aifoundryproject/)) creates only
-> the bare project resource — **no project capability host** — so an injected
-> account's agents have no project-scoped runtime binding. FR-043 closes that
-> gap so Foundry network injection "just works" end-to-end when the toggle is
-> flipped on (the user's standing instruction: *"if required in the future I
-> should be able to set it to true and deploy and it should magically work"*).
-
-- **FR-043 — Foundry project-level capability host (engine).** When
-  Hosted-Agent network injection is enabled (the same
-  `enable_aifoundry_network_injection` master that drives the account-level
-  injection in FR-031/FR-033/FR-040), the `aifoundryproject` module MUST
-  provision a `Microsoft.CognitiveServices/accounts/projects/capabilityHosts`
-  child:
-  1. **Shape.** `capabilityHostKind = "Agents"`; `storageConnections`,
-     `threadStorageConnections`, `vectorStoreConnections` reference the **same
-     three account-level BYO connection names** the `aifoundry` account module
-     creates (C-024/C-026): `agentstorage` (storage), `agentcosmos`
-     (threadStorage / Cosmos DB), `agentsearch` (vectorStore / AI Search). The
-     project host carries **no `customerSubnet`** — the subnet binding lives on
-     the account-level host (FR-031) and the project inherits it.
-  2. **Ordering.** The project capability host depends on (a) its own project
-     resource and (b) the account-level connections + account capability host
-     created by the `aifoundry` module. The services-stack wiring passes
-     `depends_on = [module.aifoundry]` so the shared-to-all connections exist
-     before the project host references them by name.
-  3. **Connection-name parity.** The three connection names referenced by the
-     project host MUST equal the account module's fixed
-     `local.agent_conn_storage`/`local.agent_conn_cosmos`/`local.agent_conn_search`
-     constants exactly (one account per stack ⇒ no collision; a documented
-     single-source contract, mirroring the C-025 fixed-name precedent).
-  4. **Toggle + day-one parity.** Default off ⇒ no project capability host ⇒
-     the project body is byte-for-byte the pre-FR-043 state. Injection is a
-     creation-time property (mirrors VC-1) — flipping it on an existing project
-     is an operator-approved recreate, never an in-place edit.
-
-### Clarifications — Session 2026-06-04 (FR-043)
-
-- **C-056 — Additive, not a replacement.** FR-043 ADDS the project-level
-  capability host; it does **not** remove or relocate the account-level host
-  shipped by FR-031/C-026. Both are `kind=Agents`; the portal/reference create
-  both. The account host owns `customerSubnet`; the project host owns the
-  project-scoped agent runtime. Keeping both matches the proven reference.
-- **C-057 — No `customerSubnet` on the project host.** The agent subnet is
-  declared once, on the account-level host (FR-031). The project host omits
-  `customerSubnet` entirely (it inherits the account binding); re-declaring it
-  would duplicate/conflict with the account host. This matches the portal's
-  `project-capability-host` body (subnet only on `account-capability-host`).
-- **C-058 — Fixed connection-name parity; `aiServicesConnections` omitted.**
-  The project host references the literal connection names
-  `agentstorage`/`agentcosmos`/`agentsearch` defined in the account module —
-  a hard single-source contract (the module-level test asserts the exact
-  literals). The portal's `aiServicesConnections` leg is OMITTED: it exists
-  only in the BYO-separate-foundry variant (where a different account supplies
-  the AI Services connection). In our topology the project is parented
-  **directly** by the account, so no `aiServicesConnections` reference is
-  needed (matching the portal's `aiFoundry`-empty `project-capability-host`
-  variant).
-- **C-059 — Creation-time only + parity.** Like the account-level injection
-  (VC-1 / C-031), the project capability host is settable only at creation;
-  default-off reproduces the pre-FR-043 project body byte-for-byte. The
-  services stack drives the project module's `network_injection_enabled` from
-  the same `var.enable_aifoundry_network_injection` master, so the account and
-  project hosts are always provisioned together (never one without the other).
-
-### Validation criteria (FR-043)
-
-- **VC-20 — Injection-on creates the project host.**
-  `network_injection_enabled = true` (with the project's `parent_account_id`)
-  ⇒ exactly one `Microsoft.CognitiveServices/accounts/projects/capabilityHosts`
-  named `agents`, `capabilityHostKind = "Agents"`, with `storageConnections =
-  ["agentstorage"]`, `threadStorageConnections = ["agentcosmos"]`,
-  `vectorStoreConnections = ["agentsearch"]`, and **no** `customerSubnet`.
-- **VC-21 — Day-one parity.** `network_injection_enabled = false` (default) ⇒
-  zero project capability hosts; the project resource body is byte-for-byte the
-  pre-FR-043 state.
-- **VC-22 — Connection-name parity.** The project host's three connection
-  names equal the account module's fixed constants
-  (`agentstorage`/`agentcosmos`/`agentsearch`) exactly — asserted in the
-  `aifoundryproject` module test.
-
-### Out of scope for FR-043
-
-The account-level capability host + the agent `customerSubnet` (FR-031 owns
-them — unchanged); `aiServicesConnections` (BYO-separate-foundry variant only —
-C-058); the BYO trio (Storage/Cosmos/Search) provisioning and their private
-endpoints (FR-031/FR-035/FR-042 + the `103` instance); the `agents` subnet
-itself (the 004-vnet `agents` role + the spoke vnet instance own it); and any
-`10n` instance tfvars selection (each instance's own pipeline).
-
-## Amendment 2026-06-04 — FR-031 storage connection target must be the Blob endpoint URI
-
-**Defect (live apply, run 26943355158):** With network injection enabled, the
-AzureStorageAccount BYO connection (`agentstorage`) was created with
-`properties.target = <storage account resource ID>`. The Cognitive Services RP
-rejects this with HTTP 400 `ValidationError`: *"Target property must be a valid
-storage URI (e.g., https://<account>.blob.core.windows.net)."* The Cosmos DB and
-AI Search connections accept resource IDs and were created successfully — only
-the Storage connection requires a service-endpoint URI.
-
-- **C-031-06** — the `agentstorage` connection `properties.target` MUST be the
-  Blob service endpoint URI of the BYO storage account
-  (`https://<account>.blob.core.windows.net`), derived deterministically from the
-  validated `agent_storage_account_id` (last path segment = account name).
-- **C-031-07** — `properties.metadata.ResourceId` MUST remain the full storage
-  account ARM resource ID (unchanged).
-- **C-031-08** — the Cosmos DB (`agentcosmos`) and AI Search (`agentsearch`)
-  connection targets remain the respective ARM resource IDs (no change).
-
-**Acceptance 16** — with injection enabled, plan shows the `agentstorage`
-connection target equal to the storage account's Blob endpoint URI; live apply of
-the connection succeeds (no RP ValidationError).
-
-## AMENDMENT 2026-06-04 — userOwnedStorage + Key Vault connection (FR-044, FR-045)
-
-> **AMENDMENT NOTICE.** This amendment extends the 006-services engine so a
-> selected Foundry account can additionally consume (a) its OWN second storage
-> account as `properties.userOwnedStorage` plus a matching account connection,
-> and (b) a Key Vault as an `AzureKeyVault` account connection — the two
-> remaining service-graph legs in the portal "Foundry account + Standard Agent
-> Setup (network-injected)" reference template that the engine could not yet
-> express. Both are **opt-in, default-off**; with the toggles off the account
-> body and connection set are byte-for-byte the post-FR-043 state. This is an
-> ENGINE change (new selectable wiring + toggles + module inputs); the concrete
-> sp01/dev selection lands in the `103` instance feature, and the role
-> assignments the template attaches to these resources land in the separate
-> `007-rbac` engine — neither is in scope here.
-
-**Problem.** The portal Standard-Agent reference deploys TWO storage accounts —
-the BYO agent thread/file store (already supported via FR-031 network
-injection) AND a SECOND storage that the account owns directly, surfaced on the
-account body as `properties.userOwnedStorage` and mirrored as an
-`AzureStorageAccount` account connection (`<account>-userowned`). It also
-deploys a Key Vault and attaches it to the account as an `AzureKeyVault`
-connection (`<account>-keyvault`, `authType = AccountManagedIdentity`). The
-006-services engine had no way to (i) select/attach a second account-owned
-storage, or (ii) attach a Key Vault connection. The existing single-storage
-resolver (`one([for k, v in module.storage : v.resource_id])`) also breaks the
-moment a second `storage` is selected, so the engine must disambiguate the two
-storages by their engine `service_purpose`.
-
-- **FR-044 — userOwnedStorage (the account's own second storage).** The
-  `aifoundry` account module MUST be able to attach a second storage account as
-  `properties.userOwnedStorage = [{ resourceId = <storage id> }]` AND provision
-  a matching `Microsoft.CognitiveServices/accounts/connections` of
-  `category = "AzureStorageAccount"` (fixed name `accountstorage`, `authType =
-  "AAD"`, `isSharedToAll = true`, `target` = the storage account's Blob
-  endpoint URI per C-031-06, `metadata.ResourceId` = the storage ARM id). This
-  is gated by a known-at-plan toggle (`account_storage_connection_enabled`)
-  kept separate from the (computed, unknown-at-plan) `account_storage_account_id`
-  so `count`/`for_each` never depend on an unknown value — mirroring the
-  `network_injection_enabled` precedent. The services stack exposes
-  `enable_aifoundry_user_owned_storage`; when on it REQUIRES exactly two
-  `storage` selections disambiguated by `agent_storage_purpose` (the BYO agent
-  store) and `account_storage_purpose` (the account's userOwnedStorage), both
-  set and distinct. Default off ⇒ no `userOwnedStorage`, no `accountstorage`
-  connection, single-storage behaviour preserved.
-- **FR-045 — Key Vault connection on the Foundry account.** The `aifoundry`
-  account module MUST be able to attach a Key Vault as a
-  `Microsoft.CognitiveServices/accounts/connections` of `category =
-  "AzureKeyVault"` (fixed name `keyvault`, `authType = "AccountManagedIdentity"`,
-  `isSharedToAll = true` so child projects inherit it, `target` and
-  `metadata.ResourceId` = the Key Vault ARM id, `metadata.location` = the
-  account location, `credentials = {}`). Gated by a known-at-plan toggle
-  (`keyvault_connection_enabled`) separate from the computed
-  `keyvault_account_id`. The services stack exposes
-  `enable_aifoundry_keyvault_connection`; when on it REQUIRES exactly one
-  `keyvault` selection. Default off ⇒ no Key Vault connection. Because azapi's
-  embedded connection schema does not (yet) list the `AccountManagedIdentity`
-  auth mode (valid at the RP), the Key Vault connection resource sets
-  `schema_validation_enabled = false` so the template-exact `authType` is sent.
-
-### Clarifications — Session 2026-06-04 (FR-044 / FR-045)
-
-- **C-060 — Two storages, disambiguated by `service_purpose`.** The naming
-  engine already produces DISTINCT canonical names for two `storage` selections
-  (per-entry key suffix), so a second storage needs NO `001-naming` change.
-  The engine distinguishes the BYO agent store from the account userOwnedStorage
-  purely by `service_purpose`: the services stack resolves
-  `local.agent_byo_storage_id` and `local.account_owned_storage_id` by filtering
-  `module.storage` on `module.naming.names[k].service_purpose ==
-  var.agent_storage_purpose` / `== var.account_storage_purpose`. When a single
-  storage is selected and the purposes are null, both resolvers collapse to that
-  one storage (back-compat with the FR-031 single-storage injection case).
-  `check.aifoundry_user_owned_storage_prereqs` enforces (aifoundry == 1 ∧
-  storage == 2 ∧ both purposes set ∧ distinct) when
-  `enable_aifoundry_user_owned_storage = true`, and the network-injection
-  prereq's storage count is relaxed to `(uos ? 2 : 1)`.
-- **C-061 — Fixed short connection names + private-by-default Key Vault.** Both
-  new connections use FIXED short names (`accountstorage`, `keyvault`) for the
-  same reason as C-025 (the canonical account name's dots/length cannot satisfy
-  the connection-name RP pattern `^[a-zA-Z0-9][a-zA-Z0-9_-]{2,32}$`). With one
-  account per stack there is no collision. `check.aifoundry_keyvault_connection_prereqs`
-  enforces (aifoundry == 1 ∧ keyvault == 1) when
-  `enable_aifoundry_keyvault_connection = true`.
-
-### DEVIATION from the portal template (private-by-default mandate)
-
-The portal reference creates the Key Vault **PUBLIC** (`publicNetworkAccess =
-Enabled`, `networkAcls.defaultAction = Allow`). Per the repository's standing
-**private-by-default mandate** (CLAUDE.md — every Private-Link-capable service
-is deployed with public access disabled + a private endpoint), the `keyvault`
-selection backing FR-045 is deployed **PRIVATE** (`publicNetworkAccess =
-Disabled`, `network_acls.default_action = Deny`, `vault` private endpoint +
-`privatelink.vaultcore.azure.net` DNS) via the existing `keyvault` module +
-`enable_keyvault_private_endpoint` / `private_by_default` controls. This is
-STRICTLY MORE private than the template and is the intentional, documented
-deviation. The Foundry account reaches the vault over the spoke VNet via its
-managed identity (the `AzureKeyVault`/`AccountManagedIdentity` connection),
-which functions identically against a private vault.
-
-### Validation criteria (FR-044 / FR-045)
-
-- **VC-23 — userOwnedStorage body + connection.** With
-  `account_storage_connection_enabled = true` and a valid
-  `account_storage_account_id`, the account body includes
-  `userOwnedStorage[0].resourceId == account_storage_account_id` AND exactly one
-  `accountstorage` connection (`category = AzureStorageAccount`, `target` = the
-  Blob endpoint URI, `metadata.ResourceId` = the storage id).
-- **VC-24 — Key Vault connection.** With `keyvault_connection_enabled = true`
-  and a valid `keyvault_account_id`, exactly one `keyvault` connection
-  (`category = AzureKeyVault`, `authType = AccountManagedIdentity`,
-  `isSharedToAll = true`, `target` = the Key Vault id).
-- **VC-25 — Day-one parity.** With both toggles off (defaults), the account
-  body has NO `userOwnedStorage` and neither the `accountstorage` nor the
-  `keyvault` connection is emitted.
-- **VC-26 — Two-storage disambiguation.** With
-  `enable_aifoundry_user_owned_storage = true`, two `storage` selections with
-  distinct purposes resolve to two distinct canonical storages; the misconfig
-  (≠2 storages, or missing/equal purposes) is rejected by
-  `check.aifoundry_user_owned_storage_prereqs`.
-- **VC-27 — Key Vault prereq.** With `enable_aifoundry_keyvault_connection =
-  true` and no `keyvault` selected, `check.aifoundry_keyvault_connection_prereqs`
-  fails.
-
-### Out of scope for FR-044 / FR-045
-
-The role assignments the portal attaches to the userOwnedStorage / Key Vault
-(account + project MI → Storage Blob Data Contributor, Key Vault Crypto roles,
-etc.) — those land in the separate `007-rbac` engine; the concrete sp01/dev
-selection of the second storage + Key Vault (and dropping the container
-registry) — that lands in the `103-sp01-dev-services` instance feature; the
-Key Vault's own private-endpoint wiring (already shipped by FR-041 /
-`enable_keyvault_private_endpoint`); and any provisioning of the storage/Key
-Vault resources themselves (the existing `storage`/`keyvault` selectable types).
-
-## AMENDMENT 2026-06-04 — remove the temporary Foundry import shim (FR-059)
-
-> **Why.** PR #58 added `terraform/services/import.aifoundry.tf`, a
-> config-based `import {}` block scoped to the sp01/dev Foundry account
-> (`aif-uc1-uc1-sp01-dev-swc-001`). It was a one-shot recovery aid to adopt an
-> account that a prior apply had created in Azure but not written to state
-> (a >90 m network-injection create that hit `context deadline exceeded`). Its
-> own header said *"REMOVE this file in a follow-up PR once the import has
-> landed in state."* The import has since landed and the account has since
-> been deleted (its resource group was removed), so the import target no
-> longer exists. Left in place, the block makes a fresh apply **fail at plan**
-> ("Cannot import non-existent remote object").
-
-- **FR-059 — the engine carries no instance-pinned import shim.** The
-  `terraform/services/` root module MUST NOT contain a config-based `import {}`
-  block hard-scoped to a specific tenant/environment resource name. Such a
-  block is a transient recovery artefact, never steady-state engine behaviour.
-  Removing `import.aifoundry.tf` restores the engine to a clean
-  create/update/destroy lifecycle for every instance, including a from-scratch
-  rebuild after a manual resource-group deletion.
-
-### Clarifications — Session 2026-06-04 (FR-059)
-
-- **C-067 — Pure deletion, no replacement.** FR-059 deletes the file and adds
-  nothing. The account is provisioned normally by `module.aifoundry` on apply;
-  no import path is needed for a clean (empty-state) rebuild.
-- **C-068 — `destroy` was always safe.** Terraform ignores `import {}` blocks
-  during `terraform destroy`, so the stale shim never affected teardown; only
-  the create/plan path was at risk. The fix is still required before any fresh
-  apply.
-
-### Validation criteria (FR-059)
-
-- `terraform validate -backend=false` on `terraform/services` succeeds with the
-  file removed.
-- The full `terraform test` suite stays green (the shim was inert under the
-  all-zeros sentinel subscription used by every fixture, so its removal changes
-  no test outcome).
-- No remaining `import {` block exists anywhere under `terraform/services/`.
-
-### Out of scope for FR-059
-
-Any future recovery that genuinely needs to adopt pre-existing Azure resources
-into state — that is handled ad hoc (a temporary, clearly-labelled shim on a
-dedicated branch, removed immediately after) and is not steady-state engine
-surface.
-
-## AMENDMENT 2026-06-04 — agent-finalization phasing + capability-host timeouts (FR-060)
-
-> **Why.** The live sp01/dev injected-agent rollout proved the engine's
-> account-then-rbac split cannot complete in a single `services` apply. Three
-> resources created by the `services` stack — the App Insights tracing
-> connection and **both** Agents capability hosts (the account-level host in
-> `modules/aifoundry` and the project-level host in `modules/aifoundryproject`,
-> FR-031/FR-043) — hard-depend on role grants that only the **separate** `rbac`
-> stack (`007-rbac`) issues, and which `rbac` can only issue **after** the
-> account + project exist. Microsoft's network-secured reference
-> (`microsoft-foundry/foundry-samples` sample 15, `main.bicep`) orders the data
-> plane explicitly: `account → project → storage/cosmos/search role assignments
-> → addAccountCapabilityHost (dependsOn those roles) → addProjectCapabilityHost
-> (dependsOn the account host + those roles)`. Because our role grants live in a
-> downstream stack, the first `services` apply created the caphosts **before**
-> the grants existed and they failed (`context deadline exceeded`), while the
-> App Insights connection failed `Forbidden` writing its ApiKey secret to the
-> account's attached Key Vault (the account MI's data-plane secret grant is also
-> an `rbac`-stack grant). Separately the account create budget (90m) was ~3 min
-> short of the observed swc injection time (~93m).
-
-- **FR-060 — `enable_aifoundry_agent_finalization` toggle gates the
-  `rbac`-dependent resources, and the capability hosts carry explicit
-  timeouts.** The engine gains a single known-at-plan boolean,
-  `enable_aifoundry_agent_finalization` (services-stack input; default
-  **`true`**, preserving the post-FR-043 single-pass behaviour for steady-state
-  re-applies where the grants already exist). It threads into
-  `modules/aifoundry` and `modules/aifoundryproject` as
-  `agent_finalization_enabled` and gates exactly three resources that depend on
-  `007-rbac` grants:
-  1. `azapi_resource.appinsights_connection` (`modules/aifoundry`) —
-     `count = application_insights_enabled && agent_finalization_enabled`.
-  2. `azapi_resource.capability_host` (account host, `modules/aifoundry`) —
-     `count = network_injection_enabled && agent_finalization_enabled`.
-  3. `azapi_resource.capability_host` (project host,
-     `modules/aifoundryproject`) —
-     `count = network_injection_enabled && agent_finalization_enabled`.
-  All other account/project/connection resources are unaffected (they do not
-  depend on `rbac` grants). Both capability-host resources additionally gain a
-  `timeouts { create = "60m" update = "60m" delete = "30m" }` block (the azapi
-  default 30-minute deadline is too short for caphost provisioning behind an
-  injected network). The account resource's create/update timeout is raised from
-  `90m` to `150m` to cover the observed swc injection time with margin.
-
-### Clarifications — Session 2026-06-04 (FR-060)
-
-- **C-069 — Phasing, not stack-merging.** The fix deliberately does **not** move
-  any `rbac` grant into the `services` stack; the `006`/`007` separation
-  (C-065) is preserved. `enable_aifoundry_agent_finalization` exists so a
-  brand-new injected environment can be brought up in a documented three-pass
-  bootstrap — `services` (finalization **off**: account + project + every BYO /
-  Key Vault / account-storage connection, **no** App Insights connection, **no**
-  capability hosts) → `rbac` (account-MI Key Vault Secrets Officer + project-MI
-  storage/cosmos/search data-plane grants) → `services` (finalization **on**:
-  App Insights connection + both capability hosts, which now succeed because the
-  grants they depend on exist). The default `true` makes every steady-state
-  re-apply a single pass; only the one-time bootstrap flips the toggle.
-- **C-070 — Default preserves behaviour; the bootstrap is the only deviation.**
-  `enable_aifoundry_agent_finalization` defaults to `true`, so existing
-  selections and every non-injected stack are byte-for-byte unchanged. The
-  toggle is a known-at-plan boolean (never a computed value), so the three
-  `count`s stay plan-resolvable. When `network_injection_enabled` /
-  `application_insights_enabled` are off, the toggle is inert for those legs.
-- **C-071 — Timeouts are upper bounds, not waits.** The `60m` caphost timeout
-  and the `150m` account timeout are harmless upper bounds — provisioning that
-  finishes earlier returns immediately; the larger budgets only stop Terraform
-  abandoning a still-healthy long-running create. They mirror the FR-040
-  account-timeout rationale.
-- **C-072 — Bootstrap toggle is a dispatch parameter, not committed tfvars.**
-  The three-pass bootstrap selects finalization off/on via a `finalize`
-  `workflow_dispatch` input on `.github/workflows/deploy.yaml` (default
-  **`true`**), which the `plan` step forwards as
-  `-var "enable_aifoundry_agent_finalization=<finalize>"` **only** when
-  `service == services` (other stacks have no such variable). This keeps the
-  committed `variables/<tenant>/<env>/services.tfvars.json` at its steady-state
-  intent (finalization on) with no transient flips — the one-time off pass is a
-  pure dispatch parameter. The input only *passes* the toggle; it does **not**
-  orchestrate the sequence (operators still dispatch the three passes in order).
-
-### Validation criteria (FR-060)
-
-- `terraform validate -backend=false` on `terraform/services` succeeds.
-- With `enable_aifoundry_agent_finalization = false` (+ injection + App Insights
-  on), the plan contains **zero** `appinsights_connection`, zero account
-  `capability_host`, and zero project `capability_host` instances, while the
-  account, project and all BYO/Key Vault/account-storage connections remain.
-- With `enable_aifoundry_agent_finalization = true` (default) the plan is
-  identical to the pre-FR-060 plan for the same inputs (one `appinsights_connection`,
-  one account host, one project host when injection + App Insights are on).
-- Both capability-host resources carry a `timeouts` block; the account resource's
-  create/update timeout is `150m`.
-- The full `terraform test` suite is green, including new positive (toggle true ⇒
-  resources present) and negative (toggle false ⇒ resources absent) fixtures.
-- `.github/workflows/deploy.yaml` exposes a `finalize` `workflow_dispatch`
-  boolean (default `true`) and, when `service == services`, the `plan` step's
-  arguments include `-var "enable_aifoundry_agent_finalization=<finalize>"`;
-  for any other `service` the flag is omitted (no undefined-variable error). The
-  committed `variables/sp01/dev/services.tfvars.json` does **not** pin
-  `enable_aifoundry_agent_finalization` (steady-state default `true`). (C-072)
-
-### Out of scope for FR-060
-
-Moving any role grant into the `services` stack (rejected — preserves C-065);
-fully **orchestrating** the three-pass bootstrap inside CI (the rollout
-sequence remains an operator-dispatched runbook — C-072 only adds a thin
-`finalize` parameter passthrough, not a one-click orchestrator); the account-MI
-Key Vault Secrets Officer grant itself (it already exists in `007-rbac`, see
-that engine's 2026-06-04 amendment for the label correction).
-
 ## AMENDMENT 2026-06-04 — `resource_ids` / `resource_names` must cover every emitted service (FR-061)
 
-> **Why.** The live sp01/dev bootstrap pass 2 (`007-rbac`) failed at **plan**
-> with `Error: Invalid index` on `local.resource_ids[local.project_name]` and
-> `local.resource_ids[local.cosmos_name]`. Root cause: the `terraform/services`
-> `resource_ids` (and the sibling `resource_names`) output silently **omitted
-> three emitted modules** — `module.aifoundry_project`, `module.cosmosdb`, and
-> `module.container_app_environment` — even though every one of them produces a
-> first-class service with a `resource_id` output and a `module.naming.names`
-> entry. The cross-stack contract
+> **Why.** The `terraform/services` `resource_ids` (and the sibling
+> `resource_names`) output silently **omitted emitted modules** —
+> `module.cosmosdb` and `module.container_app_environment` — even though every
+> one of them produces a first-class service with a `resource_id` output and a
+> `module.naming.names` entry. The cross-stack contract
 > ([contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md)) is
 > explicit that `resource_ids` keys MUST be byte-identical to
 > `keys(module.naming.names)` minus the single `resource_group` entry, so the
 > omission was a latent **contract violation**: any downstream consumer
-> resolving a project/cosmos/container-app id by canonical name hit a missing
-> key. It surfaced now because the project only just came into existence (pass 1
-> created the first-ever sp01/dev Foundry project).
+> resolving a cosmos/container-app id by canonical name hit a missing key.
 
 - **FR-061 — the `resource_ids` and `resource_names` outputs MUST include every
   emitted service except the `svc` RG.** Both `merge(...)` (for `resource_ids`)
-  and the `concat(keys(...))` set (for `resource_names`) gain the three
-  previously-missing modules — `module.container_app_environment`,
-  `module.cosmosdb`, and `module.aifoundry_project` — so the emitted key set is
+  and the `concat(keys(...))` set (for `resource_names`) gain the
+  previously-missing modules — `module.container_app_environment` and
+  `module.cosmosdb` — so the emitted key set is
   byte-identical to `keys(module.naming.names)` minus the `resource_group`
   entry, exactly as the cross-stack contract requires. No key shape, naming, or
   value changes for any service that was already present; this is a pure
@@ -2609,23 +1219,23 @@ that engine's 2026-06-04 amendment for the label correction).
 - **C-073 — Contract completeness is mechanical, not selective.** The output
   enumerates wrapper modules by hand (Terraform cannot iterate module blocks),
   so any newly-added `module.<svc>` must also be appended to these two outputs.
-  FR-061 closes the gap for the three modules that existed but were never wired
+  FR-061 closes the gap for the modules that existed but were never wired
   in; the new regression test (below) asserts **set equality** against
   `keys(module.naming.names)` minus the RG so a future omission fails CI rather
   than a live downstream plan.
 - **C-074 — No consumer migration required.** Existing keys are unchanged and
-  only-added keys are net-new, so every current consumer
-  (`007-rbac`) keeps working; the rbac stack's `local.resource_ids[project_name]`
-  / `[cosmos_name]` lookups now resolve instead of erroring.
+  only-added keys are net-new, so every current downstream consumer keeps
+  working; canonical-name lookups for the previously-omitted services now
+  resolve instead of erroring.
 
 ### Validation criteria (FR-061)
 
 - `terraform validate -backend=false` on `terraform/services` succeeds.
-- A full-stack plan (`aifoundry` + `aifoundry_project` + `cosmosdb` + `storage` +
-  `search` + `keyvault`) yields `keys(output.resource_names)` equal to the set of
+- A full-stack plan (`cosmosdb` + `storage` + `search` + `keyvault` +
+  `container_app_environment`) yields `keys(output.resource_names)` equal to the set of
   `keys(module.naming.names)` minus the `resource_group` entry, and
   `keys(output.resource_ids)` identical to `keys(output.resource_names)`.
-- The `aifoundry_project`, `cosmosdb` and `container_app_environment` canonical
+- The `cosmosdb` and `container_app_environment` canonical
   names appear in both outputs whenever those services are selected.
 - The full `terraform test` suite is green, including the new
   `resource_ids_contract.tftest.hcl` regression.
@@ -2635,238 +1245,3 @@ that engine's 2026-06-04 amendment for the label correction).
 Per-resource `_id`/`_name` outputs (still forbidden — the map is the contract,
 [C-008](#clarifications)); changing any existing key shape; exposing the `svc`
 RG inside the map (it keeps its dedicated `resource_group_id` output).
-
-## AMENDMENT 2026-06-04 — account capability host is platform-managed (FR-062)
-
-> **Why.** The live sp01/dev finalization pass (`services`, `finalize=true`)
-> failed creating the **account-level** Agents capability host with a hard
-> `Conflict`:
->
-> > *There is an existing Capability Host with name:
-> > `aif-uc1-uc1-sp01-dev-swc-001@aml_aiagentservice`, provisioning state:
-> > Succeeded … cannot create a new Capability Host with name: `agents` for the
-> > same ClientId.*
->
-> Inspecting the account proved the cause: the moment a Foundry account is
-> created with `properties.networkInjections` scenario=agent (FR-031/FR-040),
-> the injected-Foundry resource provider **auto-provisions the account-level
-> Agents capability host itself**, named `<account>@aml_aiagentservice`
-> (`capabilityHostKind=Agents`, `customerSubnet` bound to the agent subnet,
-> `storageConnections`/`threadStorageConnections`/`vectorStoreConnections` all
-> **null**). Azure enforces **exactly one** capability host per account ClientId,
-> so the explicit Terraform `agents` host shipped by FR-031/C-026 can **never**
-> be created on an injected account — every finalization pass times out (60 m
-> poll) and then returns `Conflict`. The platform host carries the subnet
-> binding but no BYO connections; the BYO Storage/Cosmos/Search bindings live on
-> the **project-level** capability host (FR-043), which the platform does **not**
-> auto-create. The earlier FR-031/C-026 design assumed Microsoft's Bicep
-> reference (which creates the account host explicitly) applied verbatim; the
-> live injected-Foundry RP behaviour in this tenant supersedes it.
-
-- **FR-062 — the account-level Agents capability host is platform-managed; the
-  `aifoundry` module MUST NOT create it (engine).** The
-  `azapi_resource.capability_host` resource in `modules/aifoundry`
-  ([modules/aifoundry/main.tf](../../modules/aifoundry/main.tf)) is **removed**.
-  Network injection (`network_injection_enabled = true`) continues to create the
-  account body's `networkInjections` (FR-031/FR-040) and the three BYO account
-  connections `agentstorage`/`agentcosmos`/`agentsearch` (C-024/C-026) — those
-  are unchanged. The account-level Agents capability host is supplied
-  exclusively by the injected-Foundry RP as `<account>@aml_aiagentservice` and
-  is never represented in Terraform state. The **project-level** capability host
-  (`modules/aifoundryproject`, FR-043) is **unchanged**: it remains
-  Terraform-managed, carries the three BYO connection references (and no
-  `customerSubnet`), and is gated by `agent_finalization_enabled` (FR-060). The
-  `agent_finalization_enabled` input on `modules/aifoundry` is retained — it
-  still gates the App Insights connection (FR-060 leg 1).
-
-### Clarifications — Session 2026-06-04 (FR-062)
-
-- **C-075 — Supersedes FR-031/C-026's account host, not the injection body.**
-  FR-062 removes only the Terraform-managed account capability host. The
-  injection body (`networkInjections`, `networkAcls`, preview API — FR-031/
-  FR-040) and the three BYO connections (C-024/C-026) remain exactly as shipped.
-  VC-3 (the account-host validation criterion) is retired and replaced by VC-23
-  (zero Terraform account capability hosts).
-- **C-076 — One capability host per account ClientId is an RP invariant.** The
-  conflict is not a transient race or a missing role grant — it is the RP's
-  one-host-per-ClientId rule colliding with the platform's own auto-created
-  host. No timeout increase, RBAC grant, or retry can resolve it; the only fix
-  is to stop creating the duplicate. (This is distinct from the FR-060
-  finalization phasing, which addressed the *project* host + App Insights
-  connection role dependencies; the account host was never a role problem.)
-- **C-077 — BYO connections are bound at project scope, not account scope.** The
-  platform account host has null connection lists by design; agents reach the
-  BYO Storage/Cosmos/Search via the **project** capability host's
-  `storageConnections=["agentstorage"]`/`threadStorageConnections=["agentcosmos"]`/
-  `vectorStoreConnections=["agentsearch"]` (FR-043/VC-20). Removing the
-  Terraform account host therefore loses no BYO binding.
-- **C-078 — No state surgery needed for fresh injected environments.** Because
-  the Terraform account host never successfully created (every attempt
-  `Conflict`ed), it is absent from state; removing the resource block is a clean
-  config delete with no `terraform state rm`. For any environment where a prior
-  buggy apply *did* land an account host in state, Terraform will plan its
-  destroy — acceptable only via an operator-reviewed plan, but no such state
-  exists for sp01/dev.
-
-### Validation criteria (FR-062)
-
-- **VC-23 — Zero Terraform account capability hosts.** With injection ON
-  (`network_injection_enabled = true`) **and** finalization ON
-  (`agent_finalization_enabled = true`), `modules/aifoundry` emits **zero**
-  `azapi_resource.capability_host` — the account host is platform-managed. The
-  account body still carries `networkInjections` and the three BYO connections
-  are still emitted (FR-031/VC-2/VC-4 unchanged).
-- **VC-24 — Project host unaffected.** `modules/aifoundryproject` with injection
-  + finalization ON still emits exactly one
-  `Microsoft.CognitiveServices/accounts/projects/capabilityHosts` named `agents`
-  (FR-043/VC-20) — FR-062 does not touch the project host.
-- **VC-25 — Day-one parity.** With injection OFF the `aifoundry` body is
-  byte-for-byte the pre-FR-062 state (the removed resource had `count = 0` there
-  already, so non-injected stacks are unchanged).
-- The full `terraform test` suite is green after the account-host asserts in
-  `modules/aifoundry/tests/network_injection_positive.tftest.hcl` are replaced by
-  a zero-host assertion (VC-23).
-
-### Out of scope for FR-062
-
-The project-level capability host (FR-043 owns it); the App Insights connection
-finalization gate (FR-060 owns it); any change to the `networkInjections` body
-or BYO connections (FR-031/FR-040 own them); adopting the platform host into
-Terraform state (explicitly rejected — it is RP-owned, its name is
-RP-generated, and Terraform must not manage it).
-
-## AMENDMENT 2026-06-05 — Foundry project ContainerRegistry connection (FR-063)
-
-> **Why.** A private Foundry project that deploys a **Hosted Agent** (the
-> `azd deploy <hosted-agent>` path that builds a container image, pushes it to
-> the project's Azure Container Registry, and has the Microsoft Hosted-Agent
-> runtime pull + run it) fails server-side with a **503** at `create_agent`
-> time. Comparing the failing **private** project to a **working public**
-> reference project proved the gap: the working project carries a
-> `ContainerRegistry` connection (a
-> `Microsoft.CognitiveServices/accounts/projects/connections` of `category =
-> "ContainerRegistry"`, `authType = "ManagedIdentity"`, pointing at the ACR
-> data-plane endpoint), and its project system-assigned MI holds **AcrPull** on
-> that registry. The private project had **neither** — so the Hosted-Agent
-> runtime had no wired path to authenticate to and pull from the registry, and
-> the platform returned 503. The ACR is reached over its **public** data-plane
-> endpoint (the ONE sanctioned private-by-default deviation for sp01, VC-7 /
-> Microsoft Hosted-Agent limitation, already documented under FR-103-11); the
-> missing piece is purely the **connection wiring** on the project plus the
-> AcrPull grant (the grant is FR-064 in `007-rbac`, this amendment owns the
-> connection). The app team proposed applying both manually via `az`; that is
-> rejected as untracked drift on a shared, network-secured, Terraform-managed
-> project — the capability is added as engine IaC instead.
-
-- **FR-063 — the `aifoundryproject` module MUST be able to attach a Container
-  Registry as a project-scoped connection (engine).** When enabled, the module
-  emits exactly one
-  `Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01`
-  named `containerregistry` whose body mirrors the azd sample's **existing-ACR**
-  connection path (`Azure-Samples/foundry-hosted-agentframework-demos`
-  `infra/core/ai/ai-project.bicep` `existingAcrConnection`), which is our exact
-  scenario (the ACR is pre-provisioned by the services stack): `category =
-  "ContainerRegistry"`, `authType = "ManagedIdentity"`, `isDefault = true`,
-  `isSharedToAll = true`, `credentials = { clientId = <project MI principalId>,
-  resourceId = <acr ARM id> }`, `target` = the ACR data-plane login server
-  (`<name>.azurecr.io`), and `metadata = { ResourceId = <acr ARM id> }`. The
-  `credentials` block is **mandatory** — the RP maps `authType =
-  ManagedIdentity` to `RegistryIdentity` and rejects an empty/absent
-  `credentials` with `400 ValidationError: "Credentials Property can't be empty
-  for auth type RegistryIdentity"`; `credentials` is write-only and always masked
-  as `null` on GET, so it is invisible on the live reference (see C-082). The
-  module exports the project identity's `principalId`
-  (`response_export_values = ["id", "identity.principalId"]`) and stamps it into
-  `credentials.clientId` (the sample passes the project identity principalId into
-  `clientId`). The resource is gated by a known-at-plan toggle
-  (`container_registry_connection_enabled`, default **false**) separate from the
-  (potentially computed) login server / id inputs
-  (`container_registry_login_server`, `container_registry_id`), and a module
-  precondition rejects `enabled = true` with either input null. Because azapi's
-  embedded connection schema does not fully model the write-only `credentials`
-  block, the resource sets `schema_validation_enabled = false`. The connection is
-  placed on the **project** (mirroring the working public reference), not the
-  account.
-
-  The services stack exposes
-  `enable_aifoundry_container_registry_connection` (default **false**); when on
-  it REQUIRES exactly one `aifoundry_project` AND exactly one
-  `container_registry` selection (enforced by
-  `check.aifoundry_container_registry_connection_prereqs`). The stack resolves
-  the registry login server / id from the selected `container_registry` module
-  (via the new cntreg `login_server` output + existing `resource_id`) and passes
-  them through. Default off ⇒ no ContainerRegistry connection (behaviour
-  preserving).
-
-  The cntreg module (`modules/cntreg`) gains a `login_server` output (=
-  `azurerm_container_registry.this.login_server`) so the data-plane endpoint is
-  sourced from the resource rather than string-built.
-
-### Clarifications — Session 2026-06-05 (FR-063)
-
-- **C-079 — Known-at-plan gate, computed target.** As with the FR-045 Key Vault
-  connection (C-061), the `count` gate is a plain bool
-  (`container_registry_connection_enabled`) so the resource's presence is known
-  at plan time, while the connection `target`/`metadata.ResourceId` may be
-  computed (the registry's login server / id). The module precondition enforces
-  both inputs non-null when the toggle is on; the services-stack `check` adds the
-  outer guard (project + registry both selected) so a misconfig fails at plan.
-- **C-080 — Connection lives on the project, not the account.** Unlike the
-  FR-045 `keyvault` / FR-044 `accountstorage` connections (account-scoped,
-  `isSharedToAll` for child inheritance), the ContainerRegistry connection is
-  created on the **project** resource, matching the working public reference and
-  the Hosted-Agent runtime's lookup path, with `isDefault = true` so the runtime
-  selects it as the project's default registry.
-- **C-082 — `credentials` is mandatory AND write-only (the 400 root cause).**
-  The first two live applies failed `400 ValidationError: "Credentials Property
-  can't be empty for auth type RegistryIdentity"` — the RP maps `authType =
-  ManagedIdentity` to `RegistryIdentity` and requires a non-empty `credentials`
-  block. The live working reference's GET showed `credentials: null`, which is
-  misleading: connection `credentials` are **write-only** and Azure always masks
-  them as `null` on read, so the body cannot be reverse-engineered from a GET.
-  The ground truth is the azd sample
-  (`Azure-Samples/foundry-hosted-agentframework-demos`
-  `infra/core/ai/ai-project.bicep`): its `existingAcrConnection` (our exact
-  pre-provisioned-ACR scenario) sends `authType = ManagedIdentity`,
-  `isSharedToAll = true`, and `credentials = { clientId =
-  aiAccount::project.identity.principalId, resourceId =
-  existingContainerRegistryResourceId }`. We replicate that body verbatim; the
-  project's own system-assigned MI (paired with the FR-064 AcrPull grant)
-  authenticates the pull.
-- **C-081 — Public ACR data-plane is the sanctioned deviation.** The connection
-  target is the ACR's public login server because the Microsoft Hosted-Agent
-  runtime pulls over the public data-plane endpoint (no Private-Link path is
-  offered for that pull in this platform). This is the single documented
-  private-by-default deviation for sp01 (VC-7 / FR-103-11) and is not widened by
-  FR-063 — only the connection wiring is added.
-
-### Validation criteria (FR-063)
-
-- **VC-28 — ContainerRegistry connection emitted (sample-exact).** With
-  `container_registry_connection_enabled = true` and non-null login server / id,
-  `modules/aifoundryproject` emits exactly one
-  `Microsoft.CognitiveServices/accounts/projects/connections` named
-  `containerregistry` (`category = ContainerRegistry`, `authType =
-  ManagedIdentity`, `isDefault = true`, `isSharedToAll = true`,
-  `credentials.resourceId` = the registry id, `credentials.clientId` = the
-  project MI principalId, `parent_id` = the project, `target` = the login
-  server, `metadata.ResourceId` = the registry id).
-- **VC-29 — Default off / parity.** With the toggle off (default), no
-  ContainerRegistry connection is emitted; the project body is byte-for-byte the
-  pre-FR-063 state.
-- **VC-30 — Precondition + stack guard.** `enabled = true` with a null login
-  server or id fails the module precondition; the services-stack toggle on with
-  no `aifoundry_project` or no `container_registry` selected fails
-  `check.aifoundry_container_registry_connection_prereqs`.
-- **VC-31 — cntreg login_server output.** `modules/cntreg` exposes
-  `login_server` equal to `azurerm_container_registry.this.login_server`.
-- The full `terraform test` suite (modules/cntreg, modules/aifoundryproject,
-  terraform/services) is green.
-
-### Out of scope for FR-063
-
-The project-MI AcrPull grant (FR-064 in `007-rbac` owns it); any change to ACR
-network posture (the public data-plane deviation is owned by FR-103-11 / VC-7);
-turning the toggle on for any concrete deployment (instance features
-`103-sp01-dev-services` owns the sp01/dev opt-in); the account-level connections
-(FR-044/FR-045 own them).

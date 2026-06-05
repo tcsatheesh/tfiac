@@ -1,7 +1,6 @@
 # FR-032 (Amendment 2026-06-02) — Azure Cosmos DB account (SQL/NoSQL API),
-# private-by-default. Provisioned as the Bring-Your-Own thread store for a
-# Foundry Hosted-Agent capability host (CosmosDB connection), but usable as a
-# standalone selectable service. public_network_access_enabled is ALWAYS false;
+# private-by-default, a standalone selectable service.
+# public_network_access_enabled is ALWAYS false;
 # the account is reachable only through the always-on private endpoint below.
 resource "azurerm_cosmosdb_account" "this" {
   name                          = var.canonical_name

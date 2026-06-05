@@ -4,7 +4,7 @@ output "resource_id" {
 }
 
 output "login_server" {
-  description = "Registry login server (e.g. <name>.azurecr.io) — the data-plane endpoint used as the Foundry ContainerRegistry connection target (006 FR-063)."
+  description = "Registry login server (e.g. <name>.azurecr.io) — the data-plane endpoint for the registry."
   value       = azurerm_container_registry.this.login_server
 }
 

@@ -12,11 +12,10 @@ in [spec.md](spec.md#clarifications).
 
 ## Prerequisites
 
-1. **Bootstrap + RBAC stacks already applied** for the target
+1. **Bootstrap stack already applied** for the target
    `(tenant, environment)`:
    - `terraform/bootstrap/` has provisioned the hub-internal state SA.
-   - `terraform/rbac/` has granted the deploying OIDC SP `Contributor` +
-     `User Access Administrator` at subscription scope ([spec.md C-007](spec.md#clarifications)).
+   - The deploying OIDC SP holds `Contributor` at subscription scope.
 2. **Azure CLI logged in** to the destination subscription
    (`az account show` returns the right subscription ID), OR the GitHub
    Actions runner uses the existing OIDC federation.

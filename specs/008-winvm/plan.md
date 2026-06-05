@@ -92,7 +92,4 @@ modules/winvm/ (wrapper)
 
 - **First-apply KV 403 race** (RBAC propagation): mitigated by `time_sleep`;
   documented re-run path (C-008-07). Non-destructive, idempotent.
-- **Foundry KV lifecycle**: the day-one instance stores the secret in the
-  Foundry KV; if Foundry is torn down the instance repoints `key_vault_id`
-  (instance-level change, no engine impact).
 - **AVM module version drift**: pinned `~> 0.20` (same as buildsvr).

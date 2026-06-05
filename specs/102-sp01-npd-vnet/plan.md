@@ -50,8 +50,9 @@ hub vnet exists.
 ## Amendment plan — FR-102-04 agent subnet (`/23` expansion)
 
 **Scope.** Instance re-parameterization only: expand the spoke address space
-and add the engine's existing `agents` subnet role for the Foundry
-Hosted-Agent injection program (006 FR-031/FR-033). **No engine change.**
+and add the engine's existing `agents` subnet role for a network-injected
+agent runtime (the services stack consumes this subnet by role). **No engine
+change.**
 
 **Files touched.**
 - `variables/sp01/npd/vnet.tfvars.json` — `address_space`
@@ -82,7 +83,7 @@ destroy/recreate of existing subnets. NOT executed by this PR.
 ## Amendment plan — FR-102-05 revert the agent subnet (`/23` → `/24`)
 
 **Scope.** Instance re-parameterization only: revert the FR-102-04 expansion
-now that the Foundry injection program (legacy backend) is decommissioned
+now that the network-injected agent runtime is decommissioned
 (feature 103 FR-103-06). **No engine change.**
 
 **Files touched.**
@@ -123,17 +124,17 @@ shrink, no destroy/recreate of surviving subnets.
   addendum.
 
 **Decisions (locked).**
-- A12. Re-expand to `/23` + dedicated `/24` `agents` subnet — Standard Agent
-  injection requires a dedicated `/24`; a smaller carve-out from the existing
-  `/24` cannot satisfy it (C-103-01).
+- A12. Re-expand to `/23` + dedicated `/24` `agents` subnet — the
+  network-injected agent runtime requires a dedicated `/24`; a smaller carve-out
+  from the existing `/24` cannot satisfy it (C-103-01).
 - A13. Place `agents` at `10.240.3.0/24` (upper half) — same as FR-102-04,
   existing CIDRs untouched (C-103-02).
 - A14. Select the engine's existing `agents` role (004-vnet FR-226); no engine
   change (C-103-03).
 - A15. This is a forward amendment that SUPERSEDES FR-102-05 (same footprint as
-  FR-102-04, new Standard-Agent justification) (C-103-04).
+  FR-102-04, new network-injected agent-runtime justification) (C-103-04).
 - A16. Ordering: hub vnet → this spoke vnet → services; this subnet must exist
-  before services/Foundry consume it (C-103-05).
+  before the services stack consumes it (C-103-05).
 - A17. Amendment to feature 102 (same spoke), not a new `10n` feature
   (C-103-06).
 
