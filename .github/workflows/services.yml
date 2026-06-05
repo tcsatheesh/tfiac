@@ -24,6 +24,7 @@ on:
       - variables/hub/prd/services.tfvars.json
       - variables/sp01/dev/services.tfvars.json
       - variables/sp01/prd/services.tfvars.json
+      - variables/sp02/dev/services.tfvars.json
       - .github/workflows/services.yml
   push:
     branches: [master, main]
@@ -49,6 +50,7 @@ on:
       - variables/hub/prd/services.tfvars.json
       - variables/sp01/dev/services.tfvars.json
       - variables/sp01/prd/services.tfvars.json
+      - variables/sp02/dev/services.tfvars.json
       - .github/workflows/services.yml
 
 permissions:
