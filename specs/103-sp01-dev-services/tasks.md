@@ -128,3 +128,27 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
   (service_type=="keyvault"), so the rename is transparent. (FR-103-10)
 - [ ] T-103-10-4 Merge; the rebuild runs via the deploy workflow
   (destroy → apply). **No local apply.**
+
+## Phase FR-103-11 (2026-06-05) — re-add the public ACR for the Hosted-Agent
+
+> Re-add `container_registry` (dropped by FR-103-09) and pin it public
+> (`enable_container_registry_private_endpoint: false`) so the Foundry
+> Hosted-Agent platform can pull the agent image over ACR's public data-plane
+> endpoint (VC-7 / Microsoft limitation). Engine unchanged; ACR default stays
+> private.
+
+- [ ] T-103-11-1 Add `{ "type": "container_registry" }` to the `services` list
+  in the tfvars. (FR-103-11)
+- [ ] T-103-11-2 Set `enable_container_registry_private_endpoint: false`
+  (public; engine-default Standard SKU). (FR-103-11 / C-103-11-02/03)
+- [ ] T-103-11-3 Confirm NO engine change: ACR default remains private
+  (`enable_container_registry_private_endpoint` default null inherits
+  `private_by_default = true`); no guard conflict (container_registry absent
+  from `aifoundry_private_requires_private_deps`). (C-103-11-01/04)
+- [ ] T-103-11-4 `terraform fmt -recursive` clean; `terraform validate
+  -backend=false` OK; engine `terraform test` on `terraform/services` green.
+  (FR-103-11)
+- [ ] T-103-11-5 Branch → PR → CI green → squash-merge → sync master. (FR-103-11)
+- [ ] T-103-11-6 Roll out via the `deploy` workflow (`service=services
+  tenant=sp01 environment=dev action=apply apply=true`); verify ACR
+  `cruc1uc1sp01devswc001` is public (PNA Enabled, no PE). **No local apply.**

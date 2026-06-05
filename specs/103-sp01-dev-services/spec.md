@@ -444,3 +444,92 @@ Amendment acceptance:
 2. Engine `terraform test` (28 cases) stays green.
 3. The resolved Key Vault canonical name is `kvuc1fdysp01devswc001` (not the
    locked `kvuc1uc1sp01devswc001`).
+
+## Amendment 2026-06-05 — re-add the public ACR for the Foundry Hosted-Agent (FR-103-11)
+
+**Created**: 2026-06-05. **Status**: Specified (instance-only; engine
+[006-services](../006-services/spec.md) unchanged).
+
+**Motivation.** The operator confirms the sp01/dev Foundry deployment requires a
+**Container Registry with public network access** for the Hosted-Agent runtime.
+The portal "template-exact match" re-pin (FR-103-09) had **dropped**
+`container_registry` from the selection, leaving FR-103-08's acceptance (which
+still lists `container_registry` as selected) and VC-7 (the documented public-ACR
+exception) inconsistent with the live tfvars. This amendment **re-adds** the
+registry and pins it to **public** access, restoring the topology required by the
+Hosted-Agent image pull and reconciling the spec.
+
+The rationale is unchanged from **VC-7** (FR-103-05) and the Microsoft platform
+limitation cited in FR-103-07: *"For Hosted agents, the Azure Container Registry
+(ACR) that stores the agent's container image can't currently be placed behind a
+private network … The ACR must be reachable over its public endpoint for the
+platform to pull the image."*
+([Set up private networking for Foundry Agent Service — Limitations](https://learn.microsoft.com/en-us/azure/ai-foundry/agents/how-to/virtual-networks)).
+A private-endpoint-only ACR would break the agent, so `false` (public) is
+mandatory.
+
+**Change (instance-only — tfvars + 103 docs).**
+- [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  add `{ "type": "container_registry" }` to the `services` list and set
+  `enable_container_registry_private_endpoint: false`.
+- This spec/plan/tasks — record the re-add + the (pre-existing) public-ACR
+  rationale.
+
+**Why these clarifications (resolved, no user round-trip).**
+- **C-103-11-01 — Engine unchanged; default ACR stays private.** The
+  006-services engine already expresses both states: the
+  `enable_container_registry_private_endpoint` toggle defaults to `null`, which
+  inherits `private_by_default = true` (private ACR with a PE). Only an explicit
+  `false` opts a single instance into public. The engine default therefore keeps
+  ACR private for every other instance; ONLY this sp01/dev tfvars deviates. No
+  006/007 engine code or spec is touched (FR-103-01 / FR-103-07).
+- **C-103-11-02 — Public ACR is the ONE sanctioned private-by-default
+  deviation (VC-7).** Per the private-by-default mandate's explicit-callout
+  rule, the reason is recorded: the Hosted-Agent platform pulls the agent
+  container image over ACR's public data-plane endpoint and cannot reach a
+  private-only registry (Microsoft limitation). The registry holds no customer
+  data; images are CI-pushed. Every other Private-Link-capable service in the
+  stack (Foundry, Storage, Cosmos, Search, Key Vault) remains private.
+- **C-103-11-03 — SKU is the engine default (Standard).** With the PE toggle
+  `false` the engine leaves the registry on its default `Standard` SKU (Premium
+  is only forced when a private endpoint is requested). Standard + public is
+  sufficient for the Hosted-Agent image pull; no override is set.
+- **C-103-11-04 — No guard conflict.** The engine's
+  `aifoundry_private_requires_private_deps` check (006 C-053/FR-042) lists only
+  storage/search/keyvault — NOT `container_registry` — so a public ACR beside
+  the private, network-injected Foundry account is permitted by design. The
+  `acr_pe_requires_registry` and backend-presence checks are satisfied (the
+  registry is selected; both remote-state backends are already supplied).
+
+### FR-103-11 (new requirement)
+
+The sp01/dev `services` selection MUST include `container_registry`, deployed
+with **public** network access (`enable_container_registry_private_endpoint:
+false`, engine-default Standard SKU), so the Foundry Hosted-Agent platform can
+pull the agent container image over the ACR public data-plane endpoint (VC-7 /
+Microsoft limitation). This is a pure instance parameterization; the
+006-services engine — whose ACR default remains private — is unchanged.
+
+### Acceptance (FR-103-11)
+
+16. The sp01/dev `services` selection includes `{ "type":
+    "container_registry" }`; `enable_container_registry_private_endpoint:
+    false` is set in the tfvars.
+17. `terraform validate -backend=false` on `terraform/services` with the
+    updated tfvars succeeds; engine `terraform test` stays green (no engine
+    change).
+18. The 006-services engine ACR default is unchanged (private:
+    `enable_container_registry_private_endpoint` default `null` inherits
+    `private_by_default = true`); only this instance opts into public.
+19. Live (after rollout): ACR `cruc1uc1sp01devswc001` exists with
+    `publicNetworkAccess = Enabled` and **no** private endpoint; every other
+    service in the stack remains private.
+
+### Out of scope for FR-103-11
+
+- Any 006-services / 007-rbac engine change (the public/private ACR toggle and
+  the private-by-default default already exist in the engine).
+- Flipping the ACR to a private endpoint (UNSUPPORTED by the Hosted-Agent
+  platform — VC-7 / Microsoft limitation).
+- A Foundry→ACR connection resource (none is required; the platform discovers
+  the registry over its public endpoint).
