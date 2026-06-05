@@ -808,7 +808,7 @@ Hub-only live rollout, mirroring Phase 8 (T111-T118):
 
 ---
 
-## Amendment 2026-06-02 — FR-226 dedicated Foundry agent subnet role (engine)
+## Amendment 2026-06-02 — FR-226 dedicated agent-runtime subnet role (engine)
 
 **Scope.** Add one `agents` role to the module-internal subnet role catalogue
 (`modules/network/locals.tf`), delegated `Microsoft.App/environments`,
@@ -832,7 +832,7 @@ existing `VNET-INV-5` precondition auto-validates the new role.
   `agents_role_delegation`).
 
 **Rollout.** None — engine-only, no instance selects `agents` yet. Lighting it
-up is the `102-sp01-npd-vnet` address-space expansion (CA-013 #4). Merge-only PR.
+up is the `102-sp01-npd-vnet` address-space expansion. Merge-only PR.
 
 ---
 
@@ -1098,6 +1098,6 @@ rolled out to associate the NAT gateway with those two subnets:
 `gh workflow run deploy.yaml --ref master -f service=vnet -f tenant=sp01 -f
 environment=npd -f action=apply -f apply=true`. Expected plan: strict ADD of a
 `nat_gateway` association on `snet-agt-…` and `snet-cae-…` (no destroy/replace,
-no route-table/firewall churn). After apply, the Foundry agent runtime gains
-egress and the data-plane 503 clears. Never local apply; never open the tfstate
-SA firewall.
+no route-table/firewall churn). After apply, the network-injected agent runtime
+gains egress and the data-plane 503 clears. Never local apply; never open the
+tfstate SA firewall.

@@ -1,7 +1,7 @@
 # FR-231 — NAT egress decoupled from the shared route table for the delegated
 # managed-environment roles (`agents`, `container-apps`).
 #
-# Root cause this guards: a Foundry Standard (network-injected) agent runs in a
+# Root cause this guards: a network-injected agent runtime runs in a
 # subnet delegated to Microsoft.App/environments with
 # useMicrosoftManagedNetwork = false (the CUSTOMER owns egress). That subnet
 # must NOT attach the shared 0.0.0.0/0 firewall route (FR-226 — no forced

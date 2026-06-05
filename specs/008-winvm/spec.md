@@ -8,7 +8,7 @@
 
 **Input**: User description: "stand up a Windows VM in the sp01 dev resource
 group" — a private, Bastion-only Windows jump box used to reach private
-endpoints (RDP in, run portal/Foundry flows, test private DNS). Chosen
+endpoints (RDP in, test private endpoints, test private DNS). Chosen
 architecture: a **new dedicated engine** (`modules/winvm/` + `terraform/winvm/`)
 parameterized 100% via tfvars + backend state key, deploying NOTHING by itself.
 Each concrete deployment is a separate instance feature (e.g.
@@ -37,8 +37,8 @@ existing `vm` naming row (no `001-naming` change required).
 ### User Story 1 — Operator RDP via Bastion using Entra ID (P1)
 
 An operator needs a Windows desktop **inside** the spoke network to reach
-private endpoints (e.g. drive the Foundry portal flows, resolve `privatelink`
-FQDNs, test private connectivity) without exposing anything publicly.
+private endpoints (e.g. resolve `privatelink` FQDNs, test private connectivity
+to the services stack's private endpoints) without exposing anything publicly.
 
 **Why this priority**: The whole point of the jump box is a secure in-network
 Windows shell. Without P1 the feature delivers no value.
@@ -216,9 +216,8 @@ disk or NIC).
   Bastion. Private-by-default mandate honored (the VM has no public surface).
 - **C-008-05** — Credentials: the admin password is **Terraform-generated**
   (`random_password`) and stored in an **existing** Key Vault (no secret in
-  tfvars). Day-one instance Key Vault: the existing private Foundry KV
-  `kvfdyuc1sp01devswc001` (any KV id works; engine is generic). If that KV is
-  later removed, the instance repoints `key_vault_id`.
+  tfvars). Day-one instance Key Vault: the existing private key vault in the
+  sp01/dev services resource group (any KV id works; engine is generic).
 - **C-008-06** — Login model: `AADLoginForWindows` extension + Entra ID over
   Bastion is the day-to-day path (operator holds `Virtual Machine Administrator
   Login`); the KV password is break-glass.

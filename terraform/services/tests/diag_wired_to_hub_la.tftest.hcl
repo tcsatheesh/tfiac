@@ -8,7 +8,7 @@
 #   (a) the root output `shared_la_workspace_id` equals the stub, and
 #   (b) every selected wrapper (covering every code path that wires the
 #       shared LA — keyvault / storage / app_insights / container_registry /
-#       search / openai / aifoundry / language / doc_intel / function_app /
+#       search / openai / language / doc_intel / function_app /
 #       logic_app / aml_workspace / apim) instantiates exactly once.
 #
 # Per-wrapper proof that the diag resource ITSELF picks up
@@ -33,7 +33,6 @@ variables {
     { type = "container_registry" },
     { type = "search" },
     { type = "openai" },
-    { type = "aifoundry" },
     { type = "language" },
     { type = "doc_intel" },
     { type = "function_app" },
@@ -119,11 +118,6 @@ run "every_diag_capable_wrapper_sees_shared_la" {
   assert {
     condition     = length(keys(module.openai)) == 1
     error_message = "diag_wired_to_hub_la: openai wrapper not instantiated."
-  }
-
-  assert {
-    condition     = length(keys(module.aifoundry)) == 1
-    error_message = "diag_wired_to_hub_la: aifoundry wrapper not instantiated."
   }
 
   assert {

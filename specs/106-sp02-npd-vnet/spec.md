@@ -43,7 +43,7 @@ is a NEW `10n` instance feature (per the "Add another spoke" runbook in
   - `preprod-func` → `10.240.6.176/28`
   - `container-apps` → `10.240.6.192/27` (delegated `Microsoft.App/environments`)
   - `agents` → `10.240.7.0/24` (delegated `Microsoft.App/environments`, no
-    shared route table — reserved for a future Foundry Hosted-Agent injection)
+    shared route table — reserved for a future network-injected agent runtime)
 - `hub_state_backend`: points at `hub/npd/vnet.tfstate` (peering + hub
   firewall private IP via `terraform_remote_state`).
 - `dns_state_backend`: points at `hub/prd/dns.tfstate` (private DNS zone

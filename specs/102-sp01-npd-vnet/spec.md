@@ -111,14 +111,15 @@ That's it — a new spoke touches: 1 new spec folder, 1 new tfvars file, 1 CI
 
 ---
 
-## Amendment — FR-102-04 agent subnet for Foundry Hosted-Agent injection
+## Amendment — FR-102-04 agent subnet for network-injected agent runtime
 
 **Created**: 2026-06-02. **Status**: Implemented (instance-only; engine
 [004-vnet](../004-vnet/spec.md) unchanged).
 
-**Motivation.** The dependent Foundry Hosted-Agent network-injection program
-(006 FR-031/FR-033) requires a dedicated `/24` agent subnet, delegated
-`Microsoft.App/environments`, exclusive to one Foundry account. The existing
+**Motivation.** A dependent network-injected agent runtime (a
+`Microsoft.App/environments`-delegated, customer-egress container/agent
+runtime) requires a dedicated `/24` agent subnet, delegated
+`Microsoft.App/environments`, exclusive to one runtime. The existing
 sp01/npd spoke `10.240.2.0/24` is **fully consumed** (development `.0/26`,
 pre-production `.64/26`, logic-app `.128/28`, function-app `.144/28`,
 preprod-logic `.160/28`, preprod-func `.176/28`, container-apps `.192/27`), so
@@ -133,7 +134,7 @@ space and adds the agent subnet.
 
 **Why these clarifications (resolved, no user round-trip).**
 - **C-102-01** Expand to `/23` rather than carving a smaller agent subnet from
-  the existing `/24`: the `/24` is fully allocated and the Foundry agent subnet
+  the existing `/24`: the `/24` is fully allocated and the agent subnet
   must be a dedicated `/24` (the agent runtime sizing + `Microsoft.App`
   delegation expects a roomy block). `/23` is the smallest expansion that frees
   a contiguous `/24` while preserving every existing subnet CIDR byte-for-byte
@@ -143,8 +144,9 @@ space and adds the agent subnet.
   the agent block is a clean dedicated `/24`.
 - **C-102-03** Use the engine's existing `agents` role (004-vnet FR-226):
   delegation `Microsoft.App/environments`, `needs_route_table = false` (the
-  agent subnet must NOT carry the spoke default route — Foundry-managed
-  egress). The role already exists in the engine catalogue; this instance only
+  agent subnet must NOT carry the spoke default route — the delegated
+  managed environment owns egress). The role already exists in the engine
+  catalogue; this instance only
   *selects* it. No engine change (honours the `10n` ⇏ `00n` rule).
 - **C-102-04** This is an **amendment to instance feature 102**, not a new
   spoke: we are re-parameterizing the *same* sp01/npd spoke, so it appends to
@@ -153,15 +155,13 @@ space and adds the agent subnet.
 **Apply-time note (non-destructive for the vnet stack).** Growing a VNet
 address space from `/23`-superset of the existing `/24` and *adding* a new
 subnet are both in-place operations in Azure — no existing subnet is resized or
-removed, so the vnet apply does not destroy/recreate anything. (The Foundry
-account recreate required to *consume* injection is a separate, operator-
-approved concern of feature 103, not this vnet change.)
+removed, so the vnet apply does not destroy/recreate anything.
 
 ### FR-102-04 (new requirement)
 
 The sp01/npd spoke MUST expose a dedicated `agents` subnet (`10.240.3.0/24`,
-delegated `Microsoft.App/environments`, no shared route table) for Foundry
-Hosted-Agent network injection, achieved by expanding `address_space` to
+delegated `Microsoft.App/environments`, no shared route table) for a
+network-injected agent runtime, achieved by expanding `address_space` to
 `10.240.2.0/23` and selecting the engine's existing `agents` role — with **no**
 change to the 004-vnet engine and **no** renumbering of existing subnets.
 
@@ -183,11 +183,10 @@ change to the 004-vnet engine and **no** renumbering of existing subnets.
 unchanged).
 
 **Motivation.** FR-102-04 added the `agents` `/24` (and the `/23` expansion) to
-support Foundry Hosted-Agent **network injection** — the **legacy** Hosted-Agent
-backend (Azure Container Apps). The operator has decommissioned that injection
-program (the sp01/dev services deployment was torn down under feature 103
-FR-103-06) because the current Microsoft Hosted-Agent backend needs no injected
-agent subnet. With the injection deployment gone, the dedicated `agents`
+support a network-injected agent runtime. The operator has decommissioned that
+runtime (the sp01/dev services deployment was torn down under feature 103
+FR-103-06) because the current backend needs no injected
+agent subnet. With the injected runtime gone, the dedicated `agents`
 subnet + the `/23` expansion are now **dead allocations** and are reverted to
 the original pre-FR-102-04 footprint.
 
@@ -249,27 +248,26 @@ action=apply`). Engine untouched by this instance.
 
 ---
 
-## Amendment 2026-06-04 — re-instate the agent subnet for Standard Agent injection (supersedes FR-102-05) — FR-104
+## Amendment 2026-06-04 — re-instate the agent subnet for a network-injected agent runtime (supersedes FR-102-05) — FR-104
 
 **Created**: 2026-06-04. **Status**: Specified (instance-only; engine
 [004-vnet](../004-vnet/spec.md) unchanged).
 
-**Motivation.** FR-102-05 removed the `agents` subnet because the *legacy*
-ACA-backed Foundry Hosted-Agent injection program had been decommissioned. That
-decommissioning is now being **reversed**: the Foundry account is moving to the
-network-secured **Standard Agent** vnet-injection topology, which provisions
-BOTH an account-level and a project-level capability host (engine work landed in
-006-services **FR-043**, merged in PR #52) and injects into a **dedicated agent
-subnet delegated to `Microsoft.App/environments`**. Microsoft's Standard Agent
-setup mandates this subnet be a dedicated **/24** (the agent runtime's managed
+**Motivation.** FR-102-05 removed the `agents` subnet because the
+network-injected agent runtime had been decommissioned. That
+decommissioning is now being **reversed**: the spoke again hosts a
+network-injected agent runtime (a `Microsoft.App/environments`-delegated,
+customer-egress container/agent runtime) that injects into a **dedicated agent
+subnet delegated to `Microsoft.App/environments`**. The runtime
+mandates this subnet be a dedicated **/24** (the agent runtime's managed
 environment sizing requirement). The sp01/npd spoke therefore needs its
 dedicated `agents` `/24` back — which means re-instating the FR-102-04
 footprint that FR-102-05 reverted.
 
 This amendment **supersedes FR-102-05** for the sp01/npd spoke: it restores the
 exact FR-102-04 result (`address_space = 10.240.2.0/23`, `agents =
-10.240.3.0/24`), with the now-current justification (Standard Agent injection,
-not the legacy ACA backend).
+10.240.3.0/24`), with the now-current justification (network-injected agent
+runtime).
 
 **Change (tfvars only — `variables/sp01/npd/vnet.tfvars.json`).**
 - `address_space`: `["10.240.2.0/24"]` → `["10.240.2.0/23"]` (covers
@@ -282,7 +280,7 @@ not the legacy ACA backend).
 **Why these clarifications (resolved, no user round-trip).**
 - **C-103-01** Re-expand to `/23` + a dedicated `/24` `agents` subnet (vs.
   carving a smaller block from the existing `/24`): the existing `/24` is fully
-  allocated, AND Microsoft's Standard Agent injection requires the agent subnet
+  allocated, AND the network-injected agent runtime requires the agent subnet
   to be a dedicated **/24** — a smaller carve-out (e.g. `/27`) would not satisfy
   the platform requirement. `/23` is the smallest expansion that frees a
   contiguous `/24` while preserving every existing subnet CIDR byte-for-byte.
@@ -294,11 +292,11 @@ not the legacy ACA backend).
   (honours the `10n` ⇏ `00n` rule).
 - **C-103-04** This **supersedes FR-102-05** rather than literally reverting it:
   the address-space/subnet result is the same as FR-102-04, but the driving
-  requirement is the new Standard Agent topology, so it is documented as a
-  forward amendment (FR-104), not an "undo".
+  requirement is the renewed network-injected agent runtime, so it is documented
+  as a forward amendment (FR-104), not an "undo".
 - **C-103-05** Ordering: the spoke vnet (this subnet) MUST exist **before** the
   sp01/dev services stack consumes the agent subnet via remote state and before
-  the Foundry account flips its injection toggle. Rollout order: **hub vnet →
+  the agent runtime flips its injection toggle. Rollout order: **hub vnet →
   this spoke vnet → services**.
 - **C-103-06** Amendment to feature 102 (same spoke), not a new `10n` feature —
   append to these 102 artifacts + edit the one tfvars file.
@@ -306,15 +304,13 @@ not the legacy ACA backend).
 **Apply-time note (non-destructive for the vnet stack).** Growing the VNet from
 the `/24` to its `/23` superset and *adding* a new subnet are both in-place
 Azure operations — no existing subnet is resized or removed, so the vnet apply
-does not destroy/recreate any surviving subnet. (The Foundry account recreate
-required to *consume* injection is a separate, operator-approved concern of the
-services instance, not this vnet change.)
+does not destroy/recreate any surviving subnet.
 
 ### FR-104 (new requirement)
 
 The sp01/npd spoke MUST expose a dedicated `agents` subnet (`10.240.3.0/24`,
-delegated `Microsoft.App/environments`, no shared route table) for Foundry
-**Standard Agent** network injection — restoring the FR-102-04 footprint by
+delegated `Microsoft.App/environments`, no shared route table) for a
+network-injected agent runtime — restoring the FR-102-04 footprint by
 expanding `address_space` to `10.240.2.0/23` and selecting the engine's existing
 `agents` role — with **no** change to the 004-vnet engine and **no**
 renumbering of existing subnets. This requirement **supersedes FR-102-05**.
@@ -376,8 +372,8 @@ delegated subnet, and the managed environment provides its own outbound path.
 - **C-105-03** The `agents` and `container-apps` subnets are correctly
   **excluded** from NAT association (they are `Microsoft.App/environments`-
   delegated, `needs_route_table = false`; their managed environments own their
-  egress). Their private connectivity to BYO resources is provided by Foundry
-  network injection + private endpoints, which is orthogonal to NAT.
+  egress). Their private connectivity to BYO resources is provided by network
+  injection + private endpoints, which is orthogonal to NAT.
 - **C-105-04** This is an **amendment to instance feature 102** (same spoke),
   not a new `10n` feature — append to these 102 artifacts + edit the one tfvars
   file.

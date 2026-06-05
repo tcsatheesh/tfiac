@@ -30,11 +30,11 @@ inside each phase per spec.md US1..US5.
 
 - Root stack: [terraform/services/](../../terraform/services/) (CREATED in
   this feature — directory does not currently exist).
-- Wrapper modules: [modules/&lt;service&gt;/](../../modules/) (15 per
+- Wrapper modules: [modules/&lt;service&gt;/](../../modules/) (14 per
   [spec.md C-001](spec.md#clarifications) /
   [C-010](spec.md#clarifications); `modules/loganalytics/` already exists
   per [feature 003](../003-log-analytics/) and is re-validated, not
-  re-created; the other 14 are CREATED in Phase 2).
+  re-created; the other 13 are CREATED in Phase 2).
 - Operator tfvars: [variables/{hub,sp01}/{npd,prd}/services.tfvars.json](../../variables/)
   (seed files CREATED in Phase 4).
 - CI workflow: [.github/workflows/deploy.yaml](../../.github/workflows/deploy.yaml)
@@ -51,8 +51,8 @@ inside each phase per spec.md US1..US5.
 **Purpose**: gather facts before any HCL is written. Outputs land in
 `temp/scratchpad/006-services-audit/`.
 
-- [ ] T001 [P] Inventory the 15 wrapper directories required by [spec.md C-001](spec.md#clarifications) (`keyvault, storage, loganalytics, appinsights, cntreg, uai, search, openai, aifoundry, language, docint, fnapp, lgapp, aml, apim`); for each note whether `modules/<svc>/` already exists, and capture the AVM-vs-handroll status of `temp/modules/<svc>/` (legacy reference). Write findings to `temp/scratchpad/006-services-audit/wrapper-inventory.md`.
-- [ ] T002 [P] Pin AVM module versions for each of the 15 v1 selectable types by querying the Terraform Registry (`Azure/avm-res-*/azurerm`); record `(type → AVM module → pinned version | "no AVM yet")` in `temp/scratchpad/006-services-audit/avm-versions.md`. Day-one AVM-covered list per [research.md R-9](research.md): `keyvault, storage, loganalytics, cntreg, uai, appinsights, search`.
+- [ ] T001 [P] Inventory the 14 wrapper directories required by [spec.md C-001](spec.md#clarifications) (`keyvault, storage, loganalytics, appinsights, cntreg, uai, search, openai, language, docint, fnapp, lgapp, aml, apim`); for each note whether `modules/<svc>/` already exists, and capture the AVM-vs-handroll status of `temp/modules/<svc>/` (legacy reference). Write findings to `temp/scratchpad/006-services-audit/wrapper-inventory.md`.
+- [ ] T002 [P] Pin AVM module versions for each of the 14 v1 selectable types by querying the Terraform Registry (`Azure/avm-res-*/azurerm`); record `(type → AVM module → pinned version | "no AVM yet")` in `temp/scratchpad/006-services-audit/avm-versions.md`. Day-one AVM-covered list per [research.md R-9](research.md): `keyvault, storage, loganalytics, cntreg, uai, appinsights, search`.
 - [ ] T003 [P] Audit `temp/_legacy/services/` (currently only carries `README.md, locals.tf, main.tf, outputs.tf, providers.tf, variables.tf`) for any address that any operator might have applied previously; record findings in `temp/scratchpad/006-services-audit/legacy-moved-candidates.md`. `terraform/services/` does NOT exist today, so no `moved {}` blocks are required UNLESS the audit surfaces a live state under the legacy path (per CLAUDE.md / [spec.md C-004](spec.md#clarifications)).
 - [ ] T004 [P] Re-verify the canonical-name shapes in [data-model.md § 5](data-model.md) against `local.top_level_named` in [modules/naming/locals.tf](../../modules/naming/locals.tf) by hand; produce a one-line `actual == expected` confirmation per row in `temp/scratchpad/006-services-audit/canonical-name-recheck.md` (catches CA-001 regressions before any fixture is authored).
 
@@ -70,11 +70,11 @@ depends on this phase.
 - [ ] T006 Create `terraform/services/providers.tf` with a single `azurerm` provider block carrying `features {}` and `subscription_id = var.subscription_id`, plus inert provider configurations for `azapi`, `modtm`, `random`, `time` (no aliases — wrapper modules inherit per Constitution Principle VII).
 - [ ] T007 Create `terraform/services/backend.tf` declaring a partial-config `azurerm` backend with `use_azuread_auth = true` (CI / operator injects `resource_group_name`, `storage_account_name`, `container_name`, `key = "{tenant}/{environment}/services.tfstate"`, `subscription_id` via `-backend-config=...` per [quickstart.md Step 3](quickstart.md) and [spec.md C-006](spec.md#clarifications)).
 - [ ] T008 Create `terraform/services/variables.tf` declaring the EIGHT required inputs (`subscription_id`, `topology`, `tenant`, `environment`, `region`, `usecase`, `repo`, `services`) and the optional `overrides` per [data-model.md § 1](data-model.md). Each `variable` block carries the validations enumerated in data-model.md § 1 (GUID regex + placeholder rejection on `subscription_id`; `contains(["hub","spoke"], ...)` on `topology`; `^(hub|sp(0[1-9]|[1-9][0-9]))$` + topology cross-check on `tenant`; `contains(["npd","prd"], ...)` on `environment`; `^[a-z0-9]{3,4}$` on `region`; `^[a-z0-9]{3}$` on `usecase` — tighter than the engine's `^[a-z0-9]{3,4}$` so the CA-004 strategy-B `service_purpose` fallback always satisfies the engine's `^[a-z0-9]{3}$` regex; `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` + length ≤ 256 on `repo`; per-entry rules from [data-model.md § 2](data-model.md) on `services`).
-- [ ] T009 Create `terraform/services/locals.tf` per [plan.md Phase 1](plan.md#phase-1--root-stack-scaffolding-terraformservices) and [research.md R-2](research.md): set `stack_purpose = "svc"`, build `naming_input` with the six engine inputs, declare `v1_selectable_types` (the 15-entry C-001 list), `deferred_reason` map (with one-line friendly message per deferred-but-catalogued type — pointing at `terraform/vnet/`, `terraform/dns/`, or "deferred to follow-up"), `type_short` (3-letter slug per type for the synthetic engine key), and `engine_services` (auto-emitted `resource_group` entry + flattened per-instance records per [data-model.md § 3](data-model.md)).
+- [ ] T009 Create `terraform/services/locals.tf` per [plan.md Phase 1](plan.md#phase-1--root-stack-scaffolding-terraformservices) and [research.md R-2](research.md): set `stack_purpose = "svc"`, build `naming_input` with the six engine inputs, declare `v1_selectable_types` (the 14-entry C-001 list), `deferred_reason` map (with one-line friendly message per deferred-but-catalogued type — pointing at `terraform/vnet/`, `terraform/dns/`, or "deferred to follow-up"), `type_short` (3-letter slug per type for the synthetic engine key), and `engine_services` (auto-emitted `resource_group` entry + flattened per-instance records per [data-model.md § 3](data-model.md)).
 - [ ] T010 Create `terraform/services/main.tf` per [plan.md Phase 1](plan.md#phase-1--root-stack-scaffolding-terraformservices): `data "azurerm_client_config" "current" {}`; `module "naming" { source = "../../modules/naming" input = local.naming_input services = local.engine_services }`; resolve the single RG canonical name as `local.svc_rg_name = one([for k, v in module.naming.names : k if v.service_type == "resource_group"])` and the RG location from the engine's own tag (`local.svc_rg_location = module.naming.names[local.svc_rg_name].tags.region` — the engine has already resolved the short region code to the full Azure region; the stack does NOT reference `module.catalogue` directly because the engine's internal catalogue module is not re-exported); `azurerm_resource_group "svc"` with `name = local.svc_rg_name`, `location = local.svc_rg_location`, `tags = module.naming.names[local.svc_rg_name].tags` (the engine-emitted 8 baseline tags per [data-model.md § 6](data-model.md)); one `module "<type>" { for_each = { for n, e in module.naming.names : n => e if e.service_type == "<type>" } source = "../../modules/<dir>" ... }` invocation per v1 selectable type, keyed by canonical name per [research.md R-6](research.md), passing `canonical_name = each.key`, `engine_record = each.value`, `resource_group_name = azurerm_resource_group.svc.name`, `location = azurerm_resource_group.svc.location`, `overrides = lookup(var.overrides, each.key, {})`.
 - [ ] T011 Create `terraform/services/check.tf` carrying three `check` blocks: (a) `subscription_match` over `data.azurerm_client_config.current.subscription_id == var.subscription_id` (mirrors `terraform/vnet/main.tf` per [data-model.md § 1](data-model.md)); (b) `v1_selectable_inventory` emitting one assert per offender from `local.deferred_reason` ([CA-003](spec.md#ca-003--topology-gating-is-stack-owned-corrects-fr-003-cross-check-fr-007-fr-018-edge-cases)); (c) `overrides_keys_resolved` over `keys(var.overrides) ⊆ keys(module.naming.names)` listing every unmatched key ([CA-006](spec.md#ca-006--stack-owns-unmatched-overrides-hard-fail-corrects-fr-006-fr-018-c-003)).
 - [ ] T012 Create `terraform/services/outputs.tf` declaring exactly the outputs in [contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md): `resource_group_name`, `resource_group_id`, `resource_ids` (map keyed by canonical name → wrapper `resource_id`, merged from every `module.<type>`), `resource_names` (passthrough `{ k = k for k in keys(resource_ids) }`), `naming = module.naming.names`, `engine_version = module.naming.engine_version`. NO per-resource `_id` / `_name` outputs, NO `subscription_id` re-export.
-- [ ] T013 Create `terraform/services/README.md` documenting: the 8 required inputs + 1 optional, the 15 v1 selectable types with one-line description each, the C-001 deferred-type table, the state-key contract (`{tenant}/{environment}/services.tfstate`), the output contract (link to [contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md)), and the runtime `subscription_id` injection paths per [CA-011](spec.md#ca-011--subscription_id-runtime-injection-cli-or-env-corrects-c-005-quickstart-troubleshooting).
+- [ ] T013 Create `terraform/services/README.md` documenting: the 8 required inputs + 1 optional, the 14 v1 selectable types with one-line description each, the C-001 deferred-type table, the state-key contract (`{tenant}/{environment}/services.tfstate`), the output contract (link to [contracts/cross-stack-outputs.md](contracts/cross-stack-outputs.md)), and the runtime `subscription_id` injection paths per [CA-011](spec.md#ca-011--subscription_id-runtime-injection-cli-or-env-corrects-c-005-quickstart-troubleshooting).
 - [ ] T014 Run `terraform fmt -recursive terraform/services/` and `terraform -chdir=terraform/services init -backend=false && terraform -chdir=terraform/services validate`; resolve any errors before proceeding to Phase 2.
 
 **Checkpoint**: root stack syntactically valid; engine wiring complete;
@@ -83,9 +83,9 @@ ready for wrapper modules to slot into the `for_each` invocations in
 
 ---
 
-## Phase 2: Wrapper-module modernisation (15 modules, US1-enabling)
+## Phase 2: Wrapper-module modernisation (14 modules, US1-enabling)
 
-**Purpose**: build / refactor the 15 wrappers per [spec.md C-010 / FR-021](spec.md#clarifications)
+**Purpose**: build / refactor the 14 wrappers per [spec.md C-010 / FR-021](spec.md#clarifications)
 and [research.md R-5 / R-9](research.md). Each wrapper accepts the engine
 record + canonical name + RG + location + per-instance overrides,
 delegates to AVM (or hand-rolls once with a follow-up tracker), strips
@@ -98,7 +98,7 @@ build" promise of US1 is structurally satisfied when every wrapper accepts
 the canonical engine contract; US2 (hub), US3 (day-2), US4 (overrides)
 and US5 (reject unknown) reuse the same wrappers without further change.
 
-- [ ] T015 [US1] Author a shared wrapper-template reference at `temp/scratchpad/006-services-audit/wrapper-template.md` (variable shapes, AVM module skeleton, tftest skeleton, expected `resource_id` output) so the 15 wrapper tasks below can be implemented in parallel without drift.
+- [ ] T015 [US1] Author a shared wrapper-template reference at `temp/scratchpad/006-services-audit/wrapper-template.md` (variable shapes, AVM module skeleton, tftest skeleton, expected `resource_id` output) so the 14 wrapper tasks below can be implemented in parallel without drift.
 
 ### 2A — AVM-covered wrappers (parallelisable after T015)
 
@@ -121,8 +121,6 @@ and US5 (reject unknown) reuse the same wrappers without further change.
 
 - [ ] T030 [P] [US1] Create `modules/openai/` delegating to `Azure/avm-res-cognitiveservices-account/azurerm` (with `kind = "OpenAI"`) or hand-roll `azurerm_cognitive_account` per the T002 audit; reference name `oai-shd-shd-sp01-npd-uks-001`. Record any AVM gap in `modules/openai/README.md` follow-up tracker.
 - [ ] T031 [P] [US1] Create `modules/openai/tests/{positive,negative}.tftest.hcl` against `oai-shd-shd-sp01-npd-uks-001`.
-- [ ] T032 [P] [US1] Create `modules/aifoundry/` (hand-roll `azapi_resource` for AI Foundry hub if no AVM is published per T002); reference name `aif-shd-shd-sp01-npd-uks-001`. Record AVM gap in README.
-- [ ] T033 [P] [US1] Create `modules/aifoundry/tests/{positive,negative}.tftest.hcl` against `aif-shd-shd-sp01-npd-uks-001`.
 - [ ] T034 [P] [US1] Create `modules/language/` delegating to `Azure/avm-res-cognitiveservices-account/azurerm` (with `kind = "TextAnalytics"`) or hand-roll per T002 audit; reference name `lang-shd-shd-sp01-npd-uks-001`.
 - [ ] T035 [P] [US1] Create `modules/language/tests/{positive,negative}.tftest.hcl` against `lang-shd-shd-sp01-npd-uks-001`.
 - [ ] T036 [P] [US1] Create `modules/docint/` delegating to `Azure/avm-res-cognitiveservices-account/azurerm` (with `kind = "FormRecognizer"`) or hand-roll per T002 audit; reference name `di-shd-shd-sp01-npd-uks-001`.
@@ -138,7 +136,7 @@ and US5 (reject unknown) reuse the same wrappers without further change.
 
 ### 2C — Per-wrapper validation
 
-- [ ] T046 Run `terraform fmt -recursive modules/` and per-wrapper `terraform -chdir=modules/<svc> init -backend=false && terraform -chdir=modules/<svc> validate && terraform -chdir=modules/<svc> test` for each of the 15 wrappers; resolve every failure before Phase 3.
+- [ ] T046 Run `terraform fmt -recursive modules/` and per-wrapper `terraform -chdir=modules/<svc> init -backend=false && terraform -chdir=modules/<svc> validate && terraform -chdir=modules/<svc> test` for each of the 14 wrappers; resolve every failure before Phase 3.
 
 **Checkpoint**: every v1 selectable type has a wrapper that accepts the
 canonical engine contract with green pos + neg tests.
@@ -180,7 +178,7 @@ T003 surfaces any forced recreates), and audit for `moved {}` need.
 - [ ] T059 [P] Create `variables/hub/prd/services.tfvars.json` (same shape as T058 with `environment="prd"`).
 - [ ] T060 [P] Create `variables/sp01/npd/services.tfvars.json` (same shape as T058 with `topology="spoke"`, `tenant="sp01"`, `environment="npd"`).
 - [ ] T061 [P] Create `variables/sp01/prd/services.tfvars.json` (same shape with `tenant="sp01"`, `environment="prd"`); creates the `variables/sp01/prd/` directory if it does not exist.
-- [ ] T062 Author `temp/scratchpad/006-services-pr-body.md` summarising the feature, listing the 15 wrappers added/refactored, linking each Phase-3 fixture, and including an "Operator approval required" section. If Phase-0 T003 surfaced any live legacy state under `terraform/services/` whose addresses cannot be `moved {}`-translated without recreation, list each such address; otherwise state explicitly "No forced recreates — `terraform/services/` is being CREATED; no `moved {}` blocks required."
+- [ ] T062 Author `temp/scratchpad/006-services-pr-body.md` summarising the feature, listing the 14 wrappers added/refactored, linking each Phase-3 fixture, and including an "Operator approval required" section. If Phase-0 T003 surfaced any live legacy state under `terraform/services/` whose addresses cannot be `moved {}`-translated without recreation, list each such address; otherwise state explicitly "No forced recreates — `terraform/services/` is being CREATED; no `moved {}` blocks required."
 - [ ] T063 Decide whether `terraform/services/moved.tf` is required: ONLY if T003 surfaced legacy addresses that would otherwise destroy/recreate. If required, author the file with one `moved {}` block per address per [plan.md Phase 4](plan.md#phase-4--migration-of-the-existing-terraformservices-stack); if not, this task is a no-op and the explicit absence is noted in `temp/scratchpad/006-services-pr-body.md`.
 
 **Checkpoint**: operator-input seeds in place; PR body draft ready;
@@ -209,16 +207,16 @@ same OIDC + state-SA + `subscription_id` injection used by `vnet`.
 before the PR is raised.
 
 - [ ] T066 Run `terraform fmt -recursive` at the repo root; assert zero changes (formatting clean across all of `terraform/` and `modules/`).
-- [ ] T067 Run `terraform -chdir=terraform/services init -backend=false && terraform -chdir=terraform/services validate` AND `terraform -chdir=modules/<svc> init -backend=false && terraform -chdir=modules/<svc> validate` for each of the 15 wrappers; assert zero validation errors anywhere.
-- [ ] T068 Run `terraform -chdir=terraform/services test` AND `terraform -chdir=modules/<svc> test` for each of the 15 wrappers; assert every fixture (9 root + 30 wrapper) is green.
+- [ ] T067 Run `terraform -chdir=terraform/services init -backend=false && terraform -chdir=terraform/services validate` AND `terraform -chdir=modules/<svc> init -backend=false && terraform -chdir=modules/<svc> validate` for each of the 14 wrappers; assert zero validation errors anywhere.
+- [ ] T068 Run `terraform -chdir=terraform/services test` AND `terraform -chdir=modules/<svc> test` for each of the 14 wrappers; assert every fixture (9 root + 28 wrapper) is green.
 - [ ] T069 Double-plan determinism check: with a live backend init against the `sp01/npd` state key and `subscription_id` injected per [quickstart.md Step 2](quickstart.md), run `terraform plan -out=plan1.tfplan -var-file=variables/sp01/npd/services.tfvars.json` twice; assert the second plan reports `0 to add, 0 to change, 0 to destroy` per [SC-002](spec.md#measurable-outcomes). Stash plan outputs in `temp/scratchpad/006-services-audit/double-plan-{1,2}.txt`.
 - [ ] T070 Snapshot byte-equality check: run `terraform -chdir=terraform/services test -filter=tests/snapshot.tftest.hcl`; assert SHA256 byte-equal against the committed `terraform/services/tests/snapshots/reference.json` ([SC-006](spec.md#measurable-outcomes)).
 - [ ] T071 Run the CORRECTED [CA-009](spec.md#ca-009--sc-007-grep-must-match-real-name-shapes-corrects-sc-007-tasksmd-verification-gate-8) hand-built-name grep gate (the only [SC-007](spec.md#measurable-outcomes) gate that is valid; the prior regex was vacuous):
 
    ```sh
    git grep -nE \
-     '(^|[^a-z])(rg-svc-|kv[a-z0-9]{3,4}[a-z0-9]{3,4}|st[a-z0-9]{3,4}[a-z0-9]{3,4}|cr[a-z0-9]{3,4}[a-z0-9]{3,4}|(log|appi|id|apim|func|logic|mlw|oai|aif|lang|di|srch)-[a-z0-9]{3}-[a-z0-9]{3,4}-(hub|sp[0-9]{2}))-' \
-     terraform/services modules/{keyvault,storage,appinsights,loganalytics,cntreg,uai,search,openai,aifoundry,language,docint,fnapp,lgapp,aml,apim} \
+     '(^|[^a-z])(rg-svc-|kv[a-z0-9]{3,4}[a-z0-9]{3,4}|st[a-z0-9]{3,4}[a-z0-9]{3,4}|cr[a-z0-9]{3,4}[a-z0-9]{3,4}|(log|appi|id|apim|func|logic|mlw|oai|lang|di|srch)-[a-z0-9]{3}-[a-z0-9]{3,4}-(hub|sp[0-9]{2}))-' \
+     terraform/services modules/{keyvault,storage,appinsights,loganalytics,cntreg,uai,search,openai,language,docint,fnapp,lgapp,aml,apim} \
      -- ':!*/tests/*' ':!*/README.md'
    ```
 
@@ -250,7 +248,7 @@ environment)` pair; state SA is locked down.
 
 - **Phase 0 (Audit)**: no dependencies — start immediately.
 - **Phase 1 (Root scaffold)**: depends on Phase 0 (audit findings shape `locals.tf`, AVM versions).
-- **Phase 2 (Wrappers)**: depends on Phase 1 T015 only (wrapper template); after T015 the 14 created wrappers + 1 re-validated wrapper run in parallel.
+- **Phase 2 (Wrappers)**: depends on Phase 1 T015 only (wrapper template); after T015 the 13 created wrappers + 1 re-validated wrapper run in parallel.
 - **Phase 3 (Root tests)**: depends on Phase 1 + Phase 2 (the wrappers must exist for `module.<type>` invocations to resolve).
 - **Phase 4 (Seeds / PR body)**: depends on Phase 0 T003 (migration audit) and may run in parallel with Phase 3.
 - **Phase 5 (CI)**: depends on Phase 1 (the workflow needs `terraform/services/` to exist).
@@ -274,14 +272,14 @@ environment)` pair; state SA is locked down.
 ## Parallel Opportunities
 
 - **Phase 0**: T001–T004 all `[P]` — run together.
-- **Phase 2 after T015**: T016–T045 all `[P]` (15 disjoint module directories × 2 tasks each) — fan out to as many workers as available.
+- **Phase 2 after T015**: T016–T045 (excluding the deleted T032/T033) all `[P]` (14 disjoint module directories × 2 tasks each) — fan out to as many workers as available.
 - **Phase 3 after Phase 2**: T047–T056 all `[P]` (each is a different `*.tftest.hcl` file under `terraform/services/tests/`).
 - **Phase 4**: T058–T061 all `[P]` (4 disjoint tfvars files).
 
 ## Parallel Example: Phase 2 wrapper sprint
 
 ```bash
-# After T015 lands, launch the 15 wrappers in parallel:
+# After T015 lands, launch the 14 wrappers in parallel:
 Task: "Create modules/keyvault/ delegating to Azure/avm-res-keyvault-vault/azurerm; reference name kvshdshdsp01npduks001"
 Task: "Create modules/storage/ delegating to Azure/avm-res-storage-storageaccount/azurerm; reference name stshdshdsp01npduks001"
 Task: "Create modules/cntreg/ delegating to Azure/avm-res-containerregistry-registry/azurerm; reference name crshdshdsp01npduks001"
@@ -335,7 +333,7 @@ With multiple operators:
   [spec.md C-004 / FR-023](spec.md#clarifications).
 - Every fixture and test references the CORRECT canonical-name shapes
   from [data-model.md § 5](data-model.md) — hyphenated for `rg`, `log`,
-  `appi`, `id`, `srch`, `oai`, `aif`, `lang`, `di`, `func`, `logic`,
+  `appi`, `id`, `srch`, `oai`, `lang`, `di`, `func`, `logic`,
   `mlw`, `apim`; concatenated for `kv`, `st`, `cr`. Any deviation is a
   [CA-001](spec.md#ca-001--real-canonical-name-formats-corrects-fr-009-fr-010-examples-in-c-001c-009-us1-us2-us4) regression.
 - The SC-007 grep gate in T071 is the CORRECTED regex from
@@ -377,7 +375,7 @@ amends them).
 
 - [X] T085 Add three new optional `tfstate_*` inputs to `terraform/services/variables.tf` (`tfstate_resource_group`, `tfstate_storage_account`, `tfstate_container`) with defaults `rg-tfs-shd-hub-npd-swc-001` / `sttfsshdhubnpdswc001` / `tfstate`, each with a regex validation.
 - [X] T086 Create `terraform/services/data.log.tf` with `data "terraform_remote_state" "hub_log"` keyed by `hub/${var.environment}/log.tfstate` and a stack-local `shared_la_workspace_id`.
-- [X] T087 [P] Add `variable "shared_log_analytics_workspace_id"` (regex-validated) and `variable "diagnostic_settings_enabled"` (bool, default `true`) to every diagnostic-capable wrapper under `modules/{keyvault,storage,appinsights,cntreg,search,openai,aifoundry,language,docint,fnapp,lgapp,aml,apim}/variables.tf`. (uai and loganalytics exempt.)
+- [X] T087 [P] Add `variable "shared_log_analytics_workspace_id"` (regex-validated) and `variable "diagnostic_settings_enabled"` (bool, default `true`) to every diagnostic-capable wrapper under `modules/{keyvault,storage,appinsights,cntreg,search,openai,language,docint,fnapp,lgapp,aml,apim}/variables.tf`. (uai and loganalytics exempt.)
 - [X] T088 [P] Add a default `resource "azurerm_monitor_diagnostic_setting" "to_hub_la"` (gated by `var.diagnostic_settings_enabled`) to every diagnostic-capable wrapper's `main.tf`. Use `enabled_log { category_group = "allLogs" }` + `metric { category = "AllMetrics" }`.
 - [X] T089 Update `modules/appinsights/main.tf` to set `workspace_id = var.shared_log_analytics_workspace_id` on the underlying `azurerm_application_insights`.
 - [X] T090 Plumb `shared_log_analytics_workspace_id = local.shared_la_workspace_id` (and where applicable, `topology = var.topology`) into every wrapper invocation in `terraform/services/main.tf`. Document the `log_analytics` wrapper exemption inline.
@@ -431,7 +429,7 @@ from the legacy `npd` slot to `dev`. All tasks are post-implement.
 ### Phase C-016.C — tfvars relocation (variables/sp01/)
 
 - [X] T-C016-009 `git mv variables/sp01/npd/services.tfvars.json variables/sp01/dev/services.tfvars.json` (create `variables/sp01/dev/` first if it does not exist). (FR-025 / C-016)
-- [X] T-C016-010 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json): set `"environment": "dev"` (was `"npd"`) and `"usecase": "uc1"` (was `"shd"`). Leave the services array (KV, SA, aifoundry, aifoundry_project) unchanged. (FR-025 / C-016)
+- [X] T-C016-010 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json): set `"environment": "dev"` (was `"npd"`) and `"usecase": "uc1"` (was `"shd"`). Leave the services array (KV, SA) unchanged. (FR-025 / C-016)
 - [X] T-C016-011 Run `rmdir variables/sp01/npd 2>/dev/null || true` — removes the now-empty legacy directory; no-op if other files remain. (FR-025 / C-016)
 
 ### Phase C-016.D — CI pipeline (.github/workflows/)
@@ -442,15 +440,13 @@ from the legacy `npd` slot to `dev`. All tasks are post-implement.
 
 - [X] T-C016-013 `terraform fmt -recursive` from repo root → no changes. (FR-025 / C-016)
 - [X] T-C016-014 [P] `terraform -chdir=modules/naming test` → 100% pass (allowlist change should not regress naming). (FR-025 / C-016)
-- [X] T-C016-015 [P] `terraform -chdir=modules/aifoundry test` → 100% pass. (FR-025 / C-016)
-- [X] T-C016-016 [P] `terraform -chdir=modules/aifoundryproject test` → 100% pass. (FR-025 / C-016)
 - [X] T-C016-017 `terraform -chdir=terraform/services test` → 100% pass (new `reject_npd_environment` test green; relocated positive fixtures green). (FR-025 / C-016)
 
 ### Phase C-016.F — Rollout
 
 - [ ] T-C016-018 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-025 / C-016)
 - [ ] T-C016-019 Trigger `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true` (or equivalent dispatch) on `master`. (FR-025 / C-016)
-- [ ] T-C016-020 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 4 resources are present (KV, SA, aifoundry, aifoundry_project). (FR-025 / C-016)
+- [ ] T-C016-020 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 2 resources are present (KV, SA). (FR-025 / C-016)
 
 ### Phase C-016.G — Analyze remediation (BLOCKER + MAJOR findings)
 
@@ -459,168 +455,6 @@ from the legacy `npd` slot to `dev`. All tasks are post-implement.
 - [X] T-C016-023 [P] Edit `specs/006-services/quickstart.md`: replace `sp01/npd` references at ~lines 94, 113, 125, 161 with `sp01/dev` (both tfvars path AND backend state-key). (Satisfies analyze MAJOR M2 / C-016.)
 - [X] T-C016-024 [P] Edit `specs/006-services/contracts/cross-stack-outputs.md` ~line 201: refresh the `terraform_remote_state` example from `key = "sp01/npd/services.tfstate"` to `key = "sp01/dev/services.tfstate"`. (Satisfies analyze MINOR m1.)
 - [X] T-C016-025 Clarification for T-C016-012: when widening `.github/workflows/deploy.yaml` `inputs.environment.options`, preserve `default: npd` verbatim — do NOT change the default. Only the `options` list is widened. (Plan §5 sub-note.)
-
-## Phase C-017 — Foundry account + project (Cognitive Services kind=AIServices + accounts/projects child)
-
-Implements [spec.md C-017](spec.md#c-017) / FR-026 on the shipped
-006-services stack. Replaces the legacy `Microsoft.MachineLearningServices/workspaces`
-hub + project pair with a single `Microsoft.CognitiveServices/accounts`
-(kind=AIServices, `allowProjectManagement=true`) and one
-`Microsoft.CognitiveServices/accounts/projects` child. Day-one tfvars
-drops the legacy KV + SA fixtures. All tasks are post-implement.
-
-### Phase C-017.A — Pre-merge cleanup (HARD pre-condition)
-
-- [X] T-C017-001 Trigger `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=destroy -f apply=true` on `master` to destroy the currently-deployed legacy resources (KV, SA, aifoundry Hub workspace, aifoundry project workspace) in `rg-svc-uc1-sp01-dev-swc-001`. Wait for the run to complete green before proceeding. (FR-026 / C-017)
-- [X] T-C017-002 If Key Vault soft-delete leaves a tombstone after T-C017-001, run `az keyvault purge --name kvuc1uc1sp01devswc001 --location swedencentral` to free the name for any (unlikely) future re-use. (FR-026 / C-017)
-- [X] T-C017-003 Temp-open the state SA firewall (`sttfsshdhubnpdswc001`) for the current egress IP, run `az storage blob delete --account-name sttfsshdhubnpdswc001 --container-name tfstate --name sp01/dev/services.tfstate --auth-mode login`, then restore the firewall (`publicNetworkAccess=Disabled`, `defaultAction=Deny`, remove the temp IP) per CLAUDE.md rollout discipline. (FR-026 / C-017)
-
-### Phase C-017.B — modules/aifoundry/ refactor (Cognitive Services account)
-
-- [X] T-C017-004 Rewrite [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf) per [plan.md §1](plan.md): switch the `azapi_resource` type to `Microsoft.CognitiveServices/accounts@2025-09-01`, set the body to `kind=AIServices` + `properties.allowProjectManagement=true` + `properties.customSubDomainName=var.canonical_name` + `sku.name=S0` + `identity.type=SystemAssigned`, and set `response_export_values = ["id","properties.endpoints"]`. Keep the existing `azurerm_monitor_diagnostic_setting` block referencing `azapi_resource.this.id`. (FR-026 / C-017)
-- [X] T-C017-005 Edit [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf) per [plan.md §2](plan.md): remove the `storage_account_id` and `key_vault_id` variable blocks entirely (no longer required by the Cognitive Services account). (FR-026 / C-017)
-- [X] T-C017-006 Edit [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf) per [plan.md §3](plan.md): drop the legacy `kind` and `sku_name` defaults; keep `public_network_access = "Enabled"` (still consumed by the body). (FR-026 / C-017)
-- [X] T-C017-007 Refresh [modules/aifoundry/README.md](../../modules/aifoundry/README.md) per [plan.md §4](plan.md): document the new Cognitive Services account shape, the removed `storage_account_id` / `key_vault_id` inputs, and the C-017 / FR-026 rationale. (FR-026 / C-017)
-- [X] T-C017-008 Edit [modules/aifoundry/tests/positive.tftest.hcl](../../modules/aifoundry/tests/positive.tftest.hcl) per [plan.md §5](plan.md): drop the `storage_account_id` and `key_vault_id` fixture inputs; the wrapper must plan-green standalone with only the remaining inputs. (FR-026 / C-017)
-- [X] T-C017-009 Edit [modules/aifoundry/tests/negative.tftest.hcl](../../modules/aifoundry/tests/negative.tftest.hcl) per analyze MAJOR M2: KEEP the existing `empty_canonical_name_rejected` run unchanged (still valuable), and drop the `storage_account_id` / `key_vault_id` lines from its `variables {}` block (those variables disappear in T-C017-005). No new negative required. (FR-026 / C-017)
-- [X] T-C017-010 Edit [modules/aifoundry/tests/shared_la_regex_negative.tftest.hcl](../../modules/aifoundry/tests/shared_la_regex_negative.tftest.hcl) per [plan.md §5](plan.md): drop any storage/keyvault fixture inputs (the LA-regex assertion itself is unchanged). (FR-026 / C-017)
-
-### Phase C-017.C — modules/aifoundryproject/ refactor (Cognitive Services account/projects child)
-
-- [X] T-C017-011 Rewrite [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf) per [plan.md §6](plan.md): switch the `azapi_resource` type to `Microsoft.CognitiveServices/accounts/projects@2025-09-01`, set `parent_id = var.parent_account_id`, remove the `location` argument (inherited from the parent account), set the body to `{identity: {type: "SystemAssigned"}, properties: {displayName: var.canonical_name, description: "Foundry project ${var.canonical_name}"}}`, and omit top-level `tags` (the child inherits from the parent account). Keep the `azurerm_monitor_diagnostic_setting` block referencing `azapi_resource.this.id`. (FR-026 / C-017)
-- [X] T-C017-012 Edit [modules/aifoundryproject/variables.tf](../../modules/aifoundryproject/variables.tf) per [plan.md §7](plan.md) + analyze BLOCKER B1: rename `hub_resource_id` → `parent_account_id`, tighten the validation regex to `^/subscriptions/.+/providers/Microsoft\.CognitiveServices/accounts/[^/]+$`, update the `error_message` to cite C-017 / FR-026, AND remove `variable "location"` and `variable "tags"` entirely (the project inherits both from the parent account in the new RP). (FR-026 / C-017)
-- [X] T-C017-013 Edit [modules/aifoundryproject/locals.tf](../../modules/aifoundryproject/locals.tf) per [plan.md §8](plan.md): drop the legacy `public_network_access` default; the file may become empty (acceptable — leave a single-line comment or delete contents). (FR-026 / C-017)
-- [X] T-C017-014 Refresh [modules/aifoundryproject/README.md](../../modules/aifoundryproject/README.md) per [plan.md §9](plan.md): document the new `parent_account_id` input, the renamed-from-`hub_resource_id` migration note, and the C-017 / FR-026 rationale. (FR-026 / C-017)
-- [X] T-C017-015 Edit every fixture under [modules/aifoundryproject/tests/](../../modules/aifoundryproject/tests/) per [plan.md §10](plan.md) + analyze MAJOR M3: rename `hub_resource_id = ...` → `parent_account_id = ...` with a valid Cognitive Services account resource-ID string in every positive fixture, AND delete the `location = ...` and `tags = {...}` lines from every fixture's `variables {}` block (those variables are removed by T-C017-012). The negative regex test must assert the new regex from T-C017-012. (FR-026 / C-017)
-
-### Phase C-017.D — terraform/services/ root-stack rewire
-
-- [X] T-C017-016 Edit [terraform/services/main.tf](../../terraform/services/main.tf) per [plan.md §11](plan.md) + analyze BLOCKER B1: drop the `storage_account_id` and `key_vault_id` arguments from `module "aifoundry"`; on `module "aifoundry_project"`, rename `hub_resource_id` → `parent_account_id` (the value remains `values(module.aifoundry)[0].resource_id`) AND delete the `location = ...` and `tags = ...` argument lines (the wrapper no longer accepts them per T-C017-012). (FR-026 / C-017)
-- [X] T-C017-017 Edit [terraform/services/check.tf](../../terraform/services/check.tf) per [plan.md §12](plan.md): delete the `check "aifoundry_requires_hub_deps"` block; rename `check "aifoundry_project_requires_hub"` → `check "aifoundry_project_requires_account"` and update its `error_message` to cite the new account dependency (C-017 / FR-026). (FR-026 / C-017)
-- [X] T-C017-018 Edit [terraform/services/tests/_fixtures.tftest.hcl](../../terraform/services/tests/_fixtures.tftest.hcl) per [plan.md §13](plan.md): drop any KV/SA-only-for-old-check entries from fixtures that select `aifoundry`; ensure the remaining fixture continues to plan-green. (FR-026 / C-017)
-- [X] T-C017-019 [P] Create [terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl](../../terraform/services/tests/reject_aifoundry_project_without_account.tftest.hcl) per [plan.md §14](plan.md), modelled on [terraform/services/tests/reject_apim_spoke.tftest.hcl](../../terraform/services/tests/reject_apim_spoke.tftest.hcl): include the same `mock_provider azurerm/azapi/modtm/random/time` + `override_data` for `data.terraform_remote_state.hub_log` boilerplate; a `plan` run that selects `aifoundry_project` without `aifoundry` and `expect_failures` the new `aifoundry_project_requires_account` check with the C-017 / FR-026 error message. (FR-026 / C-017)
-
-### Phase C-017.E — Day-one tfvars shrink
-
-- [X] T-C017-020 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json) per [plan.md §15](plan.md): replace the `services` array with `[{"type":"aifoundry","purpose":"main"},{"type":"aifoundry_project","purpose":"main"}]` (the legacy KV + SA entries are dropped — the account no longer needs them). (FR-026 / C-017)
-
-### Phase C-017.F — Naming catalogue tightening
-
-- [X] T-C017-021 Edit [modules/naming/catalogue/services.tf](../../modules/naming/catalogue/services.tf) per [plan.md §16](plan.md): change `aifoundry_project.azure_max` from 64 to 32 (Cognitive Services project name limit). Run `terraform -chdir=modules/naming test` to confirm no regression. (FR-026 / C-017)
-
-### Phase C-017.G — Verification gates (HARD)
-
-- [X] T-C017-022 `terraform fmt -recursive` from repo root → no changes. (FR-026 / C-017)
-- [X] T-C017-023 [P] `terraform -chdir=modules/naming test` → 100% pass (catalogue tightening must not regress). (FR-026 / C-017)
-- [X] T-C017-024 [P] `terraform -chdir=modules/aifoundry test` → 100% pass (Cognitive Services account wrapper plan-green standalone). (FR-026 / C-017)
-- [X] T-C017-025 [P] `terraform -chdir=modules/aifoundryproject test` → 100% pass (account/projects child wrapper plan-green standalone; new regex negative green). (FR-026 / C-017)
-- [X] T-C017-026 `terraform -chdir=terraform/services test` → 100% pass (new `reject_aifoundry_project_without_account` test green; relocated fixtures green). (FR-026 / C-017)
-
-### Phase C-017.H — Rollout
-
-- [X] T-C017-027 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-026 / C-017)
-- [X] T-C017-028 `git checkout master && git pull --ff-only`; dispatch `gh workflow run deploy.yaml -f service=services -f tenant=sp01 -f environment=dev -f action=apply -f apply=true`. (FR-026 / C-017)
-- [X] T-C017-029 Verify with `az resource list -g rg-svc-uc1-sp01-dev-swc-001 -o table` that exactly 2 resources are present: `Microsoft.CognitiveServices/accounts` (kind=AIServices) and `Microsoft.CognitiveServices/accounts/projects`. Confirm the account shows `properties.allowProjectManagement == true`. (FR-026 / C-017)
-
-### Phase C-017.I — Analyze remediations (folded from /speckit.analyze)
-
-- [X] T-C017-030 Fix spec ↔ plan filename drift (analyze MAJOR M1): edit the C-017 §4 block in [specs/006-services/spec.md](../../specs/006-services/spec.md) to rename the negative-test file from `aifoundry_project_requires_account.tftest.hcl` to `reject_aifoundry_project_without_account.tftest.hcl` (matches the existing `reject_*.tftest.hcl` directory convention used by plan.md §14 / T-C017-019). (FR-026 / C-017)
-- [X] T-C017-031 Fix plan §5 wording drift (analyze MAJOR M2): edit the C-017 §5 line in [specs/006-services/plan.md](../../specs/006-services/plan.md) to remove the inaccurate "the existing 'missing storage_account_id' run is removed" phrase — the existing run is `empty_canonical_name_rejected` (kept verbatim) per T-C017-009. (FR-026 / C-017)
-- [X] T-C017-032 Add `properties.publicNetworkAccess` reminder to T-C017-004 implementation (analyze MINOR m1) — covered by plan.md §1 verbatim; included here for implementer hygiene. (FR-026 / C-017)
-- [X] T-C017-033 Remove now-unused `data "azurerm_subscription" "current"` from [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf) once T-C017-011 swaps to `parent_id = var.parent_account_id` (analyze MINOR m4). (FR-026 / C-017)
-
-## Phase C-018 — Foundry account private endpoint + private DNS (amendment)
-
-> Delivers [spec.md C-018 / FR-027](../../specs/006-services/spec.md). Opt-in
-> private endpoint for the `aifoundry` Cognitive Services account; defaults
-> preserve C-017 behaviour. `[P]` = parallelisable (different files, no
-> ordering dependency).
-
-### Phase C-018.A — DNS catalogue
-
-- [X] T-C018-001 Edit [modules/dnszones/catalogue.tf](../../modules/dnszones/catalogue.tf) per [plan.md §C-018.1](plan.md): add row `"aiservices" = "privatelink.services.ai.azure.com"` to `local.catalogue` (keep `cogsvc`, `openai`). (FR-027 / C-018)
-- [X] T-C018-002 [P] Update any zone-count / catalogue-completeness assertion under [modules/dnszones/tests/](../../modules/dnszones/tests/) for the new `aiservices` row; run `terraform -chdir=modules/dnszones test` → green. (FR-027 / C-018)
-
-### Phase C-018.B — aifoundry wrapper PE support
-
-- [X] T-C018-003 Edit [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf) per [plan.md §C-018.2](plan.md): add `private_endpoint_enabled` (bool, default `false`), `private_endpoint_subnet_id` (string, default `null`, regex validator for `…/subnets/<name>` when non-null), `private_dns_zone_ids` (list(string), default `[]`). (FR-027 / C-018)
-- [X] T-C018-004 Edit [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf) per [plan.md §C-018.3](plan.md): make `defaults.public_network_access` resolve to `"Disabled"` when `var.private_endpoint_enabled` else `"Enabled"` (overrides still win); add `pe_name = "pep-${var.canonical_name}"`. (FR-027 / C-018)
-- [X] T-C018-005 Edit [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf) per [plan.md §C-018.4](plan.md): add count-gated `azurerm_private_endpoint.this` (subnet `var.private_endpoint_subnet_id`, `private_service_connection` with `subresource_names=["account"]` targeting `azapi_resource.this.id`, `private_dns_zone_group { name="default", private_dns_zone_ids=var.private_dns_zone_ids }`); add a `precondition` asserting `private_endpoint_enabled ⇒ subnet set && zones non-empty`. (FR-027 / C-018)
-- [X] T-C018-006 [P] Edit [modules/aifoundry/outputs.tf](../../modules/aifoundry/outputs.tf): add `output "private_endpoint_id"` = `one(azurerm_private_endpoint.this[*].id)`. (FR-027 / C-018)
-- [X] T-C018-007 [P] Update [modules/aifoundry/README.md](../../modules/aifoundry/README.md) documenting the PE inputs and the in-module `pep-${canonical_name}` naming deviation (engine `private_endpoint` row reserved for the generic follow-up). (FR-027 / C-018)
-
-### Phase C-018.C — services stack wiring
-
-- [X] T-C018-008 Edit [terraform/services/variables.tf](../../terraform/services/variables.tf) per [plan.md §C-018.6](plan.md): add `enable_aifoundry_private_endpoint` (bool, default `false`), `private_endpoint_subnet_role` (string, default `"development"`, validator on known spoke roles), `vnet_state_backend` + `dns_state_backend` (objects, default `null`) with a validator `enable ⇒ both backends non-null`. Leave the A4 `private_endpoints`/`diagnostic_settings` hard-fails UNCHANGED. (FR-027 / C-018)
-- [X] T-C018-009 Create [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf) per [plan.md §C-018.7](plan.md): `local.aifoundry_pe_required`, two count-gated `data "terraform_remote_state"` (`vnet`, `dns`), `local.pe_subnet_id`, `local.pe_zone_ids` (keys `cogsvc`/`openai`/`aiservices`). (FR-027 / C-018)
-- [X] T-C018-010 Edit [terraform/services/main.tf](../../terraform/services/main.tf) per [plan.md §C-018.8](plan.md): pass `private_endpoint_enabled`, `private_endpoint_subnet_id`, `private_dns_zone_ids` into `module.aifoundry`. (FR-027 / C-018)
-- [X] T-C018-011 Edit [terraform/services/check.tf](../../terraform/services/check.tf) per [plan.md §C-018.9](plan.md): add `check "aifoundry_pe_requires_account"`. (FR-027 / C-018)
-
-### Phase C-018.D — Day-one tfvars
-
-- [X] T-C018-012 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json) per [plan.md §C-018.10](plan.md): set `enable_aifoundry_private_endpoint=true`, `private_endpoint_subnet_role="development"`, add `vnet_state_backend` (key `sp01/npd/vnet.tfstate`) + `dns_state_backend` (key `hub/prd/dns.tfstate`). (FR-027 / C-018)
-
-### Phase C-018.E — Tests
-
-- [X] T-C018-013 [P] Create [modules/aifoundry/tests/private_endpoint_positive.tftest.hcl](../../modules/aifoundry/tests/private_endpoint_positive.tftest.hcl): PE enabled emits `azurerm_private_endpoint.this` (group id `account`), DNS zone group, and `publicNetworkAccess="Disabled"`. (FR-027 / C-018)
-- [X] T-C018-014 [P] Create [modules/aifoundry/tests/private_endpoint_negative.tftest.hcl](../../modules/aifoundry/tests/private_endpoint_negative.tftest.hcl): `private_endpoint_enabled=true` with null subnet hard-fails; malformed subnet id fails the regex. (FR-027 / C-018)
-- [X] T-C018-015 [P] Create [terraform/services/tests/aifoundry_pe_happy.tftest.hcl](../../terraform/services/tests/aifoundry_pe_happy.tftest.hcl): `enable_aifoundry_private_endpoint=true` with `override_data` for `data.terraform_remote_state.vnet` + `.dns`; asserts subnet + three zone ids wired into `module.aifoundry`. (FR-027 / C-018)
-- [X] T-C018-016 [P] Create [terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl](../../terraform/services/tests/reject_pe_without_aifoundry.tftest.hcl): toggle on, no `aifoundry` selected ⇒ `check.aifoundry_pe_requires_account` fails. (FR-027 / C-018)
-
-### Phase C-018.F — Verification gates (HARD)
-
-- [X] T-C018-017 `terraform fmt -recursive` from repo root → no changes. (FR-027 / C-018)
-- [X] T-C018-018 [P] `terraform -chdir=modules/dnszones test` → 100% pass. (FR-027 / C-018)
-- [X] T-C018-019 [P] `terraform -chdir=modules/aifoundry test` → 100% pass (existing + new PE tests). (FR-027 / C-018)
-- [X] T-C018-020 `terraform -chdir=terraform/services test` → 100% pass (existing C-016/C-017 fixtures unchanged + new PE tests). (FR-027 / C-018)
-
-### Phase C-018.G — Rollout
-
-- [X] T-C018-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-027 / C-018)
-- [X] T-C018-022 `git checkout master && git pull --ff-only`; apply hub DNS so the new zone exists: dispatch `deploy.yaml` for `service=dns tenant=hub environment=npd` then `environment=prd` (`apply=true`). (FR-027 / C-018)
-- [X] T-C018-023 Dispatch `deploy.yaml` for `service=services tenant=sp01 environment=dev action=apply apply=true`. (FR-027 / C-018)
-- [X] T-C018-024 Verify `aif-uc1-uc1-sp01-dev-swc-001` shows `properties.publicNetworkAccess="Disabled"` and exactly one private endpoint `pep-aif-uc1-uc1-sp01-dev-swc-001` in the `development` subnet with a DNS zone group spanning `cogsvc`/`openai`/`aiservices`. Restore the state-SA firewall if temp-opened. (FR-027 / C-018)
-
-## Phase C-019 — Foundry Application Insights tracing (hub-LA anchored)
-
-Amendment delivering [spec.md C-019 / FR-028](spec.md#clarifications-amendment-2026-06-01-foundry-application-insights-tracing). Opt-in, default-preserving. Mirrors the C-018 embedded pattern.
-
-### Phase C-019.A — aifoundry wrapper App Insights support
-
-- [X] T-C019-001 Edit [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf) per [plan.md §C-019.1](plan.md): add `application_insights_enabled` (bool, default `false`). (FR-028 / C-019)
-- [X] T-C019-002 Edit [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf) per [plan.md §C-019.2](plan.md): add `appi_name = "appi-${var.canonical_name}"` and `defaults.application_insights_application_type = "web"`. (FR-028 / C-019)
-- [X] T-C019-003 Edit [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf) per [plan.md §C-019.3](plan.md): add count-gated `azurerm_application_insights.tracing` (`workspace_id = var.shared_log_analytics_workspace_id`) and `azapi_resource.appinsights_connection` (`Microsoft.CognitiveServices/accounts/connections@2025-09-01`, name `appinsights`, parent the account, `category="AppInsights"`, `authType="ApiKey"`, `isSharedToAll=true`, `metadata.ResourceId`+`target`=appi id, connection string via `sensitive_body.properties.credentials.key`). (FR-028 / C-019)
-- [X] T-C019-004 [P] Edit [modules/aifoundry/outputs.tf](../../modules/aifoundry/outputs.tf): add `application_insights_id` = `one(azurerm_application_insights.tracing[*].id)` and `application_insights_connection_id` = `one(azapi_resource.appinsights_connection[*].id)`. (FR-028 / C-019)
-- [X] T-C019-005 [P] Update [modules/aifoundry/README.md](../../modules/aifoundry/README.md) documenting the App Insights input and the in-module `appi-${canonical_name}` naming deviation (engine `app_insights` row stays the standalone path). (FR-028 / C-019)
-
-### Phase C-019.B — services stack wiring
-
-- [X] T-C019-006 Edit [terraform/services/variables.tf](../../terraform/services/variables.tf) per [plan.md §C-019.5](plan.md): add `enable_aifoundry_application_insights` (bool, default `false`). (FR-028 / C-019)
-- [X] T-C019-007 Edit [terraform/services/main.tf](../../terraform/services/main.tf) per [plan.md §C-019.6](plan.md): pass `application_insights_enabled = var.enable_aifoundry_application_insights` into `module.aifoundry`. (FR-028 / C-019)
-- [X] T-C019-008 Edit [terraform/services/check.tf](../../terraform/services/check.tf) per [plan.md §C-019.7](plan.md): add `check "aifoundry_appinsights_requires_account"`. (FR-028 / C-019)
-
-### Phase C-019.C — Day-one tfvars
-
-- [X] T-C019-009 Edit [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json) per [plan.md §C-019.8](plan.md): set `enable_aifoundry_application_insights=true`. (FR-028 / C-019)
-
-### Phase C-019.D — Tests
-
-- [X] T-C019-010 [P] Create [modules/aifoundry/tests/application_insights_positive.tftest.hcl](../../modules/aifoundry/tests/application_insights_positive.tftest.hcl): enabled emits one `azurerm_application_insights.tracing` (`workspace_id`=supplied hub LA) and one `azapi_resource.appinsights_connection` named `appinsights` parented by the account. (FR-028 / C-019)
-- [X] T-C019-011 [P] Create [modules/aifoundry/tests/application_insights_negative.tftest.hcl](../../modules/aifoundry/tests/application_insights_negative.tftest.hcl): default disabled emits zero App Insights and zero connection. (FR-028 / C-019)
-- [X] T-C019-012 [P] Create [terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl](../../terraform/services/tests/aifoundry_appinsights_happy.tftest.hcl): `enable_aifoundry_application_insights=true` wires `application_insights_enabled=true` into `module.aifoundry`. (FR-028 / C-019)
-- [X] T-C019-013 [P] Create [terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl](../../terraform/services/tests/reject_appinsights_without_aifoundry.tftest.hcl): toggle on, no `aifoundry` selected ⇒ `check.aifoundry_appinsights_requires_account` fails. (FR-028 / C-019)
-
-### Phase C-019.E — Verification gates (HARD)
-
-- [X] T-C019-014 `terraform fmt -recursive` from repo root → no changes. (FR-028 / C-019)
-- [X] T-C019-015 [P] `terraform -chdir=modules/aifoundry test` → 100% pass (existing + new App Insights tests). (FR-028 / C-019)
-- [X] T-C019-016 `terraform -chdir=terraform/services test` → 100% pass (existing fixtures unchanged + new App Insights tests). (FR-028 / C-019)
-
-### Phase C-019.F — Rollout
-
-- [X] T-C019-017 Push branch, open PR against `master`, squash-merge, delete remote+local branch per CLAUDE.md autonomy rules. (FR-028 / C-019)
-- [X] T-C019-018 `git checkout master && git pull --ff-only`; apply the services stack (`service=services tenant=sp01 environment=dev action=apply apply=true`). (FR-028 / C-019)
-- [X] T-C019-019 Verify `aif-uc1-uc1-sp01-dev-swc-001` has an `AppInsights` connection and the `appi-aif-uc1-uc1-sp01-dev-swc-001` component is workspace-based against the hub LA. Restore the state-SA firewall if temp-opened. (FR-028 / C-019)
 
 ## Phase C-020 / C-021 — Container registry (private endpoint) + Container Apps (internal env)
 
@@ -685,46 +519,6 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 
 ---
 
-## Phase FR-031 — Foundry Hosted-Agent network injection (engine, default-off)
-
-### FR-031.A — Module inputs & locals
-
-- [ ] T-FR031-001 Add inputs to [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf): `network_injection_enabled` (bool, default false); `agent_subnet_id`, `agent_storage_account_id`, `agent_cosmosdb_account_id`, `agent_search_service_id` (string, default null, full-resource-id regex, null-allowed); cross-field validation requiring all four non-null + `private_endpoint_enabled=true` when injection on. (FR-031 / C-022..C-025)
-- [ ] T-FR031-002 Add locals to [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): `network_injection_enabled` flag, three connection names (`conn-storage-/conn-cosmos-/conn-search-${canonical_name}` truncated), and the `network_injections` list (empty when off). (FR-031 / C-025)
-
-### FR-031.B — Module resources
-
-- [ ] T-FR031-003 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): merge `networkInjections` into the account `azapi` body ONLY when enabled (empty ⇒ attribute omitted, day-one parity). (FR-031 step 1 / VC-2)
-- [ ] T-FR031-004 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): three count-gated `azapi_resource` `Microsoft.CognitiveServices/accounts/connections@2025-09-01` for BYO Storage/Cosmos/Search. (FR-031 step 2 / VC-4 / C-025)
-- [ ] T-FR031-005 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): one count-gated `azapi_resource` `.../capabilityHosts@2025-09-01` (`capabilityHostKind="Agents"`, `customerSubnet`, three connection-name lists), `depends_on` the connections. (FR-031 step 3 / VC-3 / C-026)
-- [ ] T-FR031-006 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): `precondition` on the account resource enforcing FR-031 step 4 (injection ⇒ PE on + four ids present), naming the missing input. (FR-031 step 4)
-
-### FR-031.C — Tests (plan-level, mocked, `-backend=false`)
-
-- [ ] T-FR031-007 [P] `modules/aifoundry/tests/network_injection_positive.tftest.hcl` — toggle on + all inputs ⇒ plan ok; assert injection scenario/subnet, capability host, three connections, account `publicNetworkAccess="Disabled"`.
-- [ ] T-FR031-008 [P] `modules/aifoundry/tests/network_injection_reject.tftest.hcl` — toggle on + missing BYO id (expect fail) AND toggle on + `private_endpoint_enabled=false` (expect fail).
-- [ ] T-FR031-009 [P] `modules/aifoundry/tests/network_injection_default_off.tftest.hcl` — toggle unset ⇒ zero connections, zero capability hosts, body has no `networkInjections` (day-one parity).
-
-### FR-031.D — Verification gates (HARD)
-
-- [ ] T-FR031-010 `terraform fmt -recursive` from repo root → no changes. (FR-031)
-- [ ] T-FR031-011 `terraform -chdir=modules/aifoundry test` → 100% pass. (FR-031)
-
-### FR-031.E — Rollout
-
-- [ ] T-FR031-012 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-022). (FR-031)
-
-### CA-013 — Dependent feature program (tracked, NOT in this PR)
-
-- [x] T-FR031-D2 (Feature) 006+001: new `cosmosdb` selectable type + `modules/cosmosdb/` (private-by-default, PE + `privatelink.documents.azure.com`) + `cosmos` naming row. (CA-013 #2 / VC-3/VC-4/VC-6) — **DONE, see Phase FR-032 below.**
-- [x] T-FR031-D3 (Feature) 004-vnet: new `agents` subnet role delegated `Microsoft.App/environments`, dedicated /24, exclusive. (CA-013 #3 / VC-5) — **DONE, PR #31 (FR-226).**
-- [ ] T-FR031-D4 (Feature) 102-sp01-npd-vnet: expand spoke to `10.240.2.0/23`, agent subnet `10.240.3.0/24`. (CA-013 #4 / VC-5)
-- [x] T-FR031-D5 (Feature) 002-private-dns: add Cosmos `privatelink.documents.azure.com` zone. (CA-013 #5 / VC-6) — **RETIRED: zone already in catalogue (`cosmos-sql`); no-op (C-029).**
-- [ ] T-FR031-D6 (Feature) 103-sp01-dev-services: flip toggle, select BYO trio, thread agent subnet, **document ACR public-access mandate exception**. (CA-013 #6 / VC-7)
-- [ ] T-FR031-D7 (Operator-approved, destructive) Live recreate: delete+purge Foundry account + capability host BEFORE the VNet, re-apply with injection on. NOT executed by automation. (CA-013 / VC-1 / VC-8)
-
----
-
 ## Phase FR-032 — `cosmosdb` private-by-default selectable type (engine, additive)
 
 ### FR-032.A — Naming row (feature 001)
@@ -762,35 +556,6 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-032.E — Rollout
 
 - [ ] T-FR032-021 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — additive engine type, no instance selects `cosmosdb` (C-027). (FR-032)
-
----
-
-## Phase FR-033 — services-stack Hosted-Agent network-injection passthrough (engine, default-off)
-
-### FR-033.A — Stack variables
-
-- [x] T-FR033-001 [terraform/services/variables.tf](../../terraform/services/variables.tf): new `enable_aifoundry_network_injection` (bool, default false; validation requires `enable_aifoundry_private_endpoint`) + `agent_subnet_role` (string, default `"agents"`, 13-role allow-list). (FR-033 / C-031)
-- [x] T-FR033-002 [terraform/services/variables.tf](../../terraform/services/variables.tf): widen `private_endpoint_subnet_role` + `container_apps_subnet_role` allow-lists to 13 roles (add `agents`); add `vnet_state_backend` validation requiring it when injection on. (FR-033 / C-032)
-
-### FR-033.B — Resolution & wiring
-
-- [x] T-FR033-003 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): `agent_injection_enabled` flag; add to `vnet_state_required`; resolve `agent_subnet_id` from `subnets[var.agent_subnet_role]`. (FR-033 step 1)
-- [x] T-FR033-004 [terraform/services/main.tf](../../terraform/services/main.tf): `module "aifoundry"` block sets `network_injection_enabled`, `agent_subnet_id`, and three BYO inputs via `one([for k, v in module.<svc> : v.resource_id])` gated on the toggle. (FR-033 step 2 / C-033)
-- [x] T-FR033-005 [terraform/services/check.tf](../../terraform/services/check.tf): `check "aifoundry_network_injection_prereqs"` (injection ⇒ private account + exactly one each of aifoundry/storage/cosmosdb/search). (FR-033 step 3)
-
-### FR-033.C — Tests
-
-- [x] T-FR033-006 `terraform/services/tests/agent_injection_happy.tftest.hcl` — toggle on + BYO trio + private account + vnet/dns stubs ⇒ `agent_subnet_id` resolves by the `agents` role, one instance each leg. (FR-033)
-
-### FR-033.D — Verification gates (HARD)
-
-- [x] T-FR033-007 `terraform fmt -recursive` → no changes. (FR-033)
-- [x] T-FR033-008 `terraform -chdir=terraform/services test` → 16/16 pass. (FR-033)
-- [x] T-FR033-009 `terraform -chdir=modules/aifoundry test` → 15/15 pass (module unchanged). (FR-033)
-
-### FR-033.E — Rollout
-
-- [ ] T-FR033-010 Push branch, open PR against `master`, squash-merge, delete remote+local branch. **No live apply** — engine-only, default-off (C-031). (FR-033)
 
 ---
 
@@ -858,43 +623,20 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 
 ---
 
-## Phase FR-040 — injected-account body alignment with Microsoft's proven reference (engine, injection-path only)
-
-### FR-040.A — Module
-
-- [ ] T-FR040-001 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): make `azapi_resource.this.type` a `local.network_injection_enabled` ternary — `Microsoft.CognitiveServices/accounts@2025-04-01-preview` when injection ON, `…@2025-09-01` when OFF. (FR-040 / C-044 / VC-9)
-- [ ] T-FR040-002 [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): extend the injection branch of `account_properties` with `networkAcls = { defaultAction = "Deny", virtualNetworkRules = [], ipRules = [], bypass = "AzureServices" }` and `disableLocalAuth = false`; non-injection branch unchanged. (FR-040 / C-045 / C-046 / VC-10 / VC-11)
-
-### FR-040.B — Tests
-
-- [ ] T-FR040-003 [modules/aifoundry/tests/network_injection_positive.tftest.hcl](../../modules/aifoundry/tests/network_injection_positive.tftest.hcl): assert `azapi_resource.this.type` ends `@2025-04-01-preview`, `body.properties.networkAcls.defaultAction == "Deny"`, `…networkAcls.bypass == "AzureServices"`, and `body.properties.disableLocalAuth == false`. (FR-040 / VC-9/10/11)
-- [ ] T-FR040-004 [modules/aifoundry/tests/network_injection_default_off.tftest.hcl](../../modules/aifoundry/tests/network_injection_default_off.tftest.hcl): assert `azapi_resource.this.type` ends `@2025-09-01` and the body omits `networkAcls` + `disableLocalAuth` (day-one parity). (FR-040 / C-044)
-
-### FR-040.C — Verification gates (HARD)
-
-- [ ] T-FR040-005 `terraform fmt -recursive` → no changes. (FR-040)
-- [ ] T-FR040-006 `terraform -chdir=modules/aifoundry test` → all pass (15 existing + new asserts). (FR-040)
-
-### FR-040.D — Rollout
-
-- [ ] T-FR040-007 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Then purge orphan `aif-uc1-uc1-sp01-dev-swc-001` and re-dispatch the `103` `services` apply via the `deploy` workflow (never a local apply). (FR-040 / CA-013 #6)
-
----
-
 ## Phase FR-041 — private-by-default master switch (engine)
 
 ### FR-041.A — Variables
 
 - [x] T-FR041-001 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `private_by_default` (bool, default `true`). (FR-041 / C-048)
-- [x] T-FR041-002 [terraform/services/variables.tf](../../terraform/services/variables.tf): change `enable_aifoundry_private_endpoint`, `enable_container_registry_private_endpoint`, `enable_storage_private_endpoint`, `enable_search_private_endpoint`, `enable_aifoundry_application_insights` to `optional(bool, null)`. (FR-041)
-- [x] T-FR041-003 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `enable_keyvault_private_endpoint` (`optional(bool, null)`); leave `enable_aifoundry_network_injection` as `bool` default `false`. (FR-041 / C-031 / VC-1)
+- [x] T-FR041-002 [terraform/services/variables.tf](../../terraform/services/variables.tf): change `enable_container_registry_private_endpoint`, `enable_storage_private_endpoint`, `enable_search_private_endpoint` to `optional(bool, null)`. (FR-041)
+- [x] T-FR041-003 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `enable_keyvault_private_endpoint` (`optional(bool, null)`). (FR-041)
 - [x] T-FR041-004 [terraform/services/variables.tf](../../terraform/services/variables.tf): broaden the existing "PE requires both backends" preconditions to fire on the resolved locals (inherited-private also demands backends). (FR-041 / C-049)
 
 ### FR-041.B — Resolution + wiring
 
-- [x] T-FR041-005 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): resolve `aifoundry_pe_required`/`acr_pe_required`/`storage_pe_required`/`search_pe_required` via `coalesce(<explicit>, var.private_by_default)`; add `keyvault_pe_required` + `appinsights_enabled` the same way; extend `vnet_state_required`/`dns_state_required` with keyvault. (FR-041)
+- [x] T-FR041-005 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): resolve `acr_pe_required`/`storage_pe_required`/`search_pe_required` via `coalesce(<explicit>, var.private_by_default)`; add `keyvault_pe_required` + `appinsights_enabled` the same way; extend `vnet_state_required`/`dns_state_required` with keyvault. (FR-041)
 - [x] T-FR041-006 [terraform/services/data.vnetdns.tf](../../terraform/services/data.vnetdns.tf): add `keyvault_pe_subnet_id` (by `private_endpoint_subnet_role`) + `keyvault_pe_zone_ids = [ zone_ids["vault"] ]`. (FR-041 / C-050)
-- [x] T-FR041-007 [terraform/services/main.tf](../../terraform/services/main.tf): switch storage/search/ACR/Foundry PE args + Foundry app-insights arg from `var.enable_*` to the resolved `local.*`; wire keyvault PE args. (FR-041)
+- [x] T-FR041-007 [terraform/services/main.tf](../../terraform/services/main.tf): switch storage/search/ACR PE args from `var.enable_*` to the resolved `local.*`; wire keyvault PE args. (FR-041)
 
 ### FR-041.C — Key Vault PE module
 
@@ -905,7 +647,6 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 ### FR-041.D — Telemetry internet flags
 
 - [x] T-FR041-011 [modules/appinsights/main.tf](../../modules/appinsights/main.tf) + [modules/loganalytics](../../modules/loganalytics): add `internet_access_enabled` (bool, default true) gating `internet_ingestion_enabled`/`internet_query_enabled`; stack drives it from the master (FR-041 §2, AMPLS-deferred exception). (FR-041 / C-051)
-- [x] T-FR041-012 [modules/aifoundry](../../modules/aifoundry): Foundry App Insights child honours the same internet flags when telemetry enabled. (FR-041 / FR-028)
 
 ### FR-041.E — Checks
 
@@ -933,252 +674,16 @@ Amendment 2026-06-01. Delivers FR-029 + FR-030. `[P]` = parallel-safe.
 
 ---
 
-## Phase FR-042 — Foundry private-endpoint dependency bundle (engine, guard-only)
-
-### FR-042.A — Helper locals + check
-
-- [x] T-FR042-001 [terraform/services/locals.tf](../../terraform/services/locals.tf): add `storage_selected`/`search_selected`/`keyvault_selected` (mirror `cosmosdb_selected`). (FR-042)
-- [x] T-FR042-002 [terraform/services/check.tf](../../terraform/services/check.tf): add `check "aifoundry_private_requires_private_deps"` — when `local.aifoundry_pe_required` + an `aifoundry` is selected, every SELECTED storage/search/keyvault must have its resolved PE toggle true; list offenders. (FR-042 / C-053 / VC-18)
-
-### FR-042.B — Tests
-
-- [x] T-FR042-003 `terraform/services/tests/aifoundry_private_deps_consistent.tftest.hcl` (VC-17). (FR-042)
-- [x] T-FR042-004 `terraform/services/tests/aifoundry_private_deps_public_storage.tftest.hcl` (VC-18). (FR-042)
-- [x] T-FR042-005 `terraform/services/tests/aifoundry_private_deps_master_off.tftest.hcl` (VC-19). (FR-042)
-
-### FR-042.C — Verification gates (HARD)
-
-- [x] T-FR042-006 `terraform fmt -recursive` → no changes. (FR-042)
-- [x] T-FR042-007 `terraform -chdir=terraform/services test` → all pass. (FR-042)
-
-### FR-042.D — Rollout
-
-- [x] T-FR042-008 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, guard-only; same `deploy` workflow path as FR-041 (never a local apply). (FR-042)
-
-## Phase FR-043 — Foundry project-level capability host (engine)
-
-### FR-043.A — Module surface
-
-- [x] T-FR043-001 [modules/aifoundryproject/variables.tf](../../modules/aifoundryproject/variables.tf): add `network_injection_enabled` (bool, default false) with a description tying it to FR-043 / the account-level injection master. (FR-043 / C-059)
-- [x] T-FR043-002 [modules/aifoundryproject/locals.tf](../../modules/aifoundryproject/locals.tf): add fixed connection-name constants `agent_conn_storage="agentstorage"`, `agent_conn_cosmos="agentcosmos"`, `agent_conn_search="agentsearch"` with a comment that they MUST match `modules/aifoundry/locals.tf`; add `network_injection_enabled` passthrough local. (FR-043 / C-058)
-- [x] T-FR043-003 [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf): add count-gated `azapi_resource "capability_host"` — `Microsoft.CognitiveServices/accounts/projects/capabilityHosts@2025-09-01`, name `agents`, parent_id = the project resource, body `capabilityHostKind="Agents"` + storage/thread/vector connection lists (the three constants), **no** `customerSubnet`; `response_export_values=["id"]`. (FR-043 / C-056 / C-057 / VC-20)
-- [x] T-FR043-004 [modules/aifoundryproject/main.tf](../../modules/aifoundryproject/main.tf): add a `lifecycle.precondition` on the capability host asserting `var.network_injection_enabled` ⇒ a non-empty `var.parent_account_id` (defence-in-depth; the project host is meaningless without the injected parent). (FR-043)
-
-### FR-043.B — Services-stack wiring
-
-- [x] T-FR043-005 [terraform/services/main.tf](../../terraform/services/main.tf): pass `network_injection_enabled = var.enable_aifoundry_network_injection` and `depends_on = [module.aifoundry]` to `module.aifoundry_project` so account/connections/account-caphost exist before the project host. (FR-043 / C-059)
-
-### FR-043.C — Tests
-
-- [x] T-FR043-006 `modules/aifoundryproject/tests/network_injection_positive.tftest.hcl` (VC-20 + VC-22): injection-on ⇒ one projects/capabilityHosts named `agents`, kind=Agents, connections = agentstorage/agentcosmos/agentsearch, no customerSubnet. (FR-043)
-- [x] T-FR043-007 `modules/aifoundryproject/tests/network_injection_parity.tftest.hcl` (VC-21): injection-off (default) ⇒ zero capability hosts; project body unchanged. (FR-043)
-
-### FR-043.D — Verification gates (HARD)
-
-- [x] T-FR043-008 `terraform fmt -recursive` → no changes. (FR-043)
-- [x] T-FR043-009 `terraform -chdir=modules/aifoundryproject test` → all pass; re-run `modules/aifoundry` + `terraform/services` suites → all pass. (FR-043)
-
-### FR-043.E — Rollout
-
-- [x] T-FR043-010 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, additive (default-off ⇒ no new resources). The `103` instance picks up the project host on its next `deploy`-workflow plan/apply — never a local apply. (FR-043)
-
-## Phase FR-031-amend (2026-06-04) — storage connection target fix
-
-- [x] T-FR031-A1 Add `local.agent_storage_blob_target` (locals.tf). (C-031-06)
-- [x] T-FR031-A2 Point `agent_storage_connection.target` at the local; keep metadata.ResourceId on the ARM id. (C-031-06/07)
-- [x] T-FR031-A3 Add `storage_connection_target_is_blob_uri` test; full module suite green (16 passed). (Acceptance 16)
-- [ ] T-FR031-A4 Reconcile sp01/dev half-built stack and re-apply (operator decision A vs B).
-
-## Phase FR-044/045 (2026-06-04) — userOwnedStorage + Key Vault connection
-
-### FR-044/045.A — aifoundry module
-
-- [x] T-FR044-001 [modules/aifoundry/variables.tf](../../modules/aifoundry/variables.tf): add `account_storage_account_id` (string/null, Storage regex), `account_storage_connection_enabled` (bool/false), `keyvault_account_id` (string/null, KeyVault regex), `keyvault_connection_enabled` (bool/false). (FR-044 / FR-045 / C-060 / C-061)
-- [x] T-FR044-002 [modules/aifoundry/locals.tf](../../modules/aifoundry/locals.tf): derive `account_storage_connection_enabled` / `keyvault_connection_enabled` from the bool vars; add `account_storage_blob_target`; extend the account body merge with the conditional `userOwnedStorage` leg. (FR-044 / C-060)
-- [x] T-FR044-003 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): add count-gated `azapi_resource.account_storage_connection` (name `accountstorage`, AzureStorageAccount, target = Blob URI, AAD) and `azapi_resource.keyvault_connection` (name `keyvault`, AzureKeyVault, AccountManagedIdentity, `schema_validation_enabled = false`). (FR-044 / FR-045 / C-061 / VC-23 / VC-24)
-- [x] T-FR044-004 [modules/aifoundry/main.tf](../../modules/aifoundry/main.tf): add two `lifecycle.precondition`s on `azapi_resource.this` (each toggle ⇒ matching id non-null). (FR-044 / FR-045)
-
-### FR-044/045.B — Services-stack wiring
-
-- [x] T-FR044-005 [terraform/services/variables.tf](../../terraform/services/variables.tf): add `enable_aifoundry_user_owned_storage`, `enable_aifoundry_keyvault_connection` (bools/false), `agent_storage_purpose`, `account_storage_purpose` (string/null, `^[a-z0-9]{3}$`, distinct). (FR-044 / C-060)
-- [x] T-FR044-006 [terraform/services/locals.tf](../../terraform/services/locals.tf): add `storage_count`, `agent_byo_storage_id`, `account_owned_storage_id` (purpose-filtered with single-storage fallback). (FR-044 / C-060)
-- [x] T-FR044-007 [terraform/services/main.tf](../../terraform/services/main.tf) `module.aifoundry`: agent storage via `local.agent_byo_storage_id`; `account_storage_connection_enabled = toggle && storage_count == 2` + `account_storage_account_id`; `keyvault_connection_enabled = toggle && keyvault_selected` + `keyvault_account_id`. (FR-044 / FR-045)
-- [x] T-FR044-008 [terraform/services/check.tf](../../terraform/services/check.tf): relax `aifoundry_network_injection_prereqs` storage count to `(uos ? 2 : 1)`; add `aifoundry_user_owned_storage_prereqs` + `aifoundry_keyvault_connection_prereqs`. (FR-044 / FR-045 / VC-26 / VC-27)
-
-### FR-044/045.C — Tests
-
-- [x] T-FR044-009 `modules/aifoundry/tests/account_connections.tftest.hcl` (VC-23 + VC-24): both toggles on ⇒ userOwnedStorage body + `accountstorage` (Blob URI) + `keyvault` (AzureKeyVault/AccountManagedIdentity). (FR-044 / FR-045)
-- [x] T-FR044-010 `modules/aifoundry/tests/account_connections_default_off.tftest.hcl` (VC-25): both off ⇒ no userOwnedStorage, no connections. (FR-044 / FR-045)
-- [x] T-FR044-011 `terraform/services/tests/aifoundry_account_connections_happy.tftest.hcl` (VC-26): two distinct-purpose storages + keyvault + injection + private-by-default plan cleanly. (FR-044 / FR-045)
-- [x] T-FR044-012 `terraform/services/tests/reject_user_owned_storage_without_two_storages.tftest.hcl` + `reject_keyvault_connection_without_keyvault.tftest.hcl` (VC-26 / VC-27): misconfigs rejected by the new checks. (FR-044 / FR-045)
-
-### FR-044/045.D — Verification gates (HARD)
-
-- [x] T-FR044-013 `terraform fmt -recursive` → no changes. (FR-044 / FR-045)
-- [x] T-FR044-014 `modules/aifoundry test` (19 pass) + `terraform/services test` (28 pass) → all green. (FR-044 / FR-045)
-
-### FR-044/045.E — Rollout
-
-- [ ] T-FR044-015 Push branch, open PR against `master`, squash-merge, delete remote+local branch. Engine-only, additive (default-off ⇒ no new resources). The `103` instance selects the second storage + Key Vault and flips the toggles on its own `deploy`-workflow pipeline — never a local apply. (FR-044 / FR-045)
-
-## Phase FR-059 — remove the temporary Foundry import shim
-
-> PR #58 left `terraform/services/import.aifoundry.tf` (a one-shot recovery
-> `import {}` block). The account it targeted has since been deleted, so the
-> block now fails a fresh plan ("Cannot import non-existent remote object").
-> Pure deletion; engine returns to a clean lifecycle.
-
-- [x] T-FR059-1 `git rm terraform/services/import.aifoundry.tf`. (FR-059 / C-067)
-- [x] T-FR059-2 Confirm no other `import {` block remains under
-  `terraform/services/`. (FR-059)
-- [x] T-FR059-3 `terraform validate -backend=false` OK; full `terraform test`
-  suite stays green (shim was inert under the all-zeros fixture sub). (FR-059)
-- [ ] T-FR059-4 Push branch, PR against `master`, squash-merge, delete branch.
-  Engine-only deletion; the sp01/dev rebuild then runs via the `deploy`
-  workflow (destroy → apply), never a local apply. (FR-059)
-
-## Phase FR-060 — agent-finalization phasing + capability-host timeouts
-
-> Live sp01/dev rollout proved the account→rbac split cannot finish in one
-> `services` apply: the App Insights connection and BOTH Agents capability hosts
-> depend on `007-rbac` grants that only exist after `rbac` runs. Add a
-> default-true `enable_aifoundry_agent_finalization` toggle to defer exactly
-> those three resources, give both caphosts a `timeouts` block, and raise the
-> account create budget 90m → 150m.
-
-### FR-060.A — Module surface
-
-- [ ] T-FR060-1 `modules/aifoundry/variables.tf`: add
-  `variable "agent_finalization_enabled" { type = bool; default = true }` with
-  a description tying it to FR-060/C-069. (FR-060)
-- [ ] T-FR060-2 `modules/aifoundry/main.tf`: gate
-  `azapi_resource.appinsights_connection` `count =
-  var.application_insights_enabled && var.agent_finalization_enabled` and
-  `azapi_resource.capability_host` (account host) `count =
-  local.network_injection_enabled && var.agent_finalization_enabled`. (FR-060)
-- [ ] T-FR060-3 `modules/aifoundry/main.tf`: add
-  `timeouts { create = "60m" update = "60m" delete = "30m" }` to the account
-  `capability_host`; change `azapi_resource.this` timeouts create/update
-  `90m → 150m`. (FR-060/C-071)
-- [ ] T-FR060-4 `modules/aifoundryproject/variables.tf`: add
-  `agent_finalization_enabled` (bool, default true);
-  `modules/aifoundryproject/main.tf`: gate `azapi_resource.capability_host`
-  `count = var.network_injection_enabled && var.agent_finalization_enabled` and
-  add the same `timeouts` block. (FR-060)
-
-### FR-060.B — Services-stack wiring
-
-- [ ] T-FR060-5 `terraform/services/variables.tf`: add
-  `variable "enable_aifoundry_agent_finalization" { type = bool; default =
-  true }`. (FR-060)
-- [ ] T-FR060-6 `terraform/services/main.tf`: pass
-  `agent_finalization_enabled = var.enable_aifoundry_agent_finalization` into
-  both `module.aifoundry` and `module.aifoundry_project`. (FR-060)
-
-### FR-060.C — Tests
-
-- [ ] T-FR060-7 Positive: default (toggle unset ⇒ true) + injection + App
-  Insights ⇒ plan has 1 appinsights_connection, 1 account caphost, 1 project
-  caphost (existing happy fixtures already cover this; assert unchanged).
-  (FR-060)
-- [ ] T-FR060-8 Negative: `enable_aifoundry_agent_finalization = false` +
-  injection + App Insights ⇒ plan has 0 appinsights_connection, 0 account
-  caphost, 0 project caphost, while account/project/BYO connections remain.
-  (FR-060)
-
-### FR-060.D — Verification gates (HARD)
-
-- [ ] T-FR060-9 `terraform fmt -recursive` clean; `terraform validate
-  -backend=false` + full `terraform test` green for `terraform/services` and
-  both modules. (FR-060)
-
-### FR-060.E — Rollout
-
-- [ ] T-FR060-10a `.github/workflows/deploy.yaml`: add optional `finalize`
-  `workflow_dispatch` boolean input (default `true`); in the `plan` step append
-  `-var "enable_aifoundry_agent_finalization=${{ inputs.finalize }}"` to the
-  plan args **only** when `service == services`. Keeps committed
-  `services.tfvars.json` at steady-state intent. (FR-060/C-072)
-- [ ] T-FR060-10 After merge, run the three-pass bootstrap via the `deploy`
-  workflow ONLY: `services` (finalization off, `-f finalize=false`) → `rbac` →
-  `services` (finalization on, default). Never a local apply. (FR-060/C-069)
-
 ## Phase FR-061 (2026-06-04) — cross-stack contract completeness
 
-- [ ] T-FR061-1 `terraform/services/outputs.tf`: add `module.container_app_environment`,
-  `module.cosmosdb`, and `module.aifoundry_project` to the `resource_ids`
+- [ ] T-FR061-1 `terraform/services/outputs.tf`: add `module.container_app_environment`
+  and `module.cosmosdb` to the `resource_ids`
   `merge(...)` and to the `resource_names` `concat(keys(...))` set so the key
   set equals `keys(module.naming.names)` minus the `resource_group` entry. (FR-061)
 - [ ] T-FR061-2 `terraform/services/tests/resource_ids_contract.tftest.hcl`:
   new regression — full-stack plan asserts `resource_names` set equals
   `keys(naming)` minus the RG, `resource_ids` keys equal `resource_names` keys,
-  and the three previously-omitted services appear. (FR-061/C-073)
+  and the previously-omitted services appear. (FR-061/C-073)
 - [ ] T-FR061-3 `terraform fmt -recursive` clean; full `terraform test` green
   for `terraform/services`. (FR-061)
-- [ ] T-FR061-4 Branch → PR → CI green → squash-merge → sync master, then
-  re-run bootstrap pass 2 (`rbac`). (FR-061)
-
-## Phase FR-062 (2026-06-04) — account capability host is platform-managed
-
-- [ ] T-FR062-1 `modules/aifoundry/main.tf`: remove the account-level
-  `azapi_resource.capability_host` resource entirely (replace with an
-  explanatory comment). The injected-Foundry RP auto-provisions
-  `<account>@aml_aiagentservice`; the RP's one-host-per-ClientId rule makes the
-  Terraform `agents` host always `Conflict`. Keep `networkInjections` + the
-  three BYO connections + `agent_finalization_enabled` (still gates the App
-  Insights connection). (FR-062/C-075/C-076)
-- [ ] T-FR062-2 `modules/aifoundry/tests/network_injection_positive.tftest.hcl`:
-  replace the four account-host asserts (length==1, capabilityHostKind,
-  customerSubnet, connection parity) with a single VC-23 zero-host assertion
-  (`length(azapi_resource.capability_host) == 0`). (FR-062/VC-23)
-- [ ] T-FR062-3 `modules/aifoundry/tests/agent_finalization_negative.tftest.hcl`
-  + `network_injection_default_off.tftest.hcl`: re-label the existing
-  `capability_host == 0` asserts to FR-062 (the resource is now always absent).
-  (FR-062)
-- [ ] T-FR062-4 `modules/aifoundry/variables.tf`: update the
-  `network_injection_enabled` description — injection no longer creates a
-  Terraform capability host (platform-managed); BYO connections bind on the
-  project host. (FR-062/C-077)
-- [ ] T-FR062-5 `terraform fmt -recursive` clean; full `terraform test` green
-  for `modules/aifoundry`, `modules/aifoundryproject`, and `terraform/services`.
-  (FR-062/VC-23/VC-24)
-- [ ] T-FR062-6 Branch → PR → CI green → squash-merge → sync master, then
-  re-run bootstrap pass 3 (`services`, `finalize=true`) — only the project
-  capability host is created; the account host is platform-supplied. (FR-062)
-
-## Phase FR-063 (2026-06-05) — Foundry project ContainerRegistry connection
-
-- [x] T-FR063-1 `modules/cntreg/outputs.tf`: add `login_server` output (=
-  `azurerm_container_registry.this.login_server`) so the data-plane endpoint is
-  sourced from the resource, not string-built. (FR-063/VC-31)
-- [x] T-FR063-2 `modules/aifoundryproject/variables.tf`: add
-  `container_registry_connection_enabled` (bool/false, known-at-plan gate),
-  `container_registry_login_server` (string/null),
-  `container_registry_id` (string/null). (FR-063/C-079)
-- [x] T-FR063-3 `modules/aifoundryproject/main.tf`: add count-gated
-  `azapi_resource.container_registry_connection` (project-scoped, name
-  `containerregistry`, `category = ContainerRegistry`, `authType =
-  ManagedIdentity`, `isSharedToAll = true`, `isDefault = true`, target = login
-  server, `metadata.ResourceId` = registry id, `schema_validation_enabled =
-  false`) + a precondition (enabled ⇒ both inputs non-null). (FR-063/C-079/C-080)
-- [x] T-FR063-4 `terraform/services/variables.tf`: add
-  `enable_aifoundry_container_registry_connection` (bool/false). (FR-063)
-- [x] T-FR063-5 `terraform/services/main.tf` `module.aifoundry_project`: wire
-  `container_registry_connection_enabled = toggle && registry_selected`,
-  `container_registry_login_server` / `container_registry_id` resolved from the
-  selected `container_registry` module (gated so the module is never handed
-  `enabled = true` + null on a misconfig). (FR-063)
-- [x] T-FR063-6 `terraform/services/check.tf`: add
-  `aifoundry_container_registry_connection_prereqs` (toggle ⇒ exactly one
-  `aifoundry_project` AND exactly one `container_registry`). (FR-063/VC-30)
-- [x] T-FR063-7 tests: `modules/cntreg` `login_server_output_exposed`;
-  `modules/aifoundryproject` `container_registry_connection.tftest.hcl` (+
-  `_negative`); `terraform/services` `aifoundry_registry_connection_happy.tftest.hcl`
-  + `reject_registry_connection_without_registry.tftest.hcl`. (FR-063/VC-28..31)
-- [x] T-FR063-8 `terraform fmt -recursive` clean; full `terraform test` green
-  for `modules/cntreg`, `modules/aifoundryproject`, `terraform/services`.
-  (FR-063)
-- [ ] T-FR063-9 Branch → PR → CI green → squash-merge → sync master. Engine-only,
-  additive (default-off ⇒ zero new resources / behaviour-preserving). The
-  `103-sp01-dev-services` instance flips the toggle on its own pipeline; the
-  project-MI AcrPull grant lands in `007-rbac` (FR-064). (FR-063)
+- [ ] T-FR061-4 Branch → PR → CI green → squash-merge → sync master. (FR-061)

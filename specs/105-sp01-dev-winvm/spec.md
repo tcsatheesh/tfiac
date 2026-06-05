@@ -10,7 +10,7 @@ It deploys nothing new conceptually — it pins exactly one
 
 The jump box gives an operator an interactive Windows desktop *inside* the
 spoke VNet to reach the private endpoints of the sp01/dev services (Key Vault,
-storage, search, Cosmos, container registry, AI Foundry) over RDP via Azure
+storage, search, Cosmos, container registry) over RDP via Azure
 Bastion, with Entra ID login.
 
 ## Resolved clarifications
@@ -21,8 +21,8 @@ Bastion, with Entra ID login.
   `terraform/winvm/`.
 - **C-105-02 — Target subscription / scope.** Subscription
   `883c9081-23ed-4674-95c5-45c74834e093`, tenant `sp01`, environment `dev`,
-  region `swc`, usecase `uc1` (matches existing `aif-uc1-uc1-…`,
-  `appi-uc1-uc1-…`, `kvfdyuc1sp01devswc001`).
+  region `swc`, usecase `uc1` (matches existing `appi-uc1-uc1-…` and the
+  services stack's key vault).
 - **C-105-03 — Resource group.** EXISTING `rg-svc-uc1-sp01-dev-swc-001` (the
   sp01/dev services RG). The engine references it via data source and creates
   no RG (FR-813).
@@ -30,10 +30,10 @@ Bastion, with Entra ID login.
   `development` (the live `snet-dev-vnet-net-shd-sp01-npd-swc-001`, the same
   subnet the sp01/dev service private endpoints use). Read from the vnet stack
   remote state. No public IP.
-- **C-105-05 — Key Vault for the admin password.** The EXISTING private Foundry
-  Key Vault `kvfdyuc1sp01devswc001`
-  (`/subscriptions/883c9081-23ed-4674-95c5-45c74834e093/resourceGroups/rg-svc-uc1-sp01-dev-swc-001/providers/Microsoft.KeyVault/vaults/kvfdyuc1sp01devswc001`).
-  The generated admin password is stored there as
+- **C-105-05 — Key Vault for the admin password.** The EXISTING private key
+  vault in the sp01/dev services resource group
+  (`rg-svc-uc1-sp01-dev-swc-001`). The generated admin password is stored
+  there as
   `vm-jmp-uc1-sp01-dev-swc-001-admin-password`. No secret value in tfvars.
 - **C-105-06 — Remote state wiring.** vnet =
   `sp01/npd/vnet.tfstate`, log = `hub/npd/log.tfstate`, both in
@@ -55,7 +55,7 @@ Bastion, with Entra ID login.
   inputs for the sp01/dev jump box exactly as resolved in C-105-02..C-105-08.
 - **FR-105-2** — The tfvars MUST set `subscription_id`,
   `resource_group_name = rg-svc-uc1-sp01-dev-swc-001`,
-  `key_vault_id` (full id of `kvfdyuc1sp01devswc001`),
+  `key_vault_id` (full id of the services stack's key vault),
   `subnet_role = development`, and the `vnet_state_backend` /
   `log_state_backend` descriptors above.
 - **FR-105-3** — The tfvars MUST NOT contain any secret material (the admin
@@ -88,8 +88,8 @@ Bastion, with Entra ID login.
 2. As an operator, I RDP to the VM through Azure Bastion using my Entra ID
    account (no password needed) and reach the sp01/dev private endpoints.
 3. As a break-glass path, I read
-   `vm-jmp-uc1-sp01-dev-swc-001-admin-password` from `kvfdyuc1sp01devswc001`
-   to log in with the local admin account if Entra login is unavailable.
+   `vm-jmp-uc1-sp01-dev-swc-001-admin-password` from the services stack's key
+   vault to log in with the local admin account if Entra login is unavailable.
 
 ## Test plan
 

@@ -11,7 +11,7 @@ on:
         description: "Stack name under terraform/<service>/."
         required: true
         type: choice
-        options: [vnet, dns, log, buildsvr, services, rbac, winvm]
+        options: [vnet, dns, log, buildsvr, services, winvm]
       tenant:
         description: "Tenancy (hub|sp01|sp02)."
         required: true
@@ -35,11 +35,6 @@ on:
         required: true
         type: boolean
         default: false
-      finalize:
-        description: "services stack only: enable AI Foundry agent finalization (appinsights connection + capability hosts). Set false for the bootstrap pass before rbac grants land (FR-060)."
-        required: false
-        type: boolean
-        default: true
 
 permissions:
   id-token: write
@@ -99,14 +94,6 @@ jobs:
           extra_args=()
           if [[ "${{ inputs.action }}" == "destroy" ]]; then
             extra_args+=("-destroy")
-          fi
-          # FR-060: the services stack exposes enable_aifoundry_agent_finalization.
-          # Pass it through only for that stack so the 3-pass bootstrap
-          # (services finalize=false -> rbac -> services finalize=true) is a pure
-          # dispatch parameter with no committed tfvars churn. Other stacks have
-          # no such variable, so the flag is scoped to service=services.
-          if [[ "${{ inputs.service }}" == "services" ]]; then
-            extra_args+=("-var" "enable_aifoundry_agent_finalization=${{ inputs.finalize }}")
           fi
           terraform plan -no-color -input=false -detailed-exitcode -out tfplan \
             -var-file="../../variables/${{ inputs.tenant }}/${{ inputs.environment }}/${{ inputs.service }}.tfvars.json" \

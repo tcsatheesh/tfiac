@@ -58,12 +58,12 @@ Root-stack `variable "services"` validations:
 | `private_endpoints` | `length(private_endpoints) == 0`. Else hard-fail with "private_endpoints deferred to follow-up; see spec.md A4." | [A4](spec.md#assumptions) |
 | `diagnostic_settings` | `length(diagnostic_settings) == 0`. Else hard-fail with "diagnostic_settings deferred to follow-up; see spec.md A4." | [A4](spec.md#assumptions) |
 
-`local.v1_selectable_types` enumerates exactly the 15 names from
+`local.v1_selectable_types` enumerates exactly the 14 names from
 [spec.md C-001](spec.md#clarifications):
 
 ```text
 keyvault, storage, log_analytics, app_insights, container_registry,
-user_assigned_identity, search, openai, aifoundry, language, doc_intel,
+user_assigned_identity, search, openai, language, doc_intel,
 function_app, logic_app, aml_workspace, apim
 ```
 
@@ -197,7 +197,6 @@ For `(tenant="sp01", environment="npd", region="uks")`:
 | `user_assigned_identity` | `id-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `id-shd-shd-sp01-npd-uks-001` (len 27) | 128 |
 | `search` | `srch-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `srch-shd-shd-sp01-npd-uks-001` (len 29) | 60 |
 | `openai` | `oai-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `oai-shd-shd-sp01-npd-uks-001` (len 28) | 64 |
-| `aifoundry` | `aif-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `aif-shd-shd-sp01-npd-uks-001` (len 28) | 64 |
 | `language` | `lang-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `lang-shd-shd-sp01-npd-uks-001` (len 29) | 64 |
 | `doc_intel` | `di-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `di-shd-shd-sp01-npd-uks-001` (len 27) | 64 |
 | `function_app` | `func-{p}-{usecase}-{tenant}-{env}-{region}-{instance}` | `func-shd-shd-sp01-npd-uks-001` (len 29) | 60 |

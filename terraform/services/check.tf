@@ -75,23 +75,6 @@ check "apim_hub_only" {
   }
 }
 
-# aifoundry_project_requires_account (spec.md C-017 / FR-026; renamed by C-017
-# from the C-015 §4 check `aifoundry_project_requires_hub`): selecting
-# `aifoundry_project` requires exactly one `aifoundry` (Cognitive Services
-# Foundry account) in the SAME services stack so the Project wrapper can wire
-# `parent_id = var.parent_account_id`. C-017 also removes the former
-# `aifoundry_requires_hub_deps` check — Foundry accounts manage their own
-# storage/secrets and no longer need sibling KV/SA.
-check "aifoundry_project_requires_account" {
-  assert {
-    condition = !(
-      length([for s in var.services : s if s.type == "aifoundry_project"]) > 0 &&
-      length([for s in var.services : s if s.type == "aifoundry"]) != 1
-    )
-    error_message = "C-017 / FR-026 — aifoundry_project requires exactly one 'aifoundry' (Cognitive Services account) selection in the same services stack."
-  }
-}
-
 # environment_workload_only (spec.md C-016 / FR-025): the services stack is
 # workload-only — `npd` is reserved for shared/hub stacks (terraform/log/,
 # terraform/vnet/, terraform/dns/). This is the defence-in-depth pair for
@@ -100,36 +83,6 @@ check "environment_workload_only" {
   assert {
     condition     = contains(["dev", "pre", "prd"], var.environment)
     error_message = "C-016 / FR-025 — environment must be one of dev|pre|prd for the services stack; 'npd' is reserved for shared/hub stacks."
-  }
-}
-
-# aifoundry_pe_requires_account (spec.md C-018 / FR-027): enabling the Foundry
-# account private endpoint only makes sense when an `aifoundry` account is
-# actually selected in this stack. Fires at plan time, before any remote-state
-# or provider call, with a clear remediation message. Defence-in-depth pair for
-# the variable-level vnet/dns_state_backend requirement.
-check "aifoundry_pe_requires_account" {
-  assert {
-    condition = !(
-      var.enable_aifoundry_private_endpoint == true &&
-      length([for s in var.services : s if s.type == "aifoundry"]) == 0
-    )
-    error_message = "C-018 / FR-027 — enable_aifoundry_private_endpoint = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
-  }
-}
-
-# aifoundry_appinsights_requires_account (spec.md C-019 / FR-028): enabling the
-# Foundry App Insights tracing connection only makes sense when an `aifoundry`
-# account is actually selected in this stack. Fires at plan time, before any
-# provider call, with a clear remediation message. Defence-in-depth pair for
-# the wrapper's always-required shared_log_analytics_workspace_id validator.
-check "aifoundry_appinsights_requires_account" {
-  assert {
-    condition = !(
-      var.enable_aifoundry_application_insights == true &&
-      length([for s in var.services : s if s.type == "aifoundry"]) == 0
-    )
-    error_message = "C-019 / FR-028 — enable_aifoundry_application_insights = true requires an 'aifoundry' (Cognitive Services account) selection in this services stack."
   }
 }
 
@@ -188,8 +141,8 @@ check "keyvault_pe_requires_keyvault" {
 }
 
 # C-049 / FR-041 — private_by_default_requires_backends: when the
-# private-by-default master is on and ANY PE-capable service (aifoundry,
-# container_registry, storage, search, keyvault) is selected, both remote-state
+# private-by-default master is on and ANY PE-capable service (container_registry,
+# storage, search, keyvault) is selected, both remote-state
 # backends MUST be supplied so the inherited private endpoints can resolve their
 # spoke subnet + hub DNS zone. Friendly aggregate companion to the per-variable
 # validations (which fire earlier, per service). Fires at plan time, before any
@@ -198,36 +151,10 @@ check "private_by_default_requires_backends" {
   assert {
     condition = !(
       var.private_by_default &&
-      (local.aifoundry_selected || local.registry_selected || local.storage_selected || local.search_selected || local.keyvault_selected) &&
+      (local.registry_selected || local.storage_selected || local.search_selected || local.keyvault_selected) &&
       (var.vnet_state_backend == null || var.dns_state_backend == null)
     )
-    error_message = "C-049 / FR-041 — private_by_default = true with a PE-capable service (aifoundry / container_registry / storage / search / keyvault) selected requires BOTH vnet_state_backend (PE subnet) and dns_state_backend (private DNS zones). Supply both backends, or set private_by_default = false (and opt into specific private endpoints individually)."
-  }
-}
-
-# C-053 / FR-042 — aifoundry_private_requires_private_deps: a PRIVATE Foundry
-# account (local.aifoundry_pe_required, i.e. an aifoundry selected with its PE
-# resolved on via the FR-041 master/toggle) must not sit beside a
-# selected-but-PUBLIC supporting service. Every SELECTED storage / search /
-# keyvault must have its resolved PE toggle true. cosmosdb is always private
-# (FR-032) and the Foundry App Insights is master-driven (FR-028), so neither
-# needs a check. Guard only — never auto-provisions an unselected service
-# (Principle II / C-053). Lists each public offender.
-check "aifoundry_private_requires_private_deps" {
-  assert {
-    condition = !local.aifoundry_pe_required || length(concat(
-      local.storage_selected && !local.storage_pe_required ? ["storage"] : [],
-      local.search_selected && !local.search_pe_required ? ["search"] : [],
-      local.keyvault_selected && !local.keyvault_pe_required ? ["keyvault"] : [],
-    )) == 0
-    error_message = format(
-      "C-053 / FR-042 — a private AI Foundry account requires its SELECTED supporting services to be private too, but the following are public: %s. Enable their private endpoints (remove the explicit enable_<svc>_private_endpoint = false, or set it true), or remove them from this stack. Cosmos DB is always private (FR-032).",
-      jsonencode(concat(
-        local.storage_selected && !local.storage_pe_required ? ["storage"] : [],
-        local.search_selected && !local.search_pe_required ? ["search"] : [],
-        local.keyvault_selected && !local.keyvault_pe_required ? ["keyvault"] : [],
-      )),
-    )
+    error_message = "C-049 / FR-041 — private_by_default = true with a PE-capable service (container_registry / storage / search / keyvault) selected requires BOTH vnet_state_backend (PE subnet) and dns_state_backend (private DNS zones). Supply both backends, or set private_by_default = false (and opt into specific private endpoints individually)."
   }
 }
 
@@ -261,78 +188,11 @@ check "cosmosdb_requires_backends" {
   }
 }
 
-# aifoundry_network_injection_prereqs (spec.md FR-033 / C-031..C-033, amended
-# FR-044 / C-060): when Hosted-Agent network injection is enabled, the
-# capability host needs exactly one each of aifoundry / cosmosdb / search plus
-# the BYO agent storage AND a private account. The storage count is normally
-# exactly one, but when userOwnedStorage is also enabled (FR-044) the account
-# additionally owns a 2nd storage, so exactly TWO storages are expected.
-check "aifoundry_network_injection_prereqs" {
-  assert {
-    condition = !var.enable_aifoundry_network_injection || (
-      coalesce(var.enable_aifoundry_private_endpoint, var.private_by_default) &&
-      length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
-      length([for s in var.services : s if s.type == "storage"]) == (var.enable_aifoundry_user_owned_storage ? 2 : 1) &&
-      length([for s in var.services : s if s.type == "cosmosdb"]) == 1 &&
-      length([for s in var.services : s if s.type == "search"]) == 1
-    )
-    error_message = "FR-033 — enable_aifoundry_network_injection = true requires enable_aifoundry_private_endpoint = true and EXACTLY ONE each of 'aifoundry', 'cosmosdb', and 'search', plus the BYO 'storage' leg (one 'storage', or TWO when enable_aifoundry_user_owned_storage = true so the account also owns a 2nd userOwnedStorage)."
-  }
-}
-
-# aifoundry_user_owned_storage_prereqs (spec.md FR-044 / C-060): when
-# userOwnedStorage is enabled the stack must hold an aifoundry account plus
-# EXACTLY TWO 'storage' selections, and both disambiguating purposes must be set
-# and distinct so local.agent_byo_storage_id / local.account_owned_storage_id
-# each resolve to exactly one storage. Defence-in-depth pair for the
-# variable-level validators + the one(...) resolvers in locals.tf.
-check "aifoundry_user_owned_storage_prereqs" {
-  assert {
-    condition = !var.enable_aifoundry_user_owned_storage || (
-      length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
-      length([for s in var.services : s if s.type == "storage"]) == 2 &&
-      var.agent_storage_purpose != null &&
-      var.account_storage_purpose != null &&
-      var.agent_storage_purpose != var.account_storage_purpose
-    )
-    error_message = "FR-044 — enable_aifoundry_user_owned_storage = true requires EXACTLY ONE 'aifoundry' and EXACTLY TWO 'storage' selections, with both agent_storage_purpose and account_storage_purpose set to distinct values (so the BYO agent store and the account's userOwnedStorage are distinguishable)."
-  }
-}
-
-# aifoundry_keyvault_connection_prereqs (spec.md FR-045 / C-061): when the
-# Key Vault connection is enabled the stack must hold an aifoundry account plus
-# EXACTLY ONE 'keyvault' selection (the connection target), so the
-# one(...) keyvault resolver in main.tf yields a single id.
-check "aifoundry_keyvault_connection_prereqs" {
-  assert {
-    condition = !var.enable_aifoundry_keyvault_connection || (
-      length([for s in var.services : s if s.type == "aifoundry"]) == 1 &&
-      length([for s in var.services : s if s.type == "keyvault"]) == 1
-    )
-    error_message = "FR-045 — enable_aifoundry_keyvault_connection = true requires EXACTLY ONE 'aifoundry' and EXACTLY ONE 'keyvault' selected (the account's AzureKeyVault connection target)."
-  }
-}
-
-# aifoundry_container_registry_connection_prereqs (spec.md FR-063 / C-079): when
-# the project ContainerRegistry connection is enabled the stack must hold an
-# aifoundry PROJECT plus EXACTLY ONE 'container_registry' selection (the
-# connection target), so the one(...) registry resolver in main.tf yields a
-# single login server + id.
-check "aifoundry_container_registry_connection_prereqs" {
-  assert {
-    condition = !var.enable_aifoundry_container_registry_connection || (
-      length([for s in var.services : s if s.type == "aifoundry_project"]) == 1 &&
-      length([for s in var.services : s if s.type == "container_registry"]) == 1
-    )
-    error_message = "FR-063 — enable_aifoundry_container_registry_connection = true requires EXACTLY ONE 'aifoundry_project' and EXACTLY ONE 'container_registry' selected (the project's ContainerRegistry connection target)."
-  }
-}
-
 # private_by_default_unwired_types (spec.md FR-041 §4 / C-053): the master
 # private-by-default switch only flips the public-access + private-endpoint
-# surface for the service types that are already wired for it (aifoundry,
-# container_registry, storage, search, keyvault + the telemetry exception of
-# app_insights / log_analytics / Foundry-tracing). For every OTHER selectable
+# surface for the service types that are already wired for it (container_registry,
+# storage, search, keyvault + the telemetry exception of
+# app_insights / log_analytics). For every OTHER selectable
 # type that has its own private-link surface but is not yet wired to the
 # master, emit a plan-time WARNING (check blocks are non-blocking) so operators
 # know the master currently has NO effect on it and PE wiring is a tracked

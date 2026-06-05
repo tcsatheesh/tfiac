@@ -30,8 +30,8 @@ resource "azurerm_key_vault" "this" {
 # var.private_endpoint_subnet_id, the private_service_connection targets the
 # vault with subresource group id "vault", and the private_dns_zone_group
 # registers A-records in the hub privatelink.vaultcore.azure.net zone
-# (var.private_dns_zone_ids). Required so a private Foundry account's supporting
-# Key Vault stays private (006 FR-041 / FR-042).
+# (var.private_dns_zone_ids). Required so the vault stays reachable only from
+# the spoke VNet (006 FR-041).
 resource "azurerm_private_endpoint" "this" {
   count               = var.private_endpoint_enabled ? 1 : 0
   name                = local.pe_name

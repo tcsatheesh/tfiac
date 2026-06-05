@@ -526,26 +526,26 @@ documented here for audit.
 
 ---
 
-## Amendment: Dedicated Foundry Hosted-Agent subnet role (FR-226)
+## Amendment: Dedicated network-injected agent-runtime subnet role (FR-226)
 
-**Status**: Amendment — appended to feature 004 (engine). Driven by the
-Foundry Hosted-Agent network-injection program (see
-`specs/006-services/spec.md` FR-031 / CA-013 #3 / VC-5). Engine-only and
+**Status**: Amendment — appended to feature 004 (engine). Driven by the need
+for a network-injected agent-runtime (a `Microsoft.App/environments`-delegated,
+customer-egress container/agent runtime) subnet. Engine-only and
 purely additive: it adds ONE new entry to the module-internal subnet role
 catalogue. No existing role, name, or default changes; no instance consumes
 it until a spoke VNet selects it.
 
-### Background (VC-5, from Microsoft Learn `ai-foundry/agents/how-to/virtual-networks`)
+### Background
 
-A Foundry account with Hosted-Agent network injection requires a **dedicated
-agent subnet**:
+A network-injected agent runtime (a `Microsoft.App/environments`-delegated,
+customer-egress container/agent runtime) requires a **dedicated agent subnet**:
 
 - delegated to `Microsoft.App/environments`,
 - recommended size **/24**,
-- **exclusive to a single Foundry account** — it CANNOT be shared with another
-  account nor with an Azure Container Apps managed-environment subnet,
+- **exclusive to a single runtime** — it CANNOT be shared with another
+  runtime nor with an Azure Container Apps managed-environment subnet,
 - RFC1918 only (CGNAT `100.64/10` is unsupported),
-- same region as the account.
+- same region as the runtime.
 
 The catalogue already has a `container-apps` role (abbr3 `cae`) delegated to
 `Microsoft.App/environments`, but that role names the ACA managed-environment
@@ -580,13 +580,13 @@ and a separate, dedicated agent subnet without a name/role collision.
 
 - **C17 — Distinct role, not a rename of `container-apps`.** The new `agents`
   role is added alongside (not in place of) `container-apps`. A spoke may
-  select either, both, or neither. This honours VC-5 exclusivity: the ACA
-  environment subnet (`cae`) and the Foundry agent subnet (`agt`) are
+  select either, both, or neither. This honours the exclusivity rule: the ACA
+  environment subnet (`cae`) and the agent-runtime subnet (`agt`) are
   separately named, separately delegated subnet instances.
 - **C18 — /24 sizing is an instance concern.** The catalogue defines the role
   and its delegation only; the actual CIDR (recommended /24) is supplied by
   the instance VNet's `var.subnets` map (e.g. the `102-sp01-npd-vnet`
-  address-space expansion, CA-013 #4). The engine does not pin a size.
+  address-space expansion). The engine does not pin a size.
 - **C19 — Engine-only, default-off in practice.** No `var.subnets` map in any
   current instance lists `agents`, so this amendment changes nothing live
   until an instance VNet opts in. Day-one parity preserved.
@@ -602,9 +602,9 @@ and a separate, dedicated agent subnet without a name/role collision.
 
 ### Out of scope for FR-226
 
-Address-space expansion / CIDR selection (CA-013 #4, the `102` instance), the
-Foundry account wiring that consumes the subnet id (006 FR-031, already
-merged), and any live apply.
+Address-space expansion / CIDR selection (the `102` instance), the services
+stack wiring that consumes the subnet by role (already merged), and any live
+apply.
 
 ## Amendment: Optional hub Azure Firewall (FR-227, FR-228)
 
@@ -1030,23 +1030,20 @@ association at it. No name, no default toggle, and no route-table behaviour
 changes; the only live effect is that, where a NAT gateway is already enabled,
 the `agents` and `container-apps` subnets now ALSO associate it.
 
-### Background — the Foundry Standard-Agent 503 root cause (VC-5 follow-up)
+### Background — the agent-runtime 503 root cause
 
-A Foundry account with Hosted-/Standard-Agent network injection runs its agent
-runtime inside the dedicated `agents` subnet (FR-226), which is delegated to
-`Microsoft.App/environments` (an injected Azure Container Apps managed
-environment). The account-level injection is created with
+A network-injected agent runtime runs inside the dedicated `agents` subnet
+(FR-226), which is delegated to `Microsoft.App/environments` (an injected
+Azure Container Apps managed environment). The injection is created with
 `useMicrosoftManagedNetwork = false`, which means **the customer owns egress**
-for that subnet. Per Microsoft Learn
-(`ai-foundry/agents/how-to/virtual-networks` → Limitations → "Agent subnet
-egress firewall allowlisting"), the injected environment makes **outbound**
+for that subnet. The injected environment makes **outbound**
 calls that MUST be reachable for the runtime to come up healthy:
 
 - the Azure Container Apps control plane,
 - MCR (`mcr.microsoft.com`, `*.data.mcr.microsoft.com`) for platform images,
-- the agent image's **public** ACR endpoint — for Hosted agents the ACR
+- the agent image's **public** ACR endpoint — where the agent image's ACR
   cannot be placed behind a private endpoint and must be pulled over its
-  public endpoint (006 VC-7),
+  public endpoint,
 - Entra ID / Managed-Identity authentication (`login.microsoftonline.com`,
   `AzureActiveDirectory` service tag).
 
@@ -1054,9 +1051,8 @@ Azure default outbound access is retired for newly-created subnets, so a
 delegated agent subnet with **no** explicit egress path (no NAT gateway, no
 UDR) has **zero** outbound connectivity. The injected runtime therefore never
 initialises and every data-plane call (`GET /agents`, agent create) returns
-**503**, even when the capability host, private endpoints, private DNS links,
-and RBAC are all healthy. This was observed live on
-`aifp-uc1-uc1-sp01-dev-swc-001` after a fully-verified caphost rebuild.
+**503**, even when private endpoints, private DNS links,
+and RBAC are all healthy.
 
 ### Gap in the pre-FR-231 engine
 

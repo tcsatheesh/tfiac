@@ -29,48 +29,26 @@ feature, NOT an amendment to the engine (`10n` ⇏ `00n`).
 
 ## Selected services (source of truth: the tfvars)
 
-Mirrors the current sp01/dev selection exactly:
+Mirrors the current sp01/dev generic selection exactly:
 
-| `type` | `purpose` | Canonical name (sp02/dev) | Private endpoint |
-|---|---|---|---|
-| `storage` | `agt` | `stagtuc1sp02devswc001` | yes (`enable_storage_private_endpoint=true`) |
-| `storage` | `act` | `stactuc1sp02devswc001` | yes |
-| `cosmosdb` | — | `cosmos-uc1-uc1-sp02-dev-swc-001` | yes (engine default) |
-| `search` | — | `srch-uc1-uc1-sp02-dev-swc-001` | yes (`enable_search_private_endpoint=true`) |
-| `keyvault` | `fdy` | `kvfdyuc1sp02devswc001` | yes (`enable_keyvault_private_endpoint=true`) |
-| `container_registry` | — | `cruc1uc1sp02devswc001` | (PE toggle `false`, see below) |
-| `app_insights` | — | `appi-uc1-uc1-sp02-dev-swc-001` | n/a (no Private Link) |
+| `type` | Canonical name (sp02/dev) | Private endpoint |
+|---|---|---|
+| `storage` | `stuc1uc1sp02devswc001` | yes (`enable_storage_private_endpoint=true`) |
+| `cosmosdb` | `cosmos-uc1-uc1-sp02-dev-swc-001` | yes (engine default) |
+| `search` | `srch-uc1-uc1-sp02-dev-swc-001` | yes (`enable_search_private_endpoint=true`) |
+| `keyvault` | `kvuc1uc1sp02devswc001` | yes (`enable_keyvault_private_endpoint=true`) |
+| `container_registry` | `cruc1uc1sp02devswc001` | (PE toggle `false`, see below) |
+| `app_insights` | `appi-uc1-uc1-sp02-dev-swc-001` | n/a (no Private Link) |
 
 ## Pinned toggles (mirror sp01/dev active tfvars)
 
-- `enable_aifoundry_*` (all): `false` — no Foundry account is provisioned by
-  this baseline (matches sp01/dev's current state; Foundry is a separate,
-  later concern once the new Hosted-Agent backend is settled — 103 FR-103-06).
 - `enable_storage_private_endpoint`: `true`,
   `enable_search_private_endpoint`: `true`,
   `enable_keyvault_private_endpoint`: `true`.
-- `enable_container_registry_private_endpoint`: `false`,
-  `enable_aifoundry_container_registry_connection`: `false`.
+- `enable_container_registry_private_endpoint`: `false`.
 - `enable_container_apps`: `false`.
-- `agent_storage_purpose`: `agt`, `account_storage_purpose`: `act`.
-- `private_endpoint_subnet_role`: `development`, `agent_subnet_role`: `agents`.
-
-## KeyVault purge-protection override (C-107-05)
-
-```json
-"overrides": { "kvfdyuc1sp02devswc001": { "purge_protection_enabled": false } }
-```
-
-This mirrors the sp01/dev override (103 FR-103-15). Unlike sp01 — whose
-`kvfdyuc1sp01devswc001` already exists as a soft-deleted vault with purge
-protection ON (Azure-locked until 2026-09-03), making the ON→OFF flip fail —
-the sp02 vault `kvfdyuc1sp02devswc001` is a **brand-new name with no
-pre-existing (soft-deleted) vault**. So `purge_protection_enabled=false` is set
-**at create time**, which Azure accepts cleanly. sp02 therefore delivers the
-intended "purge protection off for the Foundry KV" outcome from day one with no
-ON→OFF-on-existing-vault conflict. The override key matches the engine-emitted
-canonical name and so passes the engine's `overrides_keys_resolved` check
-(CA-006).
+- `private_endpoint_subnet_role`: `development`.
+- `overrides`: `{}` (empty — no per-service overrides).
 
 ## Cross-stack wiring
 
@@ -90,25 +68,16 @@ canonical name and so passes the engine's `overrides_keys_resolved` check
   `dev`, consuming the `npd` spoke vnet's subnets via remote state — identical
   to sp01 (`sp01/npd` vnet ↔ `sp01/dev` services).
 - **C-107-03 — Mirror sp01/dev's current selection + toggles exactly.** Same
-  service list (two storages by purpose, cosmosdb, search, keyvault `fdy`,
+  service list (single storage, cosmosdb, search, keyvault,
   container_registry, app_insights) and the same toggle values, so sp02 is a
   faithful sibling of sp01 — only the tenant token and CIDR-derived backends
   differ.
 - **C-107-04 — Private-by-default.** storage/search/keyvault PEs are enabled;
   app_insights has no Private Link (n/a); `container_registry` PE is `false`
-  to mirror sp01 (the Hosted-Agent platform historically pulled the agent
-  image over ACR's public data plane — a documented estate deviation carried
-  forward verbatim from 103). No service is left publicly reachable beyond
-  that single documented ACR exception.
-- **C-107-05 — KV purge-protection override is clean on a fresh name.** See
-  the override section above: false-at-create succeeds for the new
-  `kvfdyuc1sp02devswc001`; no Azure ON→OFF conflict (the sp01 blocker does not
-  apply to a new vault name).
-- **C-107-06 — RBAC is a separate instance.** Per 103 FR-103-08, role grants
-  for an sp02/dev deployment would be owned by a future `sp02/dev/rbac`
-  instance of the 007-rbac engine, NOT by this services instance. Out of scope
-  here.
-- **C-107-07 — Runtime `subscription_id`; workflow-only rollout.** The deploy
+  to mirror sp01 (a documented estate deviation carried forward verbatim from
+  103). No service is left publicly reachable beyond that single documented
+  ACR exception.
+- **C-107-05 — Runtime `subscription_id`; workflow-only rollout.** The deploy
   workflow injects `secrets.AZURE_SUBSCRIPTION_ID`; live apply runs only
   through the workflow against `sp02/dev/services.tfstate`; the tfstate SA
   firewall is never opened.
@@ -128,14 +97,10 @@ canonical name and so passes the engine's `overrides_keys_resolved` check
 - **FR-107-03**: Every selected service that supports Private Link is deployed
   private-by-default (PE + private DNS zone), except the single documented ACR
   public-data-plane deviation carried from 103.
-- **FR-107-04**: The KeyVault purge-protection override
-  (`kvfdyuc1sp02devswc001.purge_protection_enabled=false`) MUST be set at
-  create time on the fresh vault name (no ON→OFF conflict) and its key MUST
-  match the engine-emitted canonical name (passes CA-006).
-- **FR-107-05**: Live rollout MUST go through the GitHub `deploy` workflow
+- **FR-107-04**: Live rollout MUST go through the GitHub `deploy` workflow
   (`service=services tenant=sp02 environment=dev`); never `terraform apply`
   locally.
-- **FR-107-06**: The new tfvars path MUST be added to the `services.yml` CI
+- **FR-107-05**: The new tfvars path MUST be added to the `services.yml` CI
   watch list (pull_request + push `paths:`).
 
 ## Acceptance
@@ -144,13 +109,11 @@ canonical name and so passes the engine's `overrides_keys_resolved` check
    instance).
 2. `variables/sp02/dev/services.tfvars.json` exists, is valid JSON, with
    `tenant=sp02`, `environment=dev`, `topology=spoke`, `usecase=uc1`,
-   `region=swc`, the seven selected services, the toggles above, the KV
-   override, and `vnet_state_backend.key=sp02/npd/vnet.tfstate`.
-3. The override key `kvfdyuc1sp02devswc001` matches the engine-emitted
-   canonical name (CA-006 passes; engine `terraform test` green).
-4. `.github/workflows/services.yml` watches
+   `region=swc`, the six selected services, the toggles above, an empty
+   `overrides`, and `vnet_state_backend.key=sp02/npd/vnet.tfstate`.
+3. `.github/workflows/services.yml` watches
    `variables/sp02/dev/services.tfvars.json`.
-5. `deploy.yaml` dispatch with `service=services tenant=sp02 environment=dev`
+4. `deploy.yaml` dispatch with `service=services tenant=sp02 environment=dev`
    plans + applies cleanly against `sp02/dev/services.tfstate` AFTER the sp02
    spoke vnet exists (operator-run via the workflow).
 
@@ -158,6 +121,4 @@ canonical name and so passes the engine's `overrides_keys_resolved` check
 
 - Any engine behaviour change (new selectable type, toggle, naming row) —
   belongs in [006-services](../006-services/spec.md) (+ `001-naming`).
-- RBAC grants (a future `sp02/dev/rbac` instance of 007-rbac — 103 FR-103-08).
-- Any AI Foundry account/project (all `enable_aifoundry_*` are `false`).
 - `sp02/prd` or other sp02 environments (future instance features).

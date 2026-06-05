@@ -74,7 +74,7 @@ variable "diagnostic_settings_enabled" {
 }
 
 # ----- FR-032 (Amendment 2026-06-02) — Private endpoint (private-by-default) -----
-# Unlike the toggle-based PE wrappers (cntreg/aifoundry), Cosmos DB is
+# Unlike the toggle-based PE wrapper (cntreg), Cosmos DB is
 # private-ONLY: public_network_access_enabled is ALWAYS false and the private
 # endpoint is ALWAYS provisioned. Both inputs are therefore required (non-null /
 # non-empty). This honours the private-by-default mandate for a brand-new

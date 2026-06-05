@@ -343,7 +343,6 @@ region="uks", service_purpose="shd")`. Worked examples:
 | `{ type = "user_assigned_identity" }` | `hyphenated` (abbr `id`) | `id-shd-shd-sp01-npd-uks-001` |
 | `{ type = "search" }` | `hyphenated` (abbr `srch`) | `srch-shd-shd-sp01-npd-uks-001` |
 | `{ type = "openai" }` | `hyphenated` (abbr `oai`) | `oai-shd-shd-sp01-npd-uks-001` |
-| `{ type = "aifoundry" }` | `hyphenated` (abbr `aif`) | `aif-shd-shd-sp01-npd-uks-001` |
 | `{ type = "language" }` | `hyphenated` (abbr `lang`) | `lang-shd-shd-sp01-npd-uks-001` |
 | `{ type = "doc_intel" }` | `hyphenated` (abbr `di`) | `di-shd-shd-sp01-npd-uks-001` |
 | `{ type = "function_app" }` | `hyphenated` (abbr `func`) | `func-shd-shd-sp01-npd-uks-001` |

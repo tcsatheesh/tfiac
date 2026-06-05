@@ -11,8 +11,6 @@ on:
       - modules/uai/**
       - modules/search/**
       - modules/openai/**
-      - modules/aifoundry/**
-      - modules/aifoundryproject/**
       - modules/language/**
       - modules/docint/**
       - modules/fnapp/**
@@ -37,8 +35,6 @@ on:
       - modules/uai/**
       - modules/search/**
       - modules/openai/**
-      - modules/aifoundry/**
-      - modules/aifoundryproject/**
       - modules/language/**
       - modules/docint/**
       - modules/fnapp/**
@@ -72,8 +68,6 @@ jobs:
           - modules/uai
           - modules/search
           - modules/openai
-          - modules/aifoundry
-          - modules/aifoundryproject
           - modules/language
           - modules/docint
           - modules/fnapp
