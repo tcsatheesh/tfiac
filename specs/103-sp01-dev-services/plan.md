@@ -286,3 +286,39 @@ Hosted-Agent image pull per VC-7 + the Microsoft limitation).
   `gh workflow run deploy.yaml -f service=services -f tenant=sp01
   -f environment=dev -f action=apply -f apply=true`. Never a local apply
   (FR-103-04). The tfstate SA firewall is never opened.
+
+## Amendment plan — FR-103-15 disable Key Vault purge protection (2026-06-05)
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  set `overrides["kvfdyuc1sp01devswc001"] = { "purge_protection_enabled": false }`.
+  No engine (`006-services`/`007-rbac`) or module change — the keyvault wrapper
+  already exposes `purge_protection_enabled` (default `true`) in `local.defaults`
+  and merges `var.overrides`; the stack already threads
+  `overrides = lookup(var.overrides, each.key, {})` (C-103-15-01).
+- **Why.** sp01/dev is a rebuild-on-demand iteration env. The engine default
+  `purge_protection_enabled = true` name-locks the vault for the full 90-day
+  soft-delete window on every teardown (cannot be purged early), which is pure
+  friction for a dev env reused under the same name. Opt sp01/dev out.
+- **Override key = canonical name (CA-006).** The key MUST equal the
+  engine-emitted canonical name `kvfdyuc1sp01devswc001` or the stack
+  `check "overrides_keys_resolved"` hard-fails at plan time (C-103-15-02).
+- **Scope.** Dev-only relaxation — engine default stays `true`; every other
+  tenant/env keeps purge protection unless it opts out (C-103-15-03).
+- **Private-by-default untouched.** `purge_protection_enabled` is a
+  soft-delete/lifecycle control, orthogonal to network exposure; the vault keeps
+  `private_endpoint_enabled = true`, public access disabled, and its
+  privatelink.vaultcore.azure.net PE (C-103-15-04).
+- **Azure one-way caveat.** ON → OFF is not allowed on an existing vault; the
+  override takes clean effect only on a vault created fresh with it `false`. The
+  current vault is soft-deleted with protection still on (auto-purge
+  `2026-09-03`); a clean re-provision under this name should wait for that date
+  (C-103-15-05). This is a sequencing note, not a blocker for landing the
+  parameterization.
+- **Verification (no live apply locally).** `terraform fmt -recursive` clean;
+  `terraform init -backend=false` + `terraform validate -backend=false` +
+  `terraform test` on `terraform/services` green (engine unchanged); the
+  `overrides_keys_resolved` check passes because the key resolves.
+- **Rollout** via the GitHub `deploy` workflow only:
+  `gh workflow run deploy.yaml -f service=services -f tenant=sp01
+  -f environment=dev -f action=apply -f apply=true`. Never a local apply
+  (FR-103-04). The tfstate SA firewall is never opened.

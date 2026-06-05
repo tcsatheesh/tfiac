@@ -819,3 +819,86 @@ the GitHub `deploy` workflow.
   account (separate future instance amendment).
 - AMPLS / private telemetry ingress (tracked estate-wide follow-up per
   C-103-14-05).
+
+## AMENDMENT 2026-06-05 — disable Key Vault purge protection in sp01/dev (FR-103-15)
+
+> sp01/dev is a throw-away iteration environment that is repeatedly stood up and
+> torn down (see the 2026-06-05 full-RG teardown). The Foundry Key Vault
+> `kvfdyuc1sp01devswc001` is created by this stack with the engine default
+> `purge_protection_enabled = true`, which **name-locks** the vault for the full
+> 90-day soft-delete window on every teardown (it cannot be purged early —
+> `MethodNotAllowed: DeletedVaultPurge is not allowed`). For a dev environment
+> that gets rebuilt under the same name, that lock is pure friction. This
+> amendment opts sp01/dev's Key Vault out of purge protection via the engine's
+> existing per-instance `overrides` mechanism. **Instance-only** — no
+> 006-services / 007-rbac engine spec, code, or naming row changes.
+
+### Resolved clarifications (FR-103-15)
+
+- **C-103-15-01 — Engine already supports the toggle (no engine change).** The
+  `modules/keyvault` wrapper already exposes `purge_protection_enabled` in
+  `local.defaults` (default `true`) and merges `var.overrides` on top
+  (`local.config = merge(local.defaults, var.overrides)`). The services stack
+  already threads `overrides = lookup(var.overrides, each.key, {})` keyed by the
+  engine-emitted canonical name. This instance only *supplies a value* — it
+  selects/parameterizes the engine (FR-103-01 / FR-103-07); no engine spec,
+  code, module, or naming-row edit (`001-naming`) is made.
+- **C-103-15-02 — Override key MUST be the canonical name (CA-006).** The stack
+  `check "overrides_keys_resolved"` hard-fails any `var.overrides` key that does
+  not match an engine-emitted canonical name. The Foundry vault's canonical name
+  in sp01/dev is `kvfdyuc1sp01devswc001` (type `keyvault`, purpose `fdy`), so the
+  override is keyed exactly `"kvfdyuc1sp01devswc001"`. Any drift in the naming
+  inputs would surface as a plan-time check failure, not a silent no-op.
+- **C-103-15-03 — Dev-only relaxation; prod/non-dev stay protected.** The
+  override lives ONLY in `variables/sp01/dev/services.tfvars.json`. The engine
+  default stays `purge_protection_enabled = true`, so every other tenant/env
+  instance keeps purge protection unless it explicitly opts out. This is a
+  deliberate, scoped dev convenience — not a default behaviour change.
+- **C-103-15-04 — Private-by-default is unaffected.** `purge_protection_enabled`
+  is a soft-delete/lifecycle control, orthogonal to network exposure. The vault
+  keeps `private_endpoint_enabled = true` (FR-041), public network access
+  disabled, and its privatelink.vaultcore.azure.net PE. The CLAUDE.md
+  private-by-default mandate is untouched.
+- **C-103-15-05 — Azure one-way caveat (known limitation, documented).** Azure
+  forbids turning purge protection from ON → OFF on an EXISTING vault; the flag
+  can only be `false` on a vault **created** with it `false`. The current
+  `kvfdyuc1sp01devswc001` was destroyed in the 2026-06-05 teardown and is now
+  soft-deleted **with purge protection still on** (auto-purge `2026-09-03`).
+  Therefore this override takes clean effect only on a vault created **fresh**
+  after that name frees (or in any other tenant/env that opts in from day one).
+  On a recover-soft-deleted path the recovered vault retains the prior
+  protection — so a clean re-provision under this name should wait for the
+  `2026-09-03` auto-purge. This is a sequencing note, not a blocker for landing
+  the parameterization.
+- **C-103-15-06 — Workflow-only rollout (FR-103-04).** Any live reconcile runs
+  through the GitHub `deploy` workflow (`service=services tenant=sp01
+  environment=dev action=apply apply=true`); never a local `terraform apply`.
+  The tfstate SA firewall is never opened.
+
+### FR-103-15 (new requirement)
+
+`variables/sp01/dev/services.tfvars.json` MUST set
+`overrides["kvfdyuc1sp01devswc001"].purge_protection_enabled = false`, retaining
+all FR-103-14 services/toggles. No 006-services / 007-rbac engine spec or code
+may change. The override key MUST equal the engine-emitted canonical name so the
+`overrides_keys_resolved` check passes.
+
+### Acceptance (FR-103-15)
+
+30. `variables/sp01/dev/services.tfvars.json` contains
+    `overrides["kvfdyuc1sp01devswc001"] = { "purge_protection_enabled": false }`.
+31. `terraform validate -backend=false` on `terraform/services` succeeds with no
+    `check` failing (`overrides_keys_resolved` passes — the key resolves);
+    engine `terraform test` stays green (no engine change).
+32. Live (after a fresh re-provision once the name frees): the Key Vault
+    `kvfdyuc1sp01devswc001` reports `enablePurgeProtection` unset/false and can
+    be purged immediately on a subsequent teardown.
+
+### Out of scope for FR-103-15
+
+- Any 006-services / 007-rbac engine change (the `purge_protection_enabled`
+  override is already an engine capability).
+- Changing the engine DEFAULT (it stays `true` — only sp01/dev opts out).
+- Early-purging the currently soft-deleted `kvfdyuc1sp01devswc001` (blocked by
+  Azure purge protection until the `2026-09-03` auto-purge — C-103-15-05).
+- Any network/private-endpoint change (orthogonal — C-103-15-04).

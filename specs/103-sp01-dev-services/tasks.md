@@ -231,3 +231,39 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
   `appi-uc1-uc1-sp01-dev-swc-001` exists (workspace-based, internet
   ingestion/query disabled) alongside the retained services, clean follow-up
   plan. **No local apply.**
+
+## Phase FR-103-15 (2026-06-05) — disable Key Vault purge protection
+
+> Opt sp01/dev's Foundry Key Vault (`kvfdyuc1sp01devswc001`) out of purge
+> protection so the rebuild-on-demand dev env is not name-locked for 90 days on
+> every teardown. Pure instance re-pin via the engine's existing `overrides`
+> mechanism; engine unchanged.
+
+- [ ] T-103-15-1 Set
+  `overrides["kvfdyuc1sp01devswc001"] = { "purge_protection_enabled": false }`
+  in `variables/sp01/dev/services.tfvars.json`, retaining all FR-103-14
+  services/toggles. (FR-103-15 / C-103-15-01)
+- [ ] T-103-15-2 Confirm NO engine change: `purge_protection_enabled` is already
+  a keyvault-wrapper default merged from `var.overrides`, and the stack already
+  threads `overrides = lookup(var.overrides, each.key, {})`. (FR-103-07 /
+  C-103-15-01)
+- [ ] T-103-15-3 Confirm the override key equals the engine-emitted canonical
+  name `kvfdyuc1sp01devswc001` so `check "overrides_keys_resolved"` (CA-006)
+  passes at plan time. (C-103-15-02)
+- [ ] T-103-15-4 Confirm scope + invariants: engine default stays `true`
+  (dev-only relaxation, C-103-15-03); private-by-default untouched — vault keeps
+  `private_endpoint_enabled = true` + public access disabled (C-103-15-04).
+- [ ] T-103-15-5 Note the Azure ON→OFF one-way caveat: the override takes clean
+  effect only on a vault created fresh with it `false`; the current vault is
+  soft-deleted with protection still on (auto-purge `2026-09-03`). Sequencing
+  note, not a blocker. (C-103-15-05)
+- [ ] T-103-15-6 `terraform fmt -recursive` clean; `terraform init
+  -backend=false` + `terraform validate -backend=false` OK with NO `check`
+  failing (`overrides_keys_resolved` passes); engine `terraform test` on
+  `terraform/services` green. (FR-103-15)
+- [ ] T-103-15-7 Branch → PR → CI green → squash-merge → sync master. (FR-103-15)
+- [ ] T-103-15-8 Roll out via the `deploy` workflow (`service=services
+  tenant=sp01 environment=dev action=apply apply=true`) — only meaningful on a
+  fresh re-provision once the name frees; verify the recreated
+  `kvfdyuc1sp01devswc001` reports purge protection unset/false. **No local
+  apply.**

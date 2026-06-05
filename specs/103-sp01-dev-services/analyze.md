@@ -173,3 +173,32 @@ Cross-artifact analysis of the FR-103-14 amendment (add a standalone
   added by this instance (pure selection add).
 
 **FR-103-14 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement.**
+
+## Addendum 2026-06-05 — FR-103-15 disable Key Vault purge protection
+
+Cross-artifact analysis of the FR-103-15 amendment (opt sp01/dev's Foundry Key
+Vault out of purge protection via the engine `overrides` mechanism).
+
+| ID | Severity | Finding | Resolution |
+|---|---|---|---|
+| A-115-1 | MAJOR | Engine/instance split — does FR-103-15 touch any `00n` engine artifact? | RESOLVED. Only `specs/103-*` + the tfvars change. `purge_protection_enabled` is already a keyvault-wrapper default merged from `var.overrides`; the stack already threads `overrides = lookup(var.overrides, each.key, {})`. No engine spec/code/module/naming edit. (FR-103-01 / FR-103-07 / C-103-15-01) |
+| A-115-2 | MAJOR | Does the override key resolve (CA-006)? An unmatched key hard-fails `overrides_keys_resolved`. | RESOLVED. The key is exactly the engine-emitted canonical name `kvfdyuc1sp01devswc001` (type `keyvault`, purpose `fdy`); the check passes at plan time. (C-103-15-02) |
+| A-115-3 | MAJOR | Does this change the engine DEFAULT or any other tenant/env? | RESOLVED. The override lives only in `variables/sp01/dev/services.tfvars.json`; the engine default stays `purge_protection_enabled = true`. Dev-only relaxation. (C-103-15-03) |
+| A-115-4 | MAJOR | Does disabling purge protection weaken the private-by-default posture? | RESOLVED. `purge_protection_enabled` is a soft-delete/lifecycle control, orthogonal to network exposure. The vault keeps `private_endpoint_enabled = true`, public access disabled, and its privatelink.vaultcore.azure.net PE. CLAUDE.md private-by-default untouched. (C-103-15-04) |
+| A-115-5 | MINOR | Azure forbids ON→OFF on an existing vault — will the next apply fail on the current vault? | RESOLVED (sequencing note). The current vault was destroyed and is soft-deleted with protection still on (auto-purge `2026-09-03`); the override takes clean effect only on a vault created fresh with it `false`. A clean re-provision under this name should wait for that date. Not a blocker for landing the parameterization. (C-103-15-05) |
+| A-115-6 | MINOR | Rollout — workflow only, no local apply, tfstate SA firewall untouched? | RESOLVED. FR-103-04 governs; any live reconcile via `deploy.yaml`; SA firewall never opened. (C-103-15-06) |
+
+## Constitution / standing-rule check (FR-103-15)
+
+- Engine/instance split (`10n ⇏ 00n`): honoured — only `specs/103-*` + the
+  tfvars change; engine 006 / 007 untouched (the override is an existing engine
+  capability).
+- Private-by-default: untouched — `purge_protection_enabled` is orthogonal to
+  network exposure; the vault keeps its PE + public access disabled
+  (C-103-15-04).
+- Workflow-only live ops + tfstate SA firewall never opened: honoured
+  (C-103-15-06).
+- Tests: engine `terraform test` unchanged + green; no new variable/code path
+  added by this instance (pure override re-pin).
+
+**FR-103-15 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement.**
