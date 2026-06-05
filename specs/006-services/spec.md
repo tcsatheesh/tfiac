@@ -2734,3 +2734,108 @@ finalization gate (FR-060 owns it); any change to the `networkInjections` body
 or BYO connections (FR-031/FR-040 own them); adopting the platform host into
 Terraform state (explicitly rejected — it is RP-owned, its name is
 RP-generated, and Terraform must not manage it).
+
+## AMENDMENT 2026-06-05 — Foundry project ContainerRegistry connection (FR-063)
+
+> **Why.** A private Foundry project that deploys a **Hosted Agent** (the
+> `azd deploy <hosted-agent>` path that builds a container image, pushes it to
+> the project's Azure Container Registry, and has the Microsoft Hosted-Agent
+> runtime pull + run it) fails server-side with a **503** at `create_agent`
+> time. Comparing the failing **private** project to a **working public**
+> reference project proved the gap: the working project carries a
+> `ContainerRegistry` connection (a
+> `Microsoft.CognitiveServices/accounts/projects/connections` of `category =
+> "ContainerRegistry"`, `authType = "ManagedIdentity"`, pointing at the ACR
+> data-plane endpoint), and its project system-assigned MI holds **AcrPull** on
+> that registry. The private project had **neither** — so the Hosted-Agent
+> runtime had no wired path to authenticate to and pull from the registry, and
+> the platform returned 503. The ACR is reached over its **public** data-plane
+> endpoint (the ONE sanctioned private-by-default deviation for sp01, VC-7 /
+> Microsoft Hosted-Agent limitation, already documented under FR-103-11); the
+> missing piece is purely the **connection wiring** on the project plus the
+> AcrPull grant (the grant is FR-064 in `007-rbac`, this amendment owns the
+> connection). The app team proposed applying both manually via `az`; that is
+> rejected as untracked drift on a shared, network-secured, Terraform-managed
+> project — the capability is added as engine IaC instead.
+
+- **FR-063 — the `aifoundryproject` module MUST be able to attach a Container
+  Registry as a project-scoped connection (engine).** When enabled, the module
+  emits exactly one
+  `Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01`
+  named `containerregistry` with `category = "ContainerRegistry"`, `authType =
+  "ManagedIdentity"`, `isSharedToAll = true`, `isDefault = true`, `target` = the
+  ACR data-plane login server (`<name>.azurecr.io`), and `metadata = { ApiType
+  = "Azure", ResourceId = <acr ARM id> }`. The resource is gated by a
+  known-at-plan toggle (`container_registry_connection_enabled`, default
+  **false**) separate from the (potentially computed) login server / id inputs
+  (`container_registry_login_server`, `container_registry_id`), and a module
+  precondition rejects `enabled = true` with either input null. Because azapi's
+  embedded connection schema does not list every RP-valid field, the resource
+  sets `schema_validation_enabled = false`. The connection is placed on the
+  **project** (mirroring the working public reference), not the account.
+
+  The services stack exposes
+  `enable_aifoundry_container_registry_connection` (default **false**); when on
+  it REQUIRES exactly one `aifoundry_project` AND exactly one
+  `container_registry` selection (enforced by
+  `check.aifoundry_container_registry_connection_prereqs`). The stack resolves
+  the registry login server / id from the selected `container_registry` module
+  (via the new cntreg `login_server` output + existing `resource_id`) and passes
+  them through. Default off ⇒ no ContainerRegistry connection (behaviour
+  preserving).
+
+  The cntreg module (`modules/cntreg`) gains a `login_server` output (=
+  `azurerm_container_registry.this.login_server`) so the data-plane endpoint is
+  sourced from the resource rather than string-built.
+
+### Clarifications — Session 2026-06-05 (FR-063)
+
+- **C-079 — Known-at-plan gate, computed target.** As with the FR-045 Key Vault
+  connection (C-061), the `count` gate is a plain bool
+  (`container_registry_connection_enabled`) so the resource's presence is known
+  at plan time, while the connection `target`/`metadata.ResourceId` may be
+  computed (the registry's login server / id). The module precondition enforces
+  both inputs non-null when the toggle is on; the services-stack `check` adds the
+  outer guard (project + registry both selected) so a misconfig fails at plan.
+- **C-080 — Connection lives on the project, not the account.** Unlike the
+  FR-045 `keyvault` / FR-044 `accountstorage` connections (account-scoped,
+  `isSharedToAll` for child inheritance), the ContainerRegistry connection is
+  created on the **project** resource, matching the working public reference and
+  the Hosted-Agent runtime's lookup path. `isSharedToAll = true` + `isDefault =
+  true` mirror the reference shape so the runtime selects it as the default
+  registry.
+- **C-081 — Public ACR data-plane is the sanctioned deviation.** The connection
+  target is the ACR's public login server because the Microsoft Hosted-Agent
+  runtime pulls over the public data-plane endpoint (no Private-Link path is
+  offered for that pull in this platform). This is the single documented
+  private-by-default deviation for sp01 (VC-7 / FR-103-11) and is not widened by
+  FR-063 — only the connection wiring is added.
+
+### Validation criteria (FR-063)
+
+- **VC-28 — ContainerRegistry connection emitted.** With
+  `container_registry_connection_enabled = true` and non-null login server / id,
+  `modules/aifoundryproject` emits exactly one
+  `Microsoft.CognitiveServices/accounts/projects/connections` named
+  `containerregistry` (`category = ContainerRegistry`, `authType =
+  ManagedIdentity`, `isDefault = true`, `parent_id` = the project,
+  `target` = the login server, `metadata.ResourceId` = the registry id).
+- **VC-29 — Default off / parity.** With the toggle off (default), no
+  ContainerRegistry connection is emitted; the project body is byte-for-byte the
+  pre-FR-063 state.
+- **VC-30 — Precondition + stack guard.** `enabled = true` with a null login
+  server or id fails the module precondition; the services-stack toggle on with
+  no `aifoundry_project` or no `container_registry` selected fails
+  `check.aifoundry_container_registry_connection_prereqs`.
+- **VC-31 — cntreg login_server output.** `modules/cntreg` exposes
+  `login_server` equal to `azurerm_container_registry.this.login_server`.
+- The full `terraform test` suite (modules/cntreg, modules/aifoundryproject,
+  terraform/services) is green.
+
+### Out of scope for FR-063
+
+The project-MI AcrPull grant (FR-064 in `007-rbac` owns it); any change to ACR
+network posture (the public data-plane deviation is owned by FR-103-11 / VC-7);
+turning the toggle on for any concrete deployment (instance features
+`103-sp01-dev-services` owns the sp01/dev opt-in); the account-level connections
+(FR-044/FR-045 own them).

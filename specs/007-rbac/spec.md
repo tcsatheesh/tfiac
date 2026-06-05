@@ -215,3 +215,71 @@ deploy-time rollout (prepare-only).
 Adding the *actual* Key Vault Crypto Service Encryption User role
 (`e147488a-…`) — the `006` deployment uses platform-managed encryption (no CMK),
 so that crypto grant is not required (consistent with C-066).
+
+## AMENDMENT 2026-06-05 — Project-MI AcrPull on the container registry (FR-064)
+
+> **Why.** A private Foundry project deploying a **Hosted Agent** fails
+> server-side with a **503** at `create_agent` time. Comparing the failing
+> private project to a working **public** reference project proved a two-part
+> gap: (1) the project lacked a `ContainerRegistry` connection — owned by
+> `006-services` FR-063 — and (2) the project's system-assigned managed identity
+> lacked **AcrPull** on the registry, so even with the connection wired the
+> Hosted-Agent runtime could not authenticate to pull the image. This amendment
+> owns leg (2): the project-MI AcrPull grant. The two amendments are paired —
+> the connection (FR-063) and the grant (FR-064) are both required for the
+> Hosted-Agent pull to succeed. The app team proposed granting AcrPull manually
+> via `az`; that is rejected as untracked drift on a shared, Terraform-managed
+> registry — the grant is added as engine RBAC instead.
+
+- **FR-064 — AcrPull on the container registry, granted to the project managed
+  identity (engine).** When enabled, the `terraform/rbac` stack emits exactly
+  one `azurerm_role_assignment` keyed `project-acr-pull` with `role_definition_id`
+  = **AcrPull** (`7f951dda-4ed3-4680-a7ca-43fe172d538d`), `scope` = the
+  container registry ARM id resolved from the consumed services state, and
+  `principal_id` = the **project** system-assigned MI principal
+  (`data.azapi_resource.project[0].output.identity.principalId`,
+  `principal_type = "ServicePrincipal"`). Gated by a new known-at-plan toggle
+  `enable_project_acr_pull` (default **false**); the grant is additionally gated
+  on `local.project_present ∧ local.registry_present`, and
+  `check.project_acr_pull_rbac_prereqs` fails the plan if the toggle is on with
+  no project or no `container_registry` in the consumed services state. Default
+  off ⇒ no AcrPull grant (behaviour preserving).
+
+### Clarifications — Session 2026-06-05 (FR-064)
+
+- **C-069 — Project MI, not account MI.** The Hosted-Agent runtime runs under
+  the **project** identity; the working public reference grants AcrPull to the
+  project system-assigned MI (not the account MI). FR-064 mirrors that: the
+  grant's `principal_id` is `local.project_principal_id`.
+- **C-070 — Registry resolved from services state, not hard-coded.** The
+  registry scope is resolved from the consumed `006-services` remote state
+  (`local.registry_name` = the `container_registry` naming entry →
+  `local.resource_ids[...]`), so the grant follows whatever registry the
+  services stack emitted. No registry in state ⇒ the grant is absent and the
+  prereq check fails when the toggle is on.
+- **C-071 — Paired with FR-063, scoped to the public ACR data-plane.** AcrPull
+  is a control-plane role on the registry resource; the actual image pull goes
+  over the ACR public data-plane endpoint (the sanctioned private-by-default
+  deviation, VC-7 / `103` FR-103-11). FR-064 adds only the grant; it does not
+  change ACR network posture.
+
+### Validation criteria (FR-064)
+
+- **VC-38 — Grant emitted + correct.** With `enable_project_acr_pull = true` and
+  both an `aifoundry_project` and a `container_registry` in the consumed services
+  state, the matrix emits exactly one `project-acr-pull` assignment with
+  `role_definition_id` ending `/7f951dda-4ed3-4680-a7ca-43fe172d538d`, scoped to
+  the registry, principal = the project MI.
+- **VC-39 — Default off / prereq.** With the toggle off (default) no
+  `project-acr-pull` grant is emitted; with the toggle on but no project or no
+  registry, `check.project_acr_pull_rbac_prereqs` fails the plan.
+- **VC-40 — `terraform fmt`/`validate`/`test` green** for `terraform/rbac`
+  (the full-matrix test asserts the 12th grant + scope + GUID; a reject test
+  asserts the prereq).
+
+### Out of scope (FR-064)
+
+The project ContainerRegistry connection (FR-063 in `006-services` owns it); any
+change to ACR network posture (FR-103-11 / VC-7 owns the public-data-plane
+deviation); turning the toggle on for sp01/dev (the `104-sp01-dev-rbac` instance
+owns the opt-in).

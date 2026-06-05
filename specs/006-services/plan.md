@@ -1497,3 +1497,50 @@ private-by-default mandate (documented deviation from the PUBLIC portal vault).
 19 pass; `terraform/services` suite 28 pass. Engine-only, additive (default-off
 ⇒ zero new resources). The `103` instance selects the second storage + Key Vault
 and flips the toggles on its own pipeline; role assignments land in `007-rbac`.
+
+## Amendment plan — Foundry project ContainerRegistry connection (FR-063, 2026-06-05)
+
+**Approach.** One opt-in, default-off project-scoped connection on the
+`aifoundryproject` module, driven by a services-stack toggle, with the ACR
+data-plane endpoint sourced from a new cntreg `login_server` output. Mirrors the
+FR-045 Key Vault connection pattern (known-at-plan bool gate + computed target +
+`schema_validation_enabled = false`), but the connection lives on the **project**
+(matching the working public reference's Hosted-Agent runtime lookup path). No
+`001-naming` change (no new resource type or naming row — the registry already
+exists as a selectable service). Engine-only; the sp01/dev opt-in is the `103`
+instance feature, and the project-MI AcrPull grant is FR-064 in `007-rbac`.
+
+- **A-063-01** — `modules/cntreg/outputs.tf`: add `login_server` output (=
+  `azurerm_container_registry.this.login_server`).
+- **A-063-02** — `modules/aifoundryproject/variables.tf`: add
+  `container_registry_connection_enabled` (bool/false — known-at-plan gate),
+  `container_registry_login_server` (string/null),
+  `container_registry_id` (string/null).
+- **A-063-03** — `modules/aifoundryproject/main.tf`: add count-gated
+  `azapi_resource.container_registry_connection`
+  (`Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01`, name
+  `containerregistry`, `category = ContainerRegistry`, `authType =
+  ManagedIdentity`, `isSharedToAll = true`, `isDefault = true`, target = login
+  server, `metadata = { ApiType = Azure, ResourceId = id }`,
+  `schema_validation_enabled = false`) + a precondition (enabled ⇒ both inputs
+  non-null).
+- **A-063-04** — `terraform/services/variables.tf`: add
+  `enable_aifoundry_container_registry_connection` (bool/false).
+- **A-063-05** — `terraform/services/main.tf` `module.aifoundry_project`: wire
+  `container_registry_connection_enabled = toggle && registry_selected` and the
+  login server / id resolved from the selected `container_registry` module (via
+  the new `login_server` + existing `resource_id` outputs), gated so the module
+  is never handed `enabled = true` + null on a misconfig.
+- **A-063-06** — `terraform/services/check.tf`: add
+  `aifoundry_container_registry_connection_prereqs` (toggle ⇒ exactly one
+  `aifoundry_project` AND exactly one `container_registry`).
+- **A-063-07** — tests: cntreg `login_server_output_exposed`; aifoundryproject
+  `container_registry_connection.tftest.hcl` + `_negative`; services
+  `aifoundry_registry_connection_happy.tftest.hcl` +
+  `reject_registry_connection_without_registry.tftest.hcl`.
+
+**Verification.** `terraform fmt -recursive` clean; `modules/cntreg` 11 pass,
+`modules/aifoundryproject` 13 pass, `terraform/services` 31 pass. Engine-only,
+additive (default-off ⇒ zero new resources / behaviour-preserving). The `103`
+instance flips the toggle; the project-MI AcrPull grant lands in `007-rbac`
+(FR-061).

@@ -103,3 +103,50 @@ resource "azapi_resource" "capability_host" {
     }
   }
 }
+
+# FR-063 / C-079 (Amendment 2026-06-05) — project-level ContainerRegistry
+# connection. The Foundry Hosted-Agent runtime pulls the agent container image
+# from the registry using the PROJECT's system-assigned managed identity; the
+# azd-provisioned reference puts a `ContainerRegistry` connection ON THE PROJECT
+# (authType=ManagedIdentity, isDefault=true) plus an AcrPull grant on the
+# project MI (the latter is owned by the 007-rbac stack, FR-061). We mirror that
+# proven shape here. The `target` is the registry login server (a public
+# data-plane endpoint — VC-7 / the Microsoft Hosted-Agent ACR limitation).
+# Fixed short name `containerregistry` (C-025 — the canonical ACR name's length
+# cannot satisfy the connection-name RP pattern). Inert (zero-count) unless the
+# services stack supplies a login server, preserving day-one behaviour.
+resource "azapi_resource" "container_registry_connection" {
+  count     = var.container_registry_connection_enabled ? 1 : 0
+  type      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01"
+  name      = "containerregistry"
+  parent_id = azapi_resource.this.id
+
+  # The reference connection sets `useWorkspaceManagedIdentity` and
+  # `peRequirement`, fields the azapi embedded connection schema does not model;
+  # disable schema validation for this one resource so we send the
+  # reference-exact body (same approach as the account keyvault connection).
+  schema_validation_enabled = false
+
+  body = {
+    properties = {
+      category      = "ContainerRegistry"
+      target        = var.container_registry_login_server
+      authType      = "ManagedIdentity"
+      isSharedToAll = true
+      isDefault     = true
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = var.container_registry_id
+      }
+    }
+  }
+
+  response_export_values = ["id"]
+
+  lifecycle {
+    precondition {
+      condition     = !var.container_registry_connection_enabled || (var.container_registry_login_server != null && var.container_registry_id != null)
+      error_message = "FR-063 — container_registry_connection_enabled=true requires non-null container_registry_login_server and container_registry_id."
+    }
+  }
+}

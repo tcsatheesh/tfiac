@@ -410,6 +410,18 @@ module "aifoundry_project" {
   # true ⇒ provisioned in the same pass as injection (steady-state unchanged).
   agent_finalization_enabled = var.enable_aifoundry_agent_finalization
 
+  # FR-063 / C-079 (Amendment 2026-06-05) — project ContainerRegistry connection.
+  # When enabled, the single selected (public — VC-7) container_registry is
+  # attached to the PROJECT as a 'containerregistry' connection
+  # (authType=ManagedIdentity, isDefault) so the Hosted-Agent runtime pulls the
+  # agent image via the project MI. Pairs with the project-MI AcrPull grant in
+  # 007-rbac (FR-061). The known-at-plan toggle gates the connection; the
+  # (computed) login server + id carry the values. Gated on a registry actually
+  # being selected. Default false ⇒ off / null.
+  container_registry_connection_enabled = var.enable_aifoundry_container_registry_connection && local.registry_selected
+  container_registry_login_server       = var.enable_aifoundry_container_registry_connection && local.registry_selected ? one([for k, v in module.container_registry : v.login_server]) : null
+  container_registry_id                 = var.enable_aifoundry_container_registry_connection && local.registry_selected ? one([for k, v in module.container_registry : v.resource_id]) : null
+
   depends_on = [module.aifoundry]
 }
 

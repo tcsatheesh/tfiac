@@ -62,3 +62,21 @@ run "diag_wired_to_shared_la" {
     error_message = "C-014: diag log_analytics_workspace_id diverged from the input."
   }
 }
+
+run "login_server_output_exposed" {
+  command = apply
+
+  # Disable diagnostics so the mock-generated registry id is not fed to the
+  # diag setting's target_resource_id (which would fail ARM id parsing).
+  variables {
+    diagnostic_settings_enabled = false
+  }
+
+  # FR-063 (Amendment 2026-06-05) — the module exposes the registry login
+  # server so the services stack can use it as the Foundry project
+  # ContainerRegistry connection target.
+  assert {
+    condition     = output.login_server == azurerm_container_registry.this.login_server
+    error_message = "FR-063: login_server output must equal the registry login_server attribute."
+  }
+}
