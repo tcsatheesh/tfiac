@@ -23,7 +23,7 @@ resource "azapi_resource" "this" {
     }
   }
 
-  response_export_values = ["id"]
+  response_export_values = ["id", "identity.principalId"]
 }
 
 # C-014 (Amendment 2026-05-31) — default diagnostic settings to shared hub LA.
@@ -108,41 +108,47 @@ resource "azapi_resource" "capability_host" {
 # connection. The Foundry Hosted-Agent runtime pulls the agent container image
 # from the registry using the PROJECT's system-assigned managed identity; the
 # azd-provisioned reference puts a `ContainerRegistry` connection ON THE PROJECT
-# (authType=ManagedIdentity, isDefault=true) plus an AcrPull grant on the
-# project MI (the latter is owned by the 007-rbac stack, FR-064). We mirror the
-# live working-reference connection's EXACT body (verified against the working
-# public Foundry project's `ContainerRegistry` connection): `authType =
-# ManagedIdentity`, `credentials` omitted (null), `isSharedToAll = false`,
-# `useWorkspaceManagedIdentity = false`, `peRequirement = NotRequired`, and
-# `metadata = { ResourceId }` (NO `ApiType`). Sending `isSharedToAll = true` or
-# omitting `useWorkspaceManagedIdentity` makes the RP map authType to
-# `RegistryIdentity` and reject the empty credentials (400 ValidationError). The
-# `target` is the registry login server (a public data-plane endpoint — VC-7 /
-# the Microsoft Hosted-Agent ACR limitation). Fixed short name
-# `containerregistry` (C-025 — the canonical ACR name's length cannot satisfy the
-# connection-name RP pattern). Inert (zero-count) unless the services stack
-# supplies a login server, preserving day-one behaviour.
+# (authType=ManagedIdentity) plus an AcrPull grant on the project MI (the latter
+# is owned by the 007-rbac stack, FR-064). We mirror the azd sample's
+# EXISTING-ACR connection path (Azure-Samples/foundry-hosted-agentframework-demos
+# infra/core/ai/ai-project.bicep `existingAcrConnection`), which is our exact
+# scenario (the ACR is pre-provisioned by the services stack). The RP maps
+# authType=ManagedIdentity to `RegistryIdentity` and REQUIRES a non-empty
+# `credentials` block — it is write-only and always masked as null on GET, which
+# is why the live reference appeared to have none and our first credentials-less
+# body failed `400 ValidationError: Credentials Property can't be empty for auth
+# type RegistryIdentity`. The proven body supplies `credentials = { clientId =
+# <project MI principalId>, resourceId = <acr ARM id> }` (the sample literally
+# passes the project identity's principalId into clientId), `isSharedToAll =
+# true`, and `metadata = { ResourceId }`. The `target` is the registry login
+# server (a public data-plane endpoint — VC-7 / the Microsoft Hosted-Agent ACR
+# limitation). Fixed short name `containerregistry` (C-025 — the canonical ACR
+# name's length cannot satisfy the connection-name RP pattern). Inert
+# (zero-count) unless the services stack supplies a login server, preserving
+# day-one behaviour.
 resource "azapi_resource" "container_registry_connection" {
   count     = var.container_registry_connection_enabled ? 1 : 0
   type      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01"
   name      = "containerregistry"
   parent_id = azapi_resource.this.id
 
-  # The reference connection sets `useWorkspaceManagedIdentity` and
-  # `peRequirement`, fields the azapi embedded connection schema does not model;
-  # disable schema validation for this one resource so we send the
-  # reference-exact body (same approach as the account keyvault connection).
+  # The connection `credentials` block is write-only and not fully modelled by
+  # the azapi embedded connection schema; disable schema validation for this one
+  # resource so we send the sample-exact body (same approach as the account
+  # keyvault connection).
   schema_validation_enabled = false
 
   body = {
     properties = {
-      category                    = "ContainerRegistry"
-      target                      = var.container_registry_login_server
-      authType                    = "ManagedIdentity"
-      isDefault                   = true
-      isSharedToAll               = false
-      useWorkspaceManagedIdentity = false
-      peRequirement               = "NotRequired"
+      category      = "ContainerRegistry"
+      target        = var.container_registry_login_server
+      authType      = "ManagedIdentity"
+      isDefault     = true
+      isSharedToAll = true
+      credentials = {
+        clientId   = azapi_resource.this.output.identity.principalId
+        resourceId = var.container_registry_id
+      }
       metadata = {
         ResourceId = var.container_registry_id
       }

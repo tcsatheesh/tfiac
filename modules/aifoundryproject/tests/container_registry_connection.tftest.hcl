@@ -2,7 +2,10 @@
 # With container_registry_connection_enabled = true the project module emits ONE
 # Microsoft.CognitiveServices/accounts/projects/connections named
 # "containerregistry", category=ContainerRegistry, authType=ManagedIdentity,
-# isDefault=true, target = the supplied login server. Default off emits none.
+# isDefault=true, isSharedToAll=true, target = the supplied login server, and a
+# write-only credentials block { clientId = project MI principalId, resourceId =
+# acr id } (the RP rejects a credentials-less ManagedIdentity/RegistryIdentity
+# body with 400). Default off emits none.
 
 variables {
   canonical_name      = "aifp-shd-shd-sp01-dev-uks-001"
@@ -35,7 +38,8 @@ mock_provider "azurerm" {}
 mock_provider "azapi" {
   mock_resource "azapi_resource" {
     defaults = {
-      id = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-svc-shd-sp01-dev-uks-001/providers/Microsoft.CognitiveServices/accounts/aif-shd-shd-sp01-dev-uks-001/projects/aifp-shd-shd-sp01-dev-uks-001"
+      id     = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-svc-shd-sp01-dev-uks-001/providers/Microsoft.CognitiveServices/accounts/aif-shd-shd-sp01-dev-uks-001/projects/aifp-shd-shd-sp01-dev-uks-001"
+      output = { identity = { principalId = "11111111-1111-1111-1111-111111111111" } }
     }
   }
 }
@@ -89,18 +93,18 @@ run "registry_connection_emitted" {
   }
 
   assert {
-    condition     = azapi_resource.container_registry_connection[0].body.properties.isSharedToAll == false
-    error_message = "FR-063: connection must set isSharedToAll=false (reference-exact; true makes the RP demand credentials)."
+    condition     = azapi_resource.container_registry_connection[0].body.properties.isSharedToAll == true
+    error_message = "FR-063: connection must set isSharedToAll=true (matches the azd sample existing-ACR connection path)."
   }
 
   assert {
-    condition     = azapi_resource.container_registry_connection[0].body.properties.useWorkspaceManagedIdentity == false
-    error_message = "FR-063: connection must set useWorkspaceManagedIdentity=false (reference-exact)."
+    condition     = azapi_resource.container_registry_connection[0].body.properties.credentials.resourceId == "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-svc-shd-sp01-dev-uks-001/providers/Microsoft.ContainerRegistry/registries/crshdshdsp01devuks001"
+    error_message = "FR-063: connection credentials.resourceId must be the supplied registry resource id (RP requires a non-empty credentials block for ManagedIdentity/RegistryIdentity)."
   }
 
   assert {
-    condition     = azapi_resource.container_registry_connection[0].body.properties.peRequirement == "NotRequired"
-    error_message = "FR-063: connection must set peRequirement=NotRequired (reference-exact)."
+    condition     = azapi_resource.container_registry_connection[0].body.properties.credentials.clientId == "11111111-1111-1111-1111-111111111111"
+    error_message = "FR-063: connection credentials.clientId must be the project managed identity principalId."
   }
 
   assert {
