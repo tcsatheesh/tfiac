@@ -64,12 +64,14 @@ module "vnet" {
       )
 
       # FR-229 (hub) / FR-230 (spoke): associate the NAT gateway with workload
-      # subnets that need egress (needs_route_table). Coexists with the firewall
-      # UDR (the UDR wins on routing precedence until removed). Gated on the
-      # role-agnostic predicate so module.nat[0] is never indexed when the list
-      # is empty.
+      # subnets that need egress. FR-231: the egress set is `needs_nat_egress`
+      # (NOT `needs_route_table`) so the delegated managed-environment subnets
+      # (`agents`, `container-apps`) — which carry NO shared firewall UDR — still
+      # get a NAT egress path. Coexists with the firewall UDR where present (the
+      # UDR wins on routing precedence until removed). Gated on the role-agnostic
+      # predicate so module.nat[0] is never indexed when the list is empty.
       nat_gateway = (
-        local.nat_gateway_active && local.role_catalogue[r].needs_route_table
+        local.nat_gateway_active && local.role_catalogue[r].needs_nat_egress
         ? { id = module.nat[0].resource_id }
         : null
       )

@@ -4,10 +4,11 @@
 # generalised engine path as the hub (FR-229) behind enable_spoke_nat_gateway.
 #
 # Run 1 (enable_spoke_nat_gateway = true, hub firewall GONE => firewall IP null):
-#   post-teardown egress. The NAT gateway associates with exactly the spoke
-#   workload subnets that have needs_route_table = true and NOT with non-egress
-#   roles (container-apps). route_table_active is false (no firewall route), so
-#   the spoke now egresses SOLELY via its NAT gateway.
+#   post-teardown egress. The NAT gateway associates with every spoke subnet
+#   whose role has needs_nat_egress = true — the needs_route_table workload
+#   subnets PLUS the delegated managed-environment role container-apps (FR-231).
+#   route_table_active is false (no firewall route), so the spoke now egresses
+#   SOLELY via its NAT gateway.
 # Run 2 (enable_spoke_nat_gateway = true, hub firewall PRESENT => firewall IP set):
 #   coexistence. route_table_active is true AND the NAT gateway is associated
 #   (dormant behind the firewall UDR which wins on routing precedence).
@@ -68,10 +69,12 @@ run "spoke_nat_gateway_enabled_post_teardown" {
     error_message = "FR-230/C34: the spoke NAT gateway must associate with all needs_route_table workload subnets."
   }
 
-  # NOT associated with non-egress roles
+  # FR-231: the delegated managed-environment role (container-apps) carries NO
+  # shared firewall route (needs_route_table = false) yet still attaches the NAT
+  # gateway because it needs an egress path to initialise its managed env.
   assert {
-    condition     = output.subnet_nat_attached["container-apps"] == false
-    error_message = "FR-230/C34: the spoke NAT gateway must NOT associate with container-apps (needs_route_table = false)."
+    condition     = output.subnet_nat_attached["container-apps"] == true
+    error_message = "FR-231: the spoke NAT gateway MUST associate with container-apps (needs_nat_egress = true) even though needs_route_table = false."
   }
 
   # post-teardown: no firewall route, so the spoke egresses solely via NAT

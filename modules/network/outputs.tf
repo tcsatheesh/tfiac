@@ -126,10 +126,10 @@ output "nat_gateway_id" {
 }
 
 output "subnet_nat_attached" {
-  description = "Map of role => bool indicating whether the subnet EFFECTIVELY associates the NAT gateway (FR-229 hub / FR-230 spoke): nat_gateway_active AND needs_route_table. Exposed for plan-time tests."
+  description = "Map of role => bool indicating whether the subnet EFFECTIVELY associates the NAT gateway (FR-229 hub / FR-230 spoke): nat_gateway_active AND needs_nat_egress. FR-231: `needs_nat_egress` (NOT `needs_route_table`) is the egress predicate, so the delegated managed-environment roles (`agents`/`container-apps`) attach the NAT gateway while still NOT attaching the shared route table. Exposed for plan-time tests."
   value = {
     for r in local.active_roles : r => (
-      local.nat_gateway_active && local.role_catalogue[r].needs_route_table
+      local.nat_gateway_active && local.role_catalogue[r].needs_nat_egress
     )
   }
 }

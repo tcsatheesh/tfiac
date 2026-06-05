@@ -1061,3 +1061,43 @@ egress on later is a separate instance change: set
 action=apply -f apply=false` (confirm additive: 1 NAT gateway + 1 PIP + N subnet
 associations) → `apply=true`. Never local apply; never open the tfstate SA
 firewall.
+
+## Plan amendment — FR-231 (NAT egress for delegated managed-environment subnets)
+
+**Scope.** Engine-only, additive. One new per-role field `needs_nat_egress` in
+the `modules/network/locals.tf` role catalogue; the NAT-gateway subnet
+association (`main.tf`) and the `subnet_nat_attached` output (`outputs.tf`) are
+re-pointed from `needs_route_table` to `needs_nat_egress`. `needs_nat_egress` is
+`true` for the seven existing egress roles PLUS `agents` and `container-apps`;
+`false` for `api-management`/`bastion`/`firewall`/`firewall-mgmt`. Route-table
+attachment (`needs_route_table`) is untouched → FR-226/FR-228 preserved.
+
+**Constitution re-check (delta only).**
+
+| Gate | Result | Notes |
+|---|---|---|
+| I. Subscription pin | PASS | No change. |
+| II. Naming engine | PASS | No catalogue change — no new resource/name. |
+| III. Defence-in-depth validation | PASS | New field is a static catalogue bool; no new variable surface. NAT still gated on `nat_gateway_active`. |
+| IV. Tests for every code path | PASS | New `agent_subnet_nat_egress.tftest.hcl` (NAT-yes/route-table-no for agents+cae, non-egress role attaches neither, toggle-off attaches nothing); `optional_nat_gateway_spoke.tftest.hcl` corrected (cae now NAT-attached). |
+| V. Runtime configurable | PASS | No new toggle; reuses `enable_spoke_nat_gateway`. Default-off behaviour preserved. |
+| VII. State path | PASS | No state move; enabling adds subnet associations only. |
+| IX. AVM pins | PASS | No module change. |
+| X. fmt + test | PASS pre-merge | network (23) + vnet (21) suites GREEN. |
+
+**Verification (plan-level, mocked, `-backend=false`).**
+- `terraform fmt -recursive` clean.
+- `terraform -chdir=modules/network test` → 23 passed, 0 failed.
+- `terraform -chdir=terraform/vnet test` → 21 passed, 0 failed.
+
+**Rollout (live, GitHub `deploy` workflow ONLY).** Unlike FR-230, this PR DOES
+have a live effect on any deployment where a NAT gateway is already enabled.
+`sp01/npd` already runs `enable_spoke_nat_gateway = true` and already selects the
+`agents` + `container-apps` subnets, so post-merge the `vnet` stack MUST be
+rolled out to associate the NAT gateway with those two subnets:
+`gh workflow run deploy.yaml --ref master -f service=vnet -f tenant=sp01 -f
+environment=npd -f action=apply -f apply=true`. Expected plan: strict ADD of a
+`nat_gateway` association on `snet-agt-…` and `snet-cae-…` (no destroy/replace,
+no route-table/firewall churn). After apply, the Foundry agent runtime gains
+egress and the data-plane 503 clears. Never local apply; never open the tfstate
+SA firewall.
