@@ -173,3 +173,34 @@ against the shipped 006-services engine. Tasks `[x]` shipped on master.
   tenant=sp01 environment=dev action=apply apply=true`) BEFORE the 104 rbac
   apply; verify the project `aifp-uc1-uc1-sp01-dev-swc-001` has a
   `containerregistry` connection. **No local apply.**
+
+## Phase FR-103-13 (2026-06-05) — drop the Foundry account + project
+
+> Permanently remove `aifoundry` + `aifoundry_project` + the account PE from the
+> sp01/dev selection; retain every other service (two storages, cosmos, search,
+> keyvault, ACR) with their existing PEs. Pure instance re-pin; engine unchanged.
+
+- [ ] T-103-13-1 Remove `{ "type": "aifoundry" }` and
+  `{ "type": "aifoundry_project" }` from `services[*]` in
+  `variables/sp01/dev/services.tfvars.json`. (FR-103-13 / C-103-13-01)
+- [ ] T-103-13-2 Flip all six `enable_aifoundry_*` toggles to `false`
+  (`_private_endpoint`, `_application_insights`, `_network_injection`,
+  `_user_owned_storage`, `_keyvault_connection`, `_container_registry_connection`)
+  so the six 006-engine `check` guards pass. (FR-103-13 / C-103-13-02)
+- [ ] T-103-13-3 Confirm the retained services + PE toggles are unchanged
+  (`enable_storage_private_endpoint`/`enable_search_private_endpoint`/
+  `enable_keyvault_private_endpoint` stay `true`;
+  `enable_container_registry_private_endpoint` stays `false`;
+  `agent_storage_purpose`/`account_storage_purpose` stay set). (C-103-13-04/05)
+- [ ] T-103-13-4 Confirm NO engine change: `terraform/services/import.aifoundry.tf`
+  left untouched (inert empty-`for_each` once `aifoundry` deselected); no
+  006/007 spec/code edit. (FR-103-07 / C-103-13-06)
+- [ ] T-103-13-5 `terraform fmt -recursive` clean; `terraform init
+  -backend=false` + `terraform validate -backend=false` OK with NO `check`
+  failing; engine `terraform test` on `terraform/services` green. (FR-103-13)
+- [ ] T-103-13-6 Branch → PR → CI green → squash-merge → sync master. (FR-103-13)
+- [ ] T-103-13-7 Roll out via the `deploy` workflow (`service=services
+  tenant=sp01 environment=dev action=apply apply=true`); verify RG
+  `rg-svc-uc1-sp01-dev-swc-001` retains the two storages, cosmos, search,
+  keyvault, ACR + PEs, and the Foundry account/project/account-PE/`appi-aif-…`
+  App Insights are absent with a clean follow-up plan. **No local apply.**

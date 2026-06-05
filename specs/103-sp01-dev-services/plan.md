@@ -211,3 +211,45 @@ Hosted-Agent image pull per VC-7 + the Microsoft limitation).
   green (engine unchanged).
 - **Rollout** via the GitHub `deploy` workflow only (`service=services` first,
   then `service=rbac` for 104). Never a local apply.
+
+## Amendment plan — FR-103-13 drop the Foundry account + project (2026-06-05)
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  1. Remove `{ "type": "aifoundry" }` and `{ "type": "aifoundry_project" }`
+     from the `services` list.
+  2. Flip all six `enable_aifoundry_*` toggles to `false`
+     (`enable_aifoundry_private_endpoint`,
+     `enable_aifoundry_application_insights`,
+     `enable_aifoundry_network_injection`,
+     `enable_aifoundry_user_owned_storage`,
+     `enable_aifoundry_keyvault_connection`,
+     `enable_aifoundry_container_registry_connection`).
+  No engine (`006-services`/`007-rbac`) or module change.
+- **Why the six toggles.** Each `enable_aifoundry_*` toggle has a 006-engine
+  `check` (`terraform/services/check.tf`) that hard-fails at plan time if the
+  toggle is on while no `aifoundry` (or, for the CR connection, no
+  `aifoundry_project`) is selected. Leaving any on would block the plan; all six
+  go `false` (C-103-13-02).
+- **Retained services keep their PEs.** `enable_storage_private_endpoint`,
+  `enable_search_private_endpoint`, `enable_keyvault_private_endpoint` stay
+  `true`; `cosmosdb` is always private. `enable_container_registry_private_endpoint`
+  stays `false` (unchanged scope boundary, C-103-13-05).
+- **`agent_storage_purpose` / `account_storage_purpose` stay set** — they
+  disambiguate the two retained storages and are only consumed by the (now-off)
+  Foundry legs; leaving them is inert and avoids churn.
+- **Engine `import.aifoundry.tf` left untouched** — it is 006-engine code and
+  becomes an inert empty-`for_each` no-op once `aifoundry` is deselected
+  (C-103-13-06). The `10n ⇏ 00n` rule forbids editing it here.
+- **State reconcile.** The account/project/account-PE were already deleted (and
+  the account purged) out-of-band during the incident; the apply's refresh drops
+  their 404'd state entries (no-op destroys), and the still-present `appi-aif-…`
+  App Insights (a child of `module.aifoundry`) is the one real destroy
+  (C-103-13-03 / C-103-13-07). The following plan is clean.
+- **Verification (no live apply locally).** `terraform fmt -recursive` clean;
+  `terraform init -backend=false` + `terraform validate -backend=false` +
+  `terraform test` on `terraform/services` green (engine unchanged); all six
+  Foundry `check` guards pass because their toggles are off.
+- **Rollout** via the GitHub `deploy` workflow only:
+  `gh workflow run deploy.yaml -f service=services -f tenant=sp01
+  -f environment=dev -f action=apply -f apply=true`. Never a local apply
+  (FR-103-04). The tfstate SA firewall is never opened.

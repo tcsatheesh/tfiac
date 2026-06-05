@@ -117,3 +117,32 @@ FR-045 KV-connection `one(...)` resolver both key on `service_type=="keyvault"`
 (purpose-agnostic), so the Foundry KV connection still resolves the single
 vault. Engine unchanged; `terraform validate` OK; engine `terraform test`
 28/28 green. No BLOCKER/MAJOR findings.
+
+## Addendum 2026-06-05 — FR-103-13 drop the Foundry account + project
+
+Cross-artifact analysis of the FR-103-13 amendment (remove `aifoundry` +
+`aifoundry_project` + account PE; retain all other services).
+
+| ID | Severity | Finding | Resolution |
+|---|---|---|---|
+| A-113-1 | MAJOR | Engine/instance split — does FR-103-13 touch any `00n` engine artifact? | RESOLVED. Only `specs/103-*` + `variables/sp01/dev/services.tfvars.json` change. `terraform/services/import.aifoundry.tf` (engine) is left byte-for-byte unchanged and goes inert (empty `for_each`). (FR-103-01 / FR-103-07 / C-103-13-01 / C-103-13-06) |
+| A-113-2 | BLOCKER | Would removing the account while leaving any `enable_aifoundry_*` toggle on fail the plan? | RESOLVED. All six toggles are flipped `false`, satisfying every Foundry `check` guard (`aifoundry_pe_requires_account`, `_appinsights_requires_account`, `_network_injection_prereqs`, `_user_owned_storage_prereqs`, `_keyvault_connection_prereqs`, `_container_registry_connection_prereqs`). (C-103-13-02) — verified by local `terraform validate`. |
+| A-113-3 | MAJOR | Does "keep all other services" conflict with the App Insights `appi-aif-…` being destroyed? | RESOLVED. That App Insights is created inside `module.aifoundry` (the account's own telemetry), not an independently-selected service; it is intrinsic to Foundry and goes with it. No standalone service is removed. (C-103-13-03) |
+| A-113-4 | MAJOR | Are the BYO/supporting services (2× storage, cosmos, search, KV, ACR) safely retained? | RESOLVED. They remain in `services[*]` with their PE toggles unchanged; their module `for_each` keys are independent of the Foundry legs. (C-103-13-04) |
+| A-113-5 | MAJOR | The account/project/PE were already deleted out-of-band via `az`. Does the apply reconcile cleanly? | RESOLVED. `terraform` refresh drops the 404'd account/project/account-PE/capability-hosts from state (no-op destroys); the still-present `appi-aif-…` is the one real destroy; the next plan is clean. The out-of-band deletion is acknowledged as a deviation; this pipeline restores workflow-only discipline. (C-103-13-07) |
+| A-113-6 | MINOR | ACR stays public after the Hosted-Agent is gone — is that a private-by-default violation? | RESOLVED (scope boundary). ACR posture is unchanged this PR; flipping it to private is a behaviour change to a retained service and is tracked as a separate follow-up. (C-103-13-05) |
+| A-113-7 | MINOR | Rollout — workflow only, no local apply, tfstate SA firewall untouched? | RESOLVED. FR-103-04 governs; reconcile runs via `deploy.yaml`; SA firewall never opened. (C-103-13-08) |
+
+## Constitution / standing-rule check (FR-103-13)
+
+- Engine/instance split (`10n ⇏ 00n`): honoured — only `specs/103-*` + the
+  tfvars change; engine 006 / 007 untouched (incl. the inert `import.aifoundry.tf`).
+- Private-by-default: retained services stay private (storage/search/KV PEs on,
+  cosmos always private); ACR public exception is an unchanged, documented scope
+  boundary (C-103-13-05).
+- Workflow-only live ops + tfstate SA firewall never opened: honoured
+  (C-103-13-08). Prior out-of-band `az` deletes acknowledged and reconciled.
+- Tests: engine `terraform test` unchanged + green; no new variable/code path
+  added by this instance (pure selection re-pin).
+
+**FR-103-13 result: no unresolved BLOCKER/MAJOR. Cleared to /speckit.implement.**
