@@ -193,3 +193,21 @@ Hosted-Agent image pull per VC-7 + the Microsoft limitation).
   `gh workflow run deploy.yaml -f service=services -f tenant=sp01
   -f environment=dev -f action=apply -f apply=true` (default `finalize=true`).
   Never a local apply (FR-103-04).
+
+## Amendment plan — FR-103-12 opt into the project ContainerRegistry connection (2026-06-05)
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  add `enable_aifoundry_container_registry_connection: true`. No engine
+  (`006-services`/`007-rbac`) or module change — the capability is the
+  already-merged FR-063 engine toggle.
+- **Why.** Supersedes the FR-103-11 "no connection required" assumption: a
+  private project's Hosted-Agent `create_agent` returns 503 without a project
+  `ContainerRegistry` connection. The engine emits it when the toggle is on; the
+  gate (one aifoundry_project + one container_registry) is already satisfied.
+- **Paired with 104 FR-104-05** (project-MI AcrPull / engine FR-064). Rollout
+  order is `services` (connection) then `rbac` (grant).
+- **Verification (no live apply locally).** `terraform fmt -recursive` clean;
+  `terraform validate -backend=false` + `terraform test` on `terraform/services`
+  green (engine unchanged).
+- **Rollout** via the GitHub `deploy` workflow only (`service=services` first,
+  then `service=rbac` for 104). Never a local apply.

@@ -104,3 +104,36 @@ Project managed identity:
 - Any engine behaviour change (new role, new resource type, new principal) —
   those belong in the 007-rbac engine spec, not this instance.
 - The services deployment itself (owned by 103-sp01-dev-services).
+
+## AMENDMENT 2026-06-05 — opt sp01/dev into the project-MI AcrPull grant (FR-104-05)
+
+> **Why.** A private project's Hosted-Agent `create_agent` returns **503**
+> because the project system-assigned MI lacks **AcrPull** on the registry (the
+> runtime cannot authenticate to pull the image). The 007-rbac engine gained the
+> grant in **FR-064** (toggle `enable_project_acr_pull`, default off); this
+> amendment is the sp01/dev **instance opt-in**. Paired with the project
+> ContainerRegistry connection (103 FR-103-12 / engine FR-063): both are required
+> and the rollout order is `services` then `rbac`.
+
+- **FR-104-05**: The sp01/dev `rbac` tfvars MUST set
+  `enable_project_acr_pull: true` so the 007-rbac engine (FR-064) emits the
+  `project-acr-pull` grant (AcrPull `7f951dda-…` on the registry to the project
+  MI). Gated by the engine on a project + container_registry present in the
+  consumed services state — both already provisioned by 103. Pure instance
+  parameterization; the engine is unchanged.
+
+### Acceptance (FR-104-05)
+
+5. `variables/sp01/dev/rbac.tfvars.json` sets `enable_project_acr_pull: true`.
+6. `terraform validate -backend=false` on `terraform/rbac` with this tfvars
+   succeeds; engine `terraform test` stays green (no engine change).
+7. Live (after rollout, AFTER 103 FR-103-12's `services` apply): the project MI
+   `502bbe0f-257c-4d33-9327-f8dc96ae71a2` holds **AcrPull** on ACR
+   `cruc1uc1sp01devswc001`.
+
+### Out of scope for FR-104-05
+
+- Any 007-rbac engine change (the grant capability is the already-merged FR-064
+  engine toggle).
+- The project ContainerRegistry connection (103-sp01-dev-services FR-103-12 /
+  engine FR-063).

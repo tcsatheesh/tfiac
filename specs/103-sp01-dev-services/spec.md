@@ -533,3 +533,57 @@ Microsoft limitation). This is a pure instance parameterization; the
   platform — VC-7 / Microsoft limitation).
 - A Foundry→ACR connection resource (none is required; the platform discovers
   the registry over its public endpoint).
+
+## AMENDMENT 2026-06-05 — opt sp01/dev into the project ContainerRegistry connection (FR-103-12)
+
+> **Why — supersedes the FR-103-11 "no connection required" assumption.**
+> FR-103-11 closed with *"A Foundry→ACR connection resource (none is required;
+> the platform discovers the registry over its public endpoint)."* The live
+> Hosted-Agent deployment proved that assumption **wrong**: a private project's
+> `create_agent` fails server-side with a **503** precisely because the project
+> has **no** `ContainerRegistry` connection (and no project-MI AcrPull). The
+> working public reference project carries both. The 006-services engine gained
+> the project ContainerRegistry connection in **FR-063** (toggle
+> `enable_aifoundry_container_registry_connection`, default off); this amendment
+> is the sp01/dev **instance opt-in** that flips it on. The paired AcrPull grant
+> is the `104-sp01-dev-rbac` FR-104-05 opt-in (007-rbac FR-064). No engine code
+> changes; this is a pure tfvars selection.
+
+### FR-103-12 (new requirement)
+
+The sp01/dev `services` tfvars MUST set
+`enable_aifoundry_container_registry_connection: true` so the 006-services
+engine (FR-063) emits the project-scoped `containerregistry` connection
+(category `ContainerRegistry`, authType `ManagedIdentity`, target = the selected
+ACR's public login server, `isDefault`/`isSharedToAll` true). This is gated by
+the engine on exactly one `aifoundry_project` + exactly one `container_registry`
+selection — both already present in the sp01/dev selection (FR-103-11). Pure
+instance parameterization; the engine is unchanged.
+
+### Clarifications — Session 2026-06-05 (FR-103-12)
+
+- **C-103-12-01 — Supersedes FR-103-11 out-of-scope item 3.** The "no
+  connection required" statement is retracted: the connection IS required for
+  the Hosted-Agent pull path. The ACR network posture is unchanged (still public
+  per VC-7 / FR-103-11); only the connection wiring is added.
+- **C-103-12-02 — Paired with the AcrPull grant.** The connection alone is
+  insufficient — the project MI also needs AcrPull (104 FR-104-05 / engine
+  FR-064). Both must be applied; rollout order is `services` (connection) then
+  `rbac` (grant).
+
+### Acceptance (FR-103-12)
+
+20. `variables/sp01/dev/services.tfvars.json` sets
+    `enable_aifoundry_container_registry_connection: true`.
+21. `terraform validate -backend=false` on `terraform/services` with the updated
+    tfvars succeeds; engine `terraform test` stays green (no engine change).
+22. Live (after rollout): the project `aifp-uc1-uc1-sp01-dev-swc-001` has a
+    `ContainerRegistry` connection named `containerregistry` targeting
+    `cruc1uc1sp01devswc001.azurecr.io`.
+
+### Out of scope for FR-103-12
+
+- Any 006-services / 007-rbac engine change (the connection capability is the
+  already-merged FR-063 engine toggle).
+- The project-MI AcrPull grant (104-sp01-dev-rbac FR-104-05 / engine FR-064).
+- Any ACR network-posture change (public data-plane stays per FR-103-11 / VC-7).
