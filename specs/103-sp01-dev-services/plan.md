@@ -168,3 +168,28 @@ Hosted-Agent image pull per VC-7 + the Microsoft limitation).
   and user-owned-storage wiring is already in the engine (F1, PR #59).
 - Validate with `terraform validate -backend=false` + `terraform test` on
   `terraform/services`. RBAC for this estate is the 104-sp01-dev-rbac instance.
+
+## Amendment plan — FR-103-11 re-add the public ACR (2026-06-05)
+
+- Edit only [variables/sp01/dev/services.tfvars.json](../../variables/sp01/dev/services.tfvars.json):
+  add `{ "type": "container_registry" }` to the `services` list and set
+  `enable_container_registry_private_endpoint: false` (public — VC-7 / Microsoft
+  Hosted-Agent ACR limitation). No engine (`006-services`/`007-rbac`) or module
+  change.
+- **Engine default stays private.** `enable_container_registry_private_endpoint`
+  defaults to `null` ⇒ inherits `private_by_default = true` ⇒ private ACR + PE
+  for every other instance. Only this tfvars sets `false` to opt into public
+  (C-103-11-01).
+- **No guard conflict.** The engine's `aifoundry_private_requires_private_deps`
+  check lists only storage/search/keyvault (not container_registry), so a public
+  ACR beside the private network-injected Foundry is permitted by design
+  (C-103-11-04). `acr_pe_requires_registry` is satisfied (registry selected);
+  both remote-state backends are already present.
+- **Verification (no live apply locally).** `terraform fmt -recursive` clean;
+  `terraform init -backend=false` + `terraform validate -backend=false` +
+  `terraform test` on `terraform/services` green (engine unchanged). CI
+  `services.yml` already watches the 103 tfvars path.
+- **Rollout** via the GitHub `deploy` workflow only:
+  `gh workflow run deploy.yaml -f service=services -f tenant=sp01
+  -f environment=dev -f action=apply -f apply=true` (default `finalize=true`).
+  Never a local apply (FR-103-04).
