@@ -109,12 +109,19 @@ resource "azapi_resource" "capability_host" {
 # from the registry using the PROJECT's system-assigned managed identity; the
 # azd-provisioned reference puts a `ContainerRegistry` connection ON THE PROJECT
 # (authType=ManagedIdentity, isDefault=true) plus an AcrPull grant on the
-# project MI (the latter is owned by the 007-rbac stack, FR-061). We mirror that
-# proven shape here. The `target` is the registry login server (a public
-# data-plane endpoint — VC-7 / the Microsoft Hosted-Agent ACR limitation).
-# Fixed short name `containerregistry` (C-025 — the canonical ACR name's length
-# cannot satisfy the connection-name RP pattern). Inert (zero-count) unless the
-# services stack supplies a login server, preserving day-one behaviour.
+# project MI (the latter is owned by the 007-rbac stack, FR-064). We mirror the
+# live working-reference connection's EXACT body (verified against the working
+# public Foundry project's `ContainerRegistry` connection): `authType =
+# ManagedIdentity`, `credentials` omitted (null), `isSharedToAll = false`,
+# `useWorkspaceManagedIdentity = false`, `peRequirement = NotRequired`, and
+# `metadata = { ResourceId }` (NO `ApiType`). Sending `isSharedToAll = true` or
+# omitting `useWorkspaceManagedIdentity` makes the RP map authType to
+# `RegistryIdentity` and reject the empty credentials (400 ValidationError). The
+# `target` is the registry login server (a public data-plane endpoint — VC-7 /
+# the Microsoft Hosted-Agent ACR limitation). Fixed short name
+# `containerregistry` (C-025 — the canonical ACR name's length cannot satisfy the
+# connection-name RP pattern). Inert (zero-count) unless the services stack
+# supplies a login server, preserving day-one behaviour.
 resource "azapi_resource" "container_registry_connection" {
   count     = var.container_registry_connection_enabled ? 1 : 0
   type      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01"
@@ -129,13 +136,14 @@ resource "azapi_resource" "container_registry_connection" {
 
   body = {
     properties = {
-      category      = "ContainerRegistry"
-      target        = var.container_registry_login_server
-      authType      = "ManagedIdentity"
-      isSharedToAll = true
-      isDefault     = true
+      category                    = "ContainerRegistry"
+      target                      = var.container_registry_login_server
+      authType                    = "ManagedIdentity"
+      isDefault                   = true
+      isSharedToAll               = false
+      useWorkspaceManagedIdentity = false
+      peRequirement               = "NotRequired"
       metadata = {
-        ApiType    = "Azure"
         ResourceId = var.container_registry_id
       }
     }

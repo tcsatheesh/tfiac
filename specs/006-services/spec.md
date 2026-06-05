@@ -2762,16 +2762,21 @@ RP-generated, and Terraform must not manage it).
   Registry as a project-scoped connection (engine).** When enabled, the module
   emits exactly one
   `Microsoft.CognitiveServices/accounts/projects/connections@2025-09-01`
-  named `containerregistry` with `category = "ContainerRegistry"`, `authType =
-  "ManagedIdentity"`, `isSharedToAll = true`, `isDefault = true`, `target` = the
-  ACR data-plane login server (`<name>.azurecr.io`), and `metadata = { ApiType
-  = "Azure", ResourceId = <acr ARM id> }`. The resource is gated by a
-  known-at-plan toggle (`container_registry_connection_enabled`, default
-  **false**) separate from the (potentially computed) login server / id inputs
+  named `containerregistry` whose body is **byte-matched to the live working
+  reference** (verified against the working public Foundry project's
+  `ContainerRegistry` connection): `category = "ContainerRegistry"`, `authType =
+  "ManagedIdentity"`, `credentials` omitted (null), `isDefault = true`,
+  `isSharedToAll = false`, `useWorkspaceManagedIdentity = false`, `peRequirement
+  = "NotRequired"`, `target` = the ACR data-plane login server
+  (`<name>.azurecr.io`), and `metadata = { ResourceId = <acr ARM id> }` (NO
+  `ApiType`). The resource is gated by a known-at-plan toggle
+  (`container_registry_connection_enabled`, default **false**) separate from the
+  (potentially computed) login server / id inputs
   (`container_registry_login_server`, `container_registry_id`), and a module
   precondition rejects `enabled = true` with either input null. Because azapi's
-  embedded connection schema does not list every RP-valid field, the resource
-  sets `schema_validation_enabled = false`. The connection is placed on the
+  embedded connection schema does not list every RP-valid field
+  (`useWorkspaceManagedIdentity`, `peRequirement`), the resource sets
+  `schema_validation_enabled = false`. The connection is placed on the
   **project** (mirroring the working public reference), not the account.
 
   The services stack exposes
@@ -2801,9 +2806,20 @@ RP-generated, and Terraform must not manage it).
   FR-045 `keyvault` / FR-044 `accountstorage` connections (account-scoped,
   `isSharedToAll` for child inheritance), the ContainerRegistry connection is
   created on the **project** resource, matching the working public reference and
-  the Hosted-Agent runtime's lookup path. `isSharedToAll = true` + `isDefault =
-  true` mirror the reference shape so the runtime selects it as the default
-  registry.
+  the Hosted-Agent runtime's lookup path. The reference connection is project-
+  scoped with `isSharedToAll = false` + `isDefault = true`, so the runtime
+  selects it as the project's default registry without sharing it to siblings.
+- **C-082 — Reference-exact auth body (RP rejects deviations).** The first live
+  apply with `isSharedToAll = true` and without `useWorkspaceManagedIdentity`
+  failed `400 ValidationError: "Credentials Property can't be empty for auth type
+  RegistryIdentity"` — the RP maps `authType = ManagedIdentity` to
+  `RegistryIdentity` and, unless the body matches the working reference exactly,
+  demands a non-null `credentials`. The fix is to send the reference body
+  verbatim: `isSharedToAll = false`, `useWorkspaceManagedIdentity = false`,
+  `peRequirement = "NotRequired"`, `credentials` omitted, and `metadata` with
+  only `ResourceId` (no `ApiType`). With that body the project's own
+  system-assigned MI authenticates the pull (paired with the FR-064 AcrPull
+  grant) and `credentials` stays null.
 - **C-081 — Public ACR data-plane is the sanctioned deviation.** The connection
   target is the ACR's public login server because the Microsoft Hosted-Agent
   runtime pulls over the public data-plane endpoint (no Private-Link path is
@@ -2813,13 +2829,15 @@ RP-generated, and Terraform must not manage it).
 
 ### Validation criteria (FR-063)
 
-- **VC-28 — ContainerRegistry connection emitted.** With
+- **VC-28 — ContainerRegistry connection emitted (reference-exact).** With
   `container_registry_connection_enabled = true` and non-null login server / id,
   `modules/aifoundryproject` emits exactly one
   `Microsoft.CognitiveServices/accounts/projects/connections` named
   `containerregistry` (`category = ContainerRegistry`, `authType =
-  ManagedIdentity`, `isDefault = true`, `parent_id` = the project,
-  `target` = the login server, `metadata.ResourceId` = the registry id).
+  ManagedIdentity`, `isDefault = true`, `isSharedToAll = false`,
+  `useWorkspaceManagedIdentity = false`, `peRequirement = NotRequired`,
+  `parent_id` = the project, `target` = the login server,
+  `metadata.ResourceId` = the registry id, and NO `metadata.ApiType`).
 - **VC-29 — Default off / parity.** With the toggle off (default), no
   ContainerRegistry connection is emitted; the project body is byte-for-byte the
   pre-FR-063 state.
