@@ -107,6 +107,47 @@ resource "azurerm_data_factory_managed_private_endpoint" "sql" {
   subresource_name   = "sqlServer"
 }
 
+# Approve the ADF managed private endpoint connections on the target resources.
+# ADF managed PEs always land as `Pending` on the target; the DEPLOYMENT (not a
+# human) approves them so the managed-identity linked services become usable.
+# Runs on the in-VNet deploy runner via `az` (the CI principal has Contributor
+# on the targets). Idempotent: skips targets whose connection is already
+# approved. Re-runs only when a managed PE changes.
+resource "terraform_data" "approve_managed_pes" {
+  count = (var.link_key_vault || var.link_storage || var.link_sql) ? 1 : 0
+
+  triggers_replace = {
+    kv      = local.has_kv ? azurerm_data_factory_managed_private_endpoint.kv[0].id : ""
+    storage = local.has_storage ? azurerm_data_factory_managed_private_endpoint.storage[0].id : ""
+    sql     = local.has_sql ? azurerm_data_factory_managed_private_endpoint.sql[0].id : ""
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/usr/bin/env", "bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+      command -v az >/dev/null 2>&1 || { echo "ERROR: az CLI not found on the deploy runner; required to approve ADF managed private endpoints." >&2; exit 1; }
+      for t in ${join(" ", local.managed_pe_targets)}; do
+        for i in 1 2 3 4 5; do
+          cid=$$(az network private-endpoint-connection list --id "$$t" --query "[?properties.privateLinkServiceConnectionState.status=='Pending'].id | [0]" -o tsv 2>/dev/null || true)
+          if [ -n "$$cid" ]; then
+            echo "approving ADF managed PE connection: $$cid"
+            az network private-endpoint-connection approve --id "$$cid" --description "ADF managed private endpoint (approved by deployment)" -o none
+            break
+          fi
+          sleep 8
+        done
+      done
+    EOT
+  }
+
+  depends_on = [
+    azurerm_data_factory_managed_private_endpoint.kv,
+    azurerm_data_factory_managed_private_endpoint.storage,
+    azurerm_data_factory_managed_private_endpoint.sql,
+  ]
+}
+
 # ----- Linked services (authenticate via the ADF managed identity) -----
 resource "azurerm_data_factory_linked_service_key_vault" "kv" {
   count           = local.has_kv ? 1 : 0

@@ -17,6 +17,14 @@ locals {
   # Derived endpoint for the Storage blob linked service (MI auth).
   blob_endpoint = var.storage_account_name != null ? "https://${var.storage_account_name}.blob.core.windows.net" : null
 
+  # Target resource ids of every linked service (managed-PE connections to
+  # approve on the target side).
+  managed_pe_targets = compact([
+    var.link_key_vault ? var.key_vault_id : "",
+    var.link_storage ? var.storage_account_id : "",
+    var.link_sql ? var.sql_server_id : "",
+  ])
+
   # ADF system-assigned managed identity is registered in Entra under the
   # factory's own name; the T-SQL grant creates a contained user by that name.
   sql_connection_string = local.has_sql ? "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=${var.sql_server_fqdn};Initial Catalog=${var.sql_database_name}" : null
