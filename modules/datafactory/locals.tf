@@ -14,9 +14,7 @@ locals {
   pe_name_data   = "pep-${var.canonical_name}"
   pe_name_portal = "pep-portal-${var.canonical_name}"
 
-  # Derived FQDNs / endpoints for managed private endpoints + linked services.
-  kv_fqdn       = var.key_vault_name != null ? "${var.key_vault_name}.vault.azure.net" : null
-  blob_fqdn     = var.storage_account_name != null ? "${var.storage_account_name}.blob.core.windows.net" : null
+  # Derived endpoint for the Storage blob linked service (MI auth).
   blob_endpoint = var.storage_account_name != null ? "https://${var.storage_account_name}.blob.core.windows.net" : null
 
   # ADF system-assigned managed identity is registered in Entra under the

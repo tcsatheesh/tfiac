@@ -2,9 +2,10 @@ locals {
   defaults = {
     # Azure SQL database defaults (dev-grade, cheapest DTU tier). Override per
     # instance via var.overrides (e.g. { database_sku_name = "GP_S_Gen5_2" }).
+    # max_size is intentionally omitted — the DTU tier derives its own default
+    # (an explicit size can conflict with the tier, e.g. S0 rejects 32 GB).
     database_sku_name       = "S0"
     database_collation      = "SQL_Latin1_General_CP1_CI_AS"
-    database_max_size_gb    = 32
     database_zone_redundant = false
     server_version          = "12.0"
     minimum_tls_version     = "1.2"
