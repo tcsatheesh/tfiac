@@ -8,6 +8,7 @@ on:
       - variables/hub/npd/vnet.tfvars.json
       - variables/sp01/npd/vnet.tfvars.json
       - variables/sp02/npd/vnet.tfvars.json
+      - variables/sp03/npd/vnet.tfvars.json
       - .github/workflows/vnet.yml
   push:
     branches: [master, main]
@@ -17,6 +18,7 @@ on:
       - variables/hub/npd/vnet.tfvars.json
       - variables/sp01/npd/vnet.tfvars.json
       - variables/sp02/npd/vnet.tfvars.json
+      - variables/sp03/npd/vnet.tfvars.json
       - .github/workflows/vnet.yml
 
 permissions:
