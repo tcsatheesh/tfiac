@@ -26,7 +26,7 @@ run "acr_disabled" {
   }
 
   assert {
-    condition     = length(output.zone_ids) == 25
-    error_message = "Expected 25 zone_ids entries (26 catalogue - 1 disabled); got ${length(output.zone_ids)}."
+    condition     = length(output.zone_ids) == 28
+    error_message = "Expected 28 zone_ids entries (29 catalogue - 1 disabled); got ${length(output.zone_ids)}."
   }
 }

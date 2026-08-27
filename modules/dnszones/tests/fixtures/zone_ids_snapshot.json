@@ -1,5 +1,6 @@
 [
   "acr",
+  "adf",
   "agentsvc",
   "aiservices",
   "aml-api",
@@ -8,6 +9,7 @@
   "blob",
   "cogsvc",
   "cosmos-sql",
+  "datafactory",
   "dfs",
   "eventgrid",
   "file",
@@ -21,6 +23,7 @@
   "queue",
   "search",
   "servicebus",
+  "sql",
   "table",
   "vault",
   "web",
