@@ -1286,7 +1286,10 @@ selected in the same stack.
     `azurerm_data_factory_managed_private_endpoint`, (b) a managed-identity
     linked service, and (c) the control-plane RBAC the identity needs
     (Key Vault Secrets User; Storage Blob Data Contributor). v1 links a single
-    target of each type (first by sorted canonical name).
+    target of each type (first by sorted canonical name). The managed-PE
+    connection lands as `Pending` on the target; the DEPLOYMENT approves it
+    (a `terraform_data` runs `az network private-endpoint-connection approve`
+    from the in-VNet runner) — never a human. Idempotent (skips already-approved).
   - **SQL grant (data-plane, automated).** When a SQL target is present, the
     ADF module MUST run a least-privilege T-SQL grant creating the ADF
     managed identity as a contained DB user
