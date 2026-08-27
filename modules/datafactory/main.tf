@@ -35,16 +35,43 @@ resource "azapi_update_resource" "managed_ir_compute_scale" {
       typeProperties = {
         computeProperties = {
           copyComputeScaleProperties = {
-            dataIntegrationUnit = var.managed_ir_copy_compute_diu
-            timeToLive          = var.managed_ir_copy_compute_ttl_min
+            dataIntegrationUnit = local.config.managed_ir_copy_compute_diu
+            timeToLive          = local.config.managed_ir_copy_compute_ttl_min
           }
           pipelineExternalComputeScaleProperties = {
-            numberOfPipelineNodes = var.managed_ir_pipeline_nodes
-            numberOfExternalNodes = var.managed_ir_external_nodes
-            timeToLive            = var.managed_ir_pipeline_external_compute_ttl_min
+            numberOfPipelineNodes = local.config.managed_ir_pipeline_nodes
+            numberOfExternalNodes = local.config.managed_ir_external_nodes
+            timeToLive            = local.config.managed_ir_pipeline_ttl_min
           }
         }
       }
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition = (
+        local.config.managed_ir_copy_compute_diu >= 4
+        && local.config.managed_ir_copy_compute_diu <= 256
+        && local.config.managed_ir_copy_compute_diu % 4 == 0
+      )
+      error_message = "managed_ir_copy_compute_diu must be a multiple of 4 between 4 and 256 (Azure rejects other values)."
+    }
+
+    precondition {
+      condition = (
+        local.config.managed_ir_copy_compute_ttl_min >= 5
+        && local.config.managed_ir_pipeline_ttl_min >= 5
+      )
+      error_message = "managed VNet IR time-to-live values must be at least 5 minutes."
+    }
+
+    precondition {
+      condition = (
+        local.config.managed_ir_pipeline_nodes >= 1
+        && local.config.managed_ir_external_nodes >= 1
+      )
+      error_message = "managed_ir_pipeline_nodes and managed_ir_external_nodes must each be at least 1."
     }
   }
 }

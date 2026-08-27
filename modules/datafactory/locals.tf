@@ -1,6 +1,15 @@
 locals {
-  defaults = {}
-  config   = merge(local.defaults, var.overrides)
+  defaults = {
+    # Managed VNet IR compute scale. Reserved compute is billed for the whole TTL
+    # window, so defaults are the smallest usable size; tune per instance via
+    # var.overrides (e.g. the portal "Medium" copy preset is 64 DIU).
+    managed_ir_copy_compute_diu     = 4
+    managed_ir_copy_compute_ttl_min = 20
+    managed_ir_pipeline_nodes       = 1
+    managed_ir_external_nodes       = 1
+    managed_ir_pipeline_ttl_min     = 20
+  }
+  config = merge(local.defaults, var.overrides)
 
   has_kv      = var.link_key_vault
   has_storage = var.link_storage
