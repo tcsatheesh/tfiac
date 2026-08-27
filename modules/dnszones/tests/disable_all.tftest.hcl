@@ -14,6 +14,7 @@ variables {
     "openai", "cogsvc", "aiservices", "search", "cosmos-sql", "webapp", "automation",
     "monitor", "oms", "ods", "agentsvc", "aml-api", "notebooks",
     "appconfig", "servicebus", "eventgrid", "iothub", "iothub-dps",
+    "datafactory", "adf", "sql",
   ]
 }
 

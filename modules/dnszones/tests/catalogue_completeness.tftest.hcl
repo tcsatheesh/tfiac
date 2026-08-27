@@ -1,4 +1,4 @@
-# T020 [US1] - catalogue invariants: 26 entries, all keys pass FR-012, all
+# T020 [US1] - catalogue invariants: 29 entries, all keys pass FR-012, all
 # FQDNs pass FR-016. Operates entirely on local.catalogue (plan-time known).
 
 variables {
@@ -22,8 +22,8 @@ run "catalogue_has_26_entries" {
   command = plan
 
   assert {
-    condition     = length(output.zone_names) == 26
-    error_message = "Catalogue (with empty custom_zones / disable_catalogue_zones) must surface exactly 26 zone_names entries; got ${length(output.zone_names)}."
+    condition     = length(output.zone_names) == 29
+    error_message = "Catalogue (with empty custom_zones / disable_catalogue_zones) must surface exactly 29 zone_names entries; got ${length(output.zone_names)}."
   }
 }
 

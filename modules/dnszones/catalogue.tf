@@ -1,5 +1,5 @@
 # Day-one catalogue: Microsoft-published private-link DNS zones for the Azure
-# global cloud. Mirrors spec.md FR-011 verbatim (26 entries). Adding a row here
+# global cloud. Mirrors spec.md FR-011 verbatim (29 entries). Adding a row here
 # MUST be accompanied by the same edit in spec.md FR-011 (enforced by
 # tests/catalogue_completeness.tftest.hcl and the SC-008 grep audit).
 #
@@ -36,5 +36,10 @@ locals {
     "eventgrid"  = "privatelink.eventgrid.azure.net"
     "iothub"     = "privatelink.azure-devices.net"
     "iothub-dps" = "privatelink.azure-devices-provisioning.net"
+    # sp03 data platform (Amendment 2026-08-27): Azure Data Factory (data + portal
+    # sub-resources) and Azure SQL logical server.
+    "datafactory" = "privatelink.datafactory.azure.net"
+    "adf"         = "privatelink.adf.azure.net"
+    "sql"         = "privatelink.database.windows.net"
   }
 }

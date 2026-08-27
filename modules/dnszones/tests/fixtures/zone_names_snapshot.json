@@ -1,5 +1,6 @@
 {
   "acr": "privatelink.azurecr.io",
+  "adf": "privatelink.adf.azure.net",
   "agentsvc": "privatelink.agentsvc.azure-automation.net",
   "aiservices": "privatelink.services.ai.azure.com",
   "aml-api": "privatelink.api.azureml.ms",
@@ -8,6 +9,7 @@
   "blob": "privatelink.blob.core.windows.net",
   "cogsvc": "privatelink.cognitiveservices.azure.com",
   "cosmos-sql": "privatelink.documents.azure.com",
+  "datafactory": "privatelink.datafactory.azure.net",
   "dfs": "privatelink.dfs.core.windows.net",
   "eventgrid": "privatelink.eventgrid.azure.net",
   "file": "privatelink.file.core.windows.net",
@@ -21,6 +23,7 @@
   "queue": "privatelink.queue.core.windows.net",
   "search": "privatelink.search.windows.net",
   "servicebus": "privatelink.servicebus.windows.net",
+  "sql": "privatelink.database.windows.net",
   "table": "privatelink.table.core.windows.net",
   "vault": "privatelink.vaultcore.azure.net",
   "web": "privatelink.web.core.windows.net",
