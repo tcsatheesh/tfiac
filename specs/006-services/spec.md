@@ -1290,12 +1290,17 @@ selected in the same stack.
     connection lands as `Pending` on the target; the DEPLOYMENT approves it
     (a `terraform_data` runs `az network private-endpoint-connection approve`
     from the in-VNet runner) — never a human. Idempotent (skips already-approved).
-  - **Managed VNet IR compute-scale TTLs.** The managed-VNet Azure integration
-    runtime MUST set `copyComputeScaleProperties.timeToLive` and
-    `pipelineExternalComputeScaleProperties.timeToLive` (default **20** minutes
-    each, overridable) to keep compute warm and avoid per-activity cold-start
-    queueing. Neither is exposed by the `azurerm` IR resource, so they are
+  - **Managed VNet IR compute scale.** The managed-VNet Azure integration
+    runtime MUST set `copyComputeScaleProperties` (`dataIntegrationUnit` +
+    `timeToLive`) and `pipelineExternalComputeScaleProperties`
+    (`numberOfPipelineNodes`, `numberOfExternalNodes`, `timeToLive`) so compute
+    stays warm instead of cold-starting per activity. Azure rejects a
+    copy-compute-scale block that omits `dataIntegrationUnit` (multiple of 4,
+    4–256). None of these are exposed by the `azurerm` IR resource, so they are
     applied with an `azapi_update_resource` patch on the same runtime.
+    Reserved compute is billed for the whole TTL window, so the wrapper
+    defaults are the smallest usable size (4 DIU, 1+1 nodes, 20 min); each
+    value is tunable per instance through the standard `overrides` map.
   - **SQL grant (data-plane, automated).** When a SQL target is present, the
     ADF module MUST run a least-privilege T-SQL grant creating the ADF
     managed identity as a contained DB user
