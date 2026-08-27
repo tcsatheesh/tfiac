@@ -35,10 +35,13 @@ resource "azapi_update_resource" "managed_ir_compute_scale" {
       typeProperties = {
         computeProperties = {
           copyComputeScaleProperties = {
-            timeToLive = var.managed_ir_copy_compute_ttl_min
+            dataIntegrationUnit = var.managed_ir_copy_compute_diu
+            timeToLive          = var.managed_ir_copy_compute_ttl_min
           }
           pipelineExternalComputeScaleProperties = {
-            timeToLive = var.managed_ir_pipeline_external_compute_ttl_min
+            numberOfPipelineNodes = var.managed_ir_pipeline_nodes
+            numberOfExternalNodes = var.managed_ir_external_nodes
+            timeToLive            = var.managed_ir_pipeline_external_compute_ttl_min
           }
         }
       }

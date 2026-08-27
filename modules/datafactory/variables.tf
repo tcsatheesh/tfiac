@@ -185,3 +185,37 @@ variable "managed_ir_pipeline_external_compute_ttl_min" {
     error_message = "managed_ir_pipeline_external_compute_ttl_min must be between 5 and 1440 minutes."
   }
 }
+
+# Azure rejects a copy-compute-scale block without a DIU value.
+variable "managed_ir_copy_compute_diu" {
+  description = "Managed VNet IR copyComputeScaleProperties.dataIntegrationUnit. Must be a multiple of 4 between 4 and 256."
+  type        = number
+  default     = 4
+
+  validation {
+    condition     = var.managed_ir_copy_compute_diu >= 4 && var.managed_ir_copy_compute_diu <= 256 && var.managed_ir_copy_compute_diu % 4 == 0
+    error_message = "managed_ir_copy_compute_diu must be a multiple of 4 between 4 and 256."
+  }
+}
+
+variable "managed_ir_pipeline_nodes" {
+  description = "Managed VNet IR pipelineExternalComputeScaleProperties.numberOfPipelineNodes."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.managed_ir_pipeline_nodes >= 1 && var.managed_ir_pipeline_nodes <= 10
+    error_message = "managed_ir_pipeline_nodes must be between 1 and 10."
+  }
+}
+
+variable "managed_ir_external_nodes" {
+  description = "Managed VNet IR pipelineExternalComputeScaleProperties.numberOfExternalNodes."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.managed_ir_external_nodes >= 1 && var.managed_ir_external_nodes <= 10
+    error_message = "managed_ir_external_nodes must be between 1 and 10."
+  }
+}
