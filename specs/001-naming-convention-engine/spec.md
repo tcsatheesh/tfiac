@@ -59,6 +59,8 @@ concatenated services use none.
 | `language`               | `lang`    | hyphenated    | `lang-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `doc_intel`              | `di`      | hyphenated    | `di-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 64 |
 | `search`                 | `srch`    | hyphenated    | `srch-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 60 |
+| `data_factory`           | `adf`     | hyphenated    | `adf-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 63 |
+| `sql_server`             | `sql`     | hyphenated    | `sql-{p}-{usecase}-{tenant}-{environment}-{region}-{instance}` | 63 |
 | `dns_zone`               | (none)    | n/a           | caller-supplied FQDN (e.g. `privatelink.blob.core.windows.net`) | 253 |
 | `private_dns_zone`       | (none)    | n/a           | caller-supplied FQDN                                          | 253 |
 
@@ -78,6 +80,7 @@ shape across all parent types. Children inherit the parent's
 | `nsg_rule`            | `nsgrule`  | `nsg`          | `nsgrule-{child_purpose}-{P}`            | `child_purpose` 3–7 chars |
 | `route`               | `udr`      | `route_table`  | `udr-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
 | `apim_api`            | `api`      | `apim`         | `api-{child_purpose}-{P}`                | `child_purpose` 3–7 chars |
+| `sql_database`        | `sqldb`    | `sql_server`   | `sqldb-{P}`                              | singleton, max 1 per server |
 | `vnet_bastion`        | `bas`      | `vnet`         | `bas-{P}`                                | singleton, max 1 per parent |
 | `vnet_firewall`       | `afw`      | `vnet`         | `afw-{P}`                                | singleton, max 1 per parent |
 | `private_endpoint`    | `pep`      | any service    | `pep-{P}-{instance}`                     | positional, `001..` per parent |

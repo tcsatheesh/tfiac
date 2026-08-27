@@ -21,7 +21,7 @@
 
 locals {
   services = {
-    # ----- Top-level resources (28 rows) -----
+    # ----- Top-level resources (30 rows) -----
     "resource_group" = { abbr = "rg", shape = "rg_hyphenated", azure_max = 90, level = "top" }
     "vnet"           = { abbr = "vnet", shape = "hyphenated", azure_max = 64, level = "top" }
     "nsg"            = { abbr = "nsg", shape = "hyphenated", azure_max = 80, level = "top" }
@@ -52,14 +52,24 @@ locals {
     "language"               = { abbr = "lang", shape = "hyphenated", azure_max = 64, level = "top" }
     "doc_intel"              = { abbr = "di", shape = "hyphenated", azure_max = 64, level = "top" }
     "search"                 = { abbr = "srch", shape = "hyphenated", azure_max = 60, level = "top" }
-    "dns_zone"               = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
-    "private_dns_zone"       = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
+    # data_factory / sql_server (Amendment 2026-08-27, 006-services sp03 data
+    # platform) — Azure Data Factory (name 3-63, alnum + hyphen, globally
+    # unique; CAF abbr `adf`) and the Azure SQL logical server (name <=63,
+    # lowercase alnum + hyphen, globally unique; CAF abbr `sql`). Both hyphenated.
+    "data_factory"     = { abbr = "adf", shape = "hyphenated", azure_max = 63, level = "top" }
+    "sql_server"       = { abbr = "sql", shape = "hyphenated", azure_max = 63, level = "top" }
+    "dns_zone"         = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
+    "private_dns_zone" = { abbr = "", shape = "fqdn", azure_max = 253, level = "top" }
 
     # ----- Child resources (8 rows) -----
-    "subnet"             = { abbr = "snet", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "vnet" }
-    "nsg_rule"           = { abbr = "nsgrule", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "nsg" }
-    "route"              = { abbr = "udr", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "route_table" }
-    "apim_api"           = { abbr = "api", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "apim" }
+    "subnet"   = { abbr = "snet", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "vnet" }
+    "nsg_rule" = { abbr = "nsgrule", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "nsg" }
+    "route"    = { abbr = "udr", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "route_table" }
+    "apim_api" = { abbr = "api", shape = "child_purpose", azure_max = 80, level = "child", parent_type = "apim" }
+    # sql_database (Amendment 2026-08-27, 006-services sp03 data platform) —
+    # Azure SQL database, one per logical server (singleton). Name <=128.
+    # CAF abbr `sqldb`.
+    "sql_database"       = { abbr = "sqldb", shape = "singleton", azure_max = 128, level = "child", parent_type = "sql_server" }
     "vnet_bastion"       = { abbr = "bas", shape = "singleton", azure_max = 80, level = "child", parent_type = "vnet" }
     "vnet_firewall"      = { abbr = "afw", shape = "singleton", azure_max = 80, level = "child", parent_type = "vnet" }
     "private_endpoint"   = { abbr = "pep", shape = "positional", azure_max = 80, level = "child", parent_type = "*" }
