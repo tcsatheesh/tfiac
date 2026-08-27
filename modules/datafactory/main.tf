@@ -159,8 +159,10 @@ resource "azurerm_role_assignment" "storage_blob_contributor" {
 # ----- Data-plane grant: ADF managed identity -> contained SQL DB user -----
 # Least-privilege (db_datareader/db_datawriter/db_ddladmin). Runs from the
 # in-VNet deploy runner via sqlcmd, authenticating with Entra as the SQL server
-# administrator (the deploying CI service principal). Idempotent; re-runs only
-# when the server/db/factory identity changes.
+# administrator. The runner's system-assigned managed identity is the SQL admin
+# (set on the server), so the grant uses ActiveDirectoryManagedIdentity. The
+# contained user is created WITH OBJECT_ID to avoid a Microsoft Graph lookup
+# (no Directory Readers requirement on the SQL server identity). Idempotent.
 resource "terraform_data" "sql_grant" {
   count = local.has_sql && var.sql_grant_enabled ? 1 : 0
 
@@ -168,6 +170,7 @@ resource "terraform_data" "sql_grant" {
     server = var.sql_server_fqdn
     db     = var.sql_database_name
     adf    = var.canonical_name
+    oid    = azurerm_data_factory.this.identity[0].principal_id
   }
 
   provisioner "local-exec" {
@@ -179,8 +182,8 @@ resource "terraform_data" "sql_grant" {
         exit 1
       }
       sqlcmd -S "${var.sql_server_fqdn}" -d "${var.sql_database_name}" \
-        --authentication-method ActiveDirectoryDefault -b -Q \
-        "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'${var.canonical_name}') CREATE USER [${var.canonical_name}] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [${var.canonical_name}]; ALTER ROLE db_datawriter ADD MEMBER [${var.canonical_name}]; ALTER ROLE db_ddladmin ADD MEMBER [${var.canonical_name}];"
+        --authentication-method ActiveDirectoryManagedIdentity -b -Q \
+        "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'${var.canonical_name}') CREATE USER [${var.canonical_name}] FROM EXTERNAL PROVIDER WITH OBJECT_ID='${azurerm_data_factory.this.identity[0].principal_id}'; ALTER ROLE db_datareader ADD MEMBER [${var.canonical_name}]; ALTER ROLE db_datawriter ADD MEMBER [${var.canonical_name}]; ALTER ROLE db_ddladmin ADD MEMBER [${var.canonical_name}];"
     EOT
   }
 
