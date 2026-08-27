@@ -27,17 +27,17 @@ run "catalogue_completeness" {
   assert {
     condition = length(setsubtract(
       toset([
-        # Top-level (28)
+        # Top-level (30)
         "resource_group", "vnet", "nsg", "route_table", "public_ip",
         "nat_gateway",
         "log_analytics", "app_insights", "storage", "keyvault",
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "language", "doc_intel", "search",
+        "language", "doc_intel", "search", "data_factory", "sql_server",
         "dns_zone", "private_dns_zone",
-        # Children (8)
-        "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
+        # Children (9)
+        "subnet", "nsg_rule", "route", "apim_api", "sql_database", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
       ]),
       toset(keys(output.services))
@@ -50,9 +50,9 @@ run "catalogue_completeness" {
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "language", "doc_intel", "search",
+        "language", "doc_intel", "search", "data_factory", "sql_server",
         "dns_zone", "private_dns_zone",
-        "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
+        "subnet", "nsg_rule", "route", "apim_api", "sql_database", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
       ]),
       toset(keys(output.services))
@@ -69,9 +69,9 @@ run "catalogue_completeness" {
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "language", "doc_intel", "search",
+        "language", "doc_intel", "search", "data_factory", "sql_server",
         "dns_zone", "private_dns_zone",
-        "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
+        "subnet", "nsg_rule", "route", "apim_api", "sql_database", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
       ])
     )) == 0
@@ -84,9 +84,9 @@ run "catalogue_completeness" {
         "container_registry", "container_app_environment", "cosmosdb", "user_assigned_identity", "vm",
         "app_service_plan", "apim", "vpn_gateway", "expressroute_gateway",
         "function_app", "logic_app", "aml_workspace", "openai",
-        "language", "doc_intel", "search",
+        "language", "doc_intel", "search", "data_factory", "sql_server",
         "dns_zone", "private_dns_zone",
-        "subnet", "nsg_rule", "route", "apim_api", "vnet_bastion",
+        "subnet", "nsg_rule", "route", "apim_api", "sql_database", "vnet_bastion",
         "vnet_firewall", "private_endpoint", "diagnostic_setting",
       ])
     ))}"
