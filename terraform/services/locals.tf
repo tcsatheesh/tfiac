@@ -18,7 +18,7 @@ locals {
     "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
     "user_assigned_identity", "search", "openai",
     "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
-    "container_app_environment", "cosmosdb",
+    "container_app_environment", "cosmosdb", "sql_server", "data_factory",
   ]
 
   # ----- Deferred / other-stack-owned reasons (CA-003 friendly messages) -----
@@ -57,6 +57,8 @@ locals {
     apim                      = "apm"
     container_app_environment = "cae"
     cosmosdb                  = "cos"
+    sql_server                = "sql"
+    data_factory              = "adf"
   }
 
   # ----- Step A: group var.services by (type, coalesce(purpose, usecase)) -----

@@ -1245,3 +1245,61 @@ covered by the `103` feature's own pipeline, not this engine amendment).
 Per-resource `_id`/`_name` outputs (still forbidden — the map is the contract,
 [C-008](#clarifications)); changing any existing key shape; exposing the `svc`
 RG inside the map (it keeps its dedicated `resource_group_id` output).
+
+## AMENDMENT 2026-08-27 — Azure SQL + Data Factory data platform (FR-052)
+
+Adds two new private-by-default selectable service types for the sp03 data
+platform, plus Data Factory linked services to the SQL / Key Vault / Storage
+selected in the same stack.
+
+### Verified facts (drive this amendment)
+
+- The naming engine (001) now catalogues `data_factory` (abbr `adf`),
+  `sql_server` (abbr `sql`), and child `sql_database` (abbr `sqldb`).
+- The hub private-DNS stack (002) now hosts `datafactory`
+  (`privatelink.datafactory.azure.net`), `adf` (`privatelink.adf.azure.net`),
+  and `sql` (`privatelink.database.windows.net`).
+- Azure SQL DB-level permissions are data-plane (T-SQL); there is no control-plane
+  Terraform lever for them. Managed private endpoints connect ADF's managed VNet
+  to a target; managed-identity linked services authenticate without secrets.
+
+### Functional requirement
+
+- **FR-052 — `sql_server` + `data_factory` private-only selectable types
+  (engine).** The services stack MUST accept `sql_server` and `data_factory` in
+  `var.services[*].type`. Both are private-ONLY (like `cosmosdb`, FR-032):
+  selecting either ALWAYS requires the spoke VNet + hub DNS remote states; there
+  is no public variant and no toggle.
+  - **`sql_server`** → `modules/mssql`: an `azurerm_mssql_server`
+    (`azuread_authentication_only = true`, **no SQL login/password/secret**;
+    the Entra administrator is the deploying CI principal so the pipeline can
+    manage DB users), a single `azurerm_mssql_database` (`sqldb-<server>`),
+    `public_network_access_enabled = false`, an always-on private endpoint
+    (sub-resource `sqlServer` → `sql` zone), and diagnostics to the shared hub
+    LA (C-014).
+  - **`data_factory`** → `modules/datafactory`: an `azurerm_data_factory`
+    (Managed VNet on, `public_network_enabled = false`, system-assigned
+    identity), inbound private endpoints (`dataFactory` → `datafactory` zone,
+    `portal` → `adf` zone), and diagnostics to the shared hub LA.
+  - **ADF linked services.** For each of Key Vault, Storage, and SQL that is
+    ALSO selected in the same stack, the ADF module MUST create (a) an
+    `azurerm_data_factory_managed_private_endpoint`, (b) a managed-identity
+    linked service, and (c) the control-plane RBAC the identity needs
+    (Key Vault Secrets User; Storage Blob Data Contributor). v1 links a single
+    target of each type (first by sorted canonical name).
+  - **SQL grant (data-plane, automated).** When a SQL target is present, the
+    ADF module MUST run a least-privilege T-SQL grant creating the ADF
+    managed identity as a contained DB user
+    (`CREATE USER [<adf>] FROM EXTERNAL PROVIDER` +
+    `db_datareader`/`db_datawriter`/`db_ddladmin`). It runs from the in-VNet
+    deploy runner via `sqlcmd` with Entra auth as the SQL administrator (the CI
+    principal), reaching the SQL private endpoint over hub↔spoke peering + the
+    shared `sql` DNS zone. Idempotent; re-runs only when the server/db/factory
+    identity changes. Gated by `sql_grant_enabled` (default true).
+
+### Out of scope for FR-052
+
+Multi-target linked services (v1 links one KV/Storage/SQL); self-hosted
+integration runtimes; SQL authentication (Entra-only by mandate); ADF pipelines,
+datasets, or triggers; running the grant when `sql_grant_enabled = false`
+(operator grants manually).

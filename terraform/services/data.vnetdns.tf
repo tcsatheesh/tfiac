@@ -32,10 +32,16 @@ locals {
   # remote states. There is no toggle — selection implies private wiring.
   cosmosdb_selected = length([for s in var.services : s if s.type == "cosmosdb"]) > 0
 
+  # FR-052 (Amendment 2026-08-27) — Azure SQL server and Data Factory are
+  # private-ONLY (like cosmosdb): selecting either ALWAYS requires the spoke
+  # VNet (PE subnet) + hub DNS remote states. No toggle.
+  sql_selected         = length([for s in var.services : s if s.type == "sql_server"]) > 0
+  datafactory_selected = length([for s in var.services : s if s.type == "data_factory"]) > 0
+
   # Any feature that needs the spoke VNet remote state.
-  vnet_state_required = local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || local.container_apps_active || (local.cosmosdb_selected && var.vnet_state_backend != null)
+  vnet_state_required = local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || local.container_apps_active || ((local.cosmosdb_selected || local.sql_selected || local.datafactory_selected) && var.vnet_state_backend != null)
   # Any feature that needs the hub DNS remote state (PE zone ids).
-  dns_state_required = local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || (local.cosmosdb_selected && var.dns_state_backend != null)
+  dns_state_required = local.acr_pe_required || local.storage_pe_required || local.search_pe_required || local.keyvault_pe_required || ((local.cosmosdb_selected || local.sql_selected || local.datafactory_selected) && var.dns_state_backend != null)
 }
 
 data "terraform_remote_state" "vnet" {
@@ -129,5 +135,31 @@ locals {
 
   cosmosdb_pe_zone_ids = local.cosmosdb_selected ? [
     data.terraform_remote_state.dns[0].outputs.zone_ids["cosmos-sql"]
+  ] : []
+
+  # FR-052 — Azure SQL PE: spoke PE subnet (by role) + hub sql zone
+  # (privatelink.database.windows.net).
+  sql_pe_subnet_id = local.sql_selected ? try(
+    data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
+    null,
+  ) : null
+
+  sql_pe_zone_ids = local.sql_selected ? [
+    data.terraform_remote_state.dns[0].outputs.zone_ids["sql"]
+  ] : []
+
+  # FR-052 — Data Factory inbound PE: spoke PE subnet (by role) + the hub
+  # datafactory (dataFactory sub-resource) and adf (portal sub-resource) zones.
+  datafactory_pe_subnet_id = local.datafactory_selected ? try(
+    data.terraform_remote_state.vnet[0].outputs.subnets[var.private_endpoint_subnet_role].id,
+    null,
+  ) : null
+
+  datafactory_pe_zone_ids = local.datafactory_selected ? [
+    data.terraform_remote_state.dns[0].outputs.zone_ids["datafactory"]
+  ] : []
+
+  datafactory_portal_zone_ids = local.datafactory_selected ? [
+    data.terraform_remote_state.dns[0].outputs.zone_ids["adf"]
   ] : []
 }

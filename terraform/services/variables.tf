@@ -103,10 +103,10 @@ variable "services" {
         "keyvault", "storage", "log_analytics", "app_insights", "container_registry",
         "user_assigned_identity", "search", "openai",
         "language", "doc_intel", "function_app", "logic_app", "aml_workspace", "apim",
-        "container_app_environment", "cosmosdb",
+        "container_app_environment", "cosmosdb", "sql_server", "data_factory",
       ], s.type)
     ])
-    error_message = "services[*].type must be one of the 16 v1 selectable types (spec.md C-001 + C-015 + C-021 + FR-032). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
+    error_message = "services[*].type must be one of the v1 selectable types (spec.md C-001 + C-015 + C-021 + FR-032 + FR-052). Other engine-catalogued types (vnet, nsg, vm, dns_zone, private_dns_zone, firewall, ...) are deferred or owned by other stacks; see terraform/services/locals.tf::deferred_reason."
   }
 
   validation {

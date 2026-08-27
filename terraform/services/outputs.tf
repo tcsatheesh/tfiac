@@ -31,6 +31,8 @@ output "resource_ids" {
     { for k, m in module.logic_app : k => m.resource_id },
     { for k, m in module.aml_workspace : k => m.resource_id },
     { for k, m in module.apim : k => m.resource_id },
+    { for k, m in module.sql_server : k => m.resource_id },
+    { for k, m in module.data_factory : k => m.resource_id },
   )
 }
 
@@ -45,6 +47,7 @@ output "resource_names" {
       keys(module.language),
       keys(module.doc_intel), keys(module.function_app), keys(module.logic_app),
       keys(module.aml_workspace), keys(module.apim),
+      keys(module.sql_server), keys(module.data_factory),
     ) : k => k
   }
 }

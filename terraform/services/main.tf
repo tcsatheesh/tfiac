@@ -388,3 +388,82 @@ module "apim" {
   # C-013 (Amendment 2026-05-31) — apim hub-only defence-in-depth.
   topology = var.topology
 }
+
+# FR-052 (Amendment 2026-08-27) — Azure SQL logical server + database,
+# private-by-default and Entra-ONLY. The Entra administrator is the deploying
+# CI principal (data.azurerm_client_config.current) so the pipeline can manage
+# database-level users (the ADF grant below).
+module "sql_server" {
+  source = "../../modules/mssql"
+  for_each = {
+    for n, e in module.naming.names : n => e if e.service_type == "sql_server"
+  }
+
+  canonical_name      = each.key
+  resource_group_name = azurerm_resource_group.svc.name
+  location            = azurerm_resource_group.svc.location
+  tags                = each.value.tags
+  engine_record       = each.value
+  overrides           = lookup(var.overrides, each.key, {})
+
+  shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  entra_admin_login     = "sql-entra-admin"
+  entra_admin_object_id = data.azurerm_client_config.current.object_id
+  entra_admin_tenant_id = data.azurerm_client_config.current.tenant_id
+
+  private_endpoint_subnet_id = local.sql_pe_subnet_id
+  private_dns_zone_ids       = local.sql_pe_zone_ids
+}
+
+# FR-052 (Amendment 2026-08-27) — Azure Data Factory: private-by-default
+# (Managed VNet on, public off, inbound PEs) with managed private endpoints +
+# managed-identity linked services to the SQL / Key Vault / Storage selected in
+# THIS stack. v1 links a single target of each type (first by sorted name).
+locals {
+  adf_kv_keys  = sort(keys(module.keyvault))
+  adf_sto_keys = sort(keys(module.storage))
+  adf_sql_keys = sort(keys(module.sql_server))
+
+  adf_kv_id    = length(local.adf_kv_keys) > 0 ? module.keyvault[local.adf_kv_keys[0]].resource_id : null
+  adf_kv_name  = length(local.adf_kv_keys) > 0 ? module.keyvault[local.adf_kv_keys[0]].name : null
+  adf_sto_id   = length(local.adf_sto_keys) > 0 ? module.storage[local.adf_sto_keys[0]].resource_id : null
+  adf_sto_name = length(local.adf_sto_keys) > 0 ? module.storage[local.adf_sto_keys[0]].name : null
+  adf_sql_id   = length(local.adf_sql_keys) > 0 ? module.sql_server[local.adf_sql_keys[0]].resource_id : null
+  adf_sql_fqdn = length(local.adf_sql_keys) > 0 ? module.sql_server[local.adf_sql_keys[0]].server_fqdn : null
+  adf_sql_db   = length(local.adf_sql_keys) > 0 ? module.sql_server[local.adf_sql_keys[0]].database_name : null
+}
+
+module "data_factory" {
+  source = "../../modules/datafactory"
+  for_each = {
+    for n, e in module.naming.names : n => e if e.service_type == "data_factory"
+  }
+
+  canonical_name      = each.key
+  resource_group_name = azurerm_resource_group.svc.name
+  location            = azurerm_resource_group.svc.location
+  tags                = each.value.tags
+  engine_record       = each.value
+  overrides           = lookup(var.overrides, each.key, {})
+
+  shared_log_analytics_workspace_id = local.shared_la_workspace_id
+
+  private_endpoint_subnet_id       = local.datafactory_pe_subnet_id
+  datafactory_private_dns_zone_ids = local.datafactory_pe_zone_ids
+  portal_private_dns_zone_ids      = local.datafactory_portal_zone_ids
+
+  key_vault_id         = local.adf_kv_id
+  key_vault_name       = local.adf_kv_name
+  storage_account_id   = local.adf_sto_id
+  storage_account_name = local.adf_sto_name
+  sql_server_id        = local.adf_sql_id
+  sql_server_fqdn      = local.adf_sql_fqdn
+  sql_database_name    = local.adf_sql_db
+
+  # Plan-known selection flags gate the ADF managed PE / linked service / grant
+  # counts (the ids/names above are computed and cannot gate `count`).
+  link_key_vault = local.keyvault_selected
+  link_storage   = local.storage_selected
+  link_sql       = local.sql_selected
+}
