@@ -161,3 +161,27 @@ variable "sql_grant_enabled" {
   type        = bool
   default     = true
 }
+
+# ----- Managed VNet IR compute-scale TTLs -----
+# Not exposed by the azurerm IR resource; applied via an azapi patch.
+variable "managed_ir_copy_compute_ttl_min" {
+  description = "Managed VNet IR copyComputeScaleProperties.timeToLive, in minutes. Keeps copy compute warm to avoid per-activity cold-start queueing."
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.managed_ir_copy_compute_ttl_min >= 5 && var.managed_ir_copy_compute_ttl_min <= 1440
+    error_message = "managed_ir_copy_compute_ttl_min must be between 5 and 1440 minutes."
+  }
+}
+
+variable "managed_ir_pipeline_external_compute_ttl_min" {
+  description = "Managed VNet IR pipelineExternalComputeScaleProperties.timeToLive, in minutes. Keeps pipeline/external activity compute warm."
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.managed_ir_pipeline_external_compute_ttl_min >= 5 && var.managed_ir_pipeline_external_compute_ttl_min <= 1440
+    error_message = "managed_ir_pipeline_external_compute_ttl_min must be between 5 and 1440 minutes."
+  }
+}

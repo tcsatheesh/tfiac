@@ -1290,13 +1290,22 @@ selected in the same stack.
     connection lands as `Pending` on the target; the DEPLOYMENT approves it
     (a `terraform_data` runs `az network private-endpoint-connection approve`
     from the in-VNet runner) — never a human. Idempotent (skips already-approved).
+  - **Managed VNet IR compute-scale TTLs.** The managed-VNet Azure integration
+    runtime MUST set `copyComputeScaleProperties.timeToLive` and
+    `pipelineExternalComputeScaleProperties.timeToLive` (default **20** minutes
+    each, overridable) to keep compute warm and avoid per-activity cold-start
+    queueing. Neither is exposed by the `azurerm` IR resource, so they are
+    applied with an `azapi_update_resource` patch on the same runtime.
   - **SQL grant (data-plane, automated).** When a SQL target is present, the
     ADF module MUST run a least-privilege T-SQL grant creating the ADF
     managed identity as a contained DB user
     (`CREATE USER [<adf>] FROM EXTERNAL PROVIDER WITH OBJECT_ID='<adf-mi-oid>'`
-    — the explicit object id avoids a Microsoft Graph lookup, so the SQL server
-    identity needs NO Directory Readers role — plus
-    `db_datareader`/`db_datawriter`/`db_ddladmin`). It runs from the in-VNet
+    plus `db_datareader`/`db_datawriter`/`db_ddladmin`). **Prerequisite
+    (verified in rollout):** the SQL server's system-assigned identity MUST hold
+    the Entra **Directory Readers** role — `FROM EXTERNAL PROVIDER` performs a
+    directory lookup even when `WITH OBJECT_ID` is supplied, otherwise Azure
+    returns `Msg 37353`. This is a one-time tenant-directory assignment per SQL
+    server identity (a Directory Readers group is the scalable option). It runs from the in-VNet
     deploy runner via `sqlcmd --authentication-method ActiveDirectoryManagedIdentity`,
     authenticating as the runner's system-assigned managed identity, which is
     set as the SQL server's Entra administrator (via `sql_entra_admin_object_id`).

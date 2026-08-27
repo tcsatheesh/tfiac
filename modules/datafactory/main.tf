@@ -23,6 +23,29 @@ resource "azurerm_data_factory_integration_runtime_azure" "managed" {
   virtual_network_enabled = true
 }
 
+# copyComputeScaleProperties / pipelineExternalComputeScaleProperties TTLs are
+# not exposed by the azurerm IR resource, so patch them onto the same runtime.
+resource "azapi_update_resource" "managed_ir_compute_scale" {
+  type        = "Microsoft.DataFactory/factories/integrationRuntimes@2018-06-01"
+  resource_id = azurerm_data_factory_integration_runtime_azure.managed.id
+
+  body = {
+    properties = {
+      type = "Managed"
+      typeProperties = {
+        computeProperties = {
+          copyComputeScaleProperties = {
+            timeToLive = var.managed_ir_copy_compute_ttl_min
+          }
+          pipelineExternalComputeScaleProperties = {
+            timeToLive = var.managed_ir_pipeline_external_compute_ttl_min
+          }
+        }
+      }
+    }
+  }
+}
+
 # Default diagnostics to the shared hub LA (C-014 parity).
 resource "azurerm_monitor_diagnostic_setting" "to_hub_la" {
   count                      = var.diagnostic_settings_enabled ? 1 : 0
