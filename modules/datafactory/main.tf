@@ -129,10 +129,10 @@ resource "terraform_data" "approve_managed_pes" {
       command -v az >/dev/null 2>&1 || { echo "ERROR: az CLI not found on the deploy runner; required to approve ADF managed private endpoints." >&2; exit 1; }
       for t in ${join(" ", local.managed_pe_targets)}; do
         for i in 1 2 3 4 5; do
-          cid=$$(az network private-endpoint-connection list --id "$$t" --query "[?properties.privateLinkServiceConnectionState.status=='Pending'].id | [0]" -o tsv 2>/dev/null || true)
-          if [ -n "$$cid" ]; then
-            echo "approving ADF managed PE connection: $$cid"
-            az network private-endpoint-connection approve --id "$$cid" --description "ADF managed private endpoint (approved by deployment)" -o none
+          cid=$(az network private-endpoint-connection list --id "$t" --query "[?properties.privateLinkServiceConnectionState.status=='Pending'].id | [0]" -o tsv 2>/dev/null || true)
+          if [ -n "$cid" ]; then
+            echo "approving ADF managed PE connection: $cid"
+            az network private-endpoint-connection approve --id "$cid" --description "ADF managed private endpoint (approved by deployment)" -o none
             break
           fi
           sleep 8
