@@ -13,10 +13,10 @@ on:
         type: choice
         options: [vnet, dns, log, buildsvr, services, winvm]
       tenant:
-        description: "Tenancy (hub|sp01|sp02)."
+        description: "Tenancy (hub|sp01|sp02|sp03)."
         required: true
         type: choice
-        options: [hub, sp01, sp02]
+        options: [hub, sp01, sp02, sp03]
         default: sp01
       environment:
         description: "Environment short code."
