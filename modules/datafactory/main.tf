@@ -89,7 +89,6 @@ resource "azurerm_data_factory_managed_private_endpoint" "kv" {
   data_factory_id    = azurerm_data_factory.this.id
   target_resource_id = var.key_vault_id
   subresource_name   = "vault"
-  fqdns              = [local.kv_fqdn]
 }
 
 resource "azurerm_data_factory_managed_private_endpoint" "storage" {
@@ -98,7 +97,6 @@ resource "azurerm_data_factory_managed_private_endpoint" "storage" {
   data_factory_id    = azurerm_data_factory.this.id
   target_resource_id = var.storage_account_id
   subresource_name   = "blob"
-  fqdns              = [local.blob_fqdn]
 }
 
 resource "azurerm_data_factory_managed_private_endpoint" "sql" {
@@ -107,7 +105,6 @@ resource "azurerm_data_factory_managed_private_endpoint" "sql" {
   data_factory_id    = azurerm_data_factory.this.id
   target_resource_id = var.sql_server_id
   subresource_name   = "sqlServer"
-  fqdns              = [var.sql_server_fqdn]
 }
 
 # ----- Linked services (authenticate via the ADF managed identity) -----

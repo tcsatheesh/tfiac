@@ -28,7 +28,6 @@ resource "azurerm_mssql_database" "this" {
   server_id      = azurerm_mssql_server.this.id
   sku_name       = local.config.database_sku_name
   collation      = local.config.database_collation
-  max_size_gb    = local.config.database_max_size_gb
   zone_redundant = local.config.database_zone_redundant
   tags           = var.tags
 }
