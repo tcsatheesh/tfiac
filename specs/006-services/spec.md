@@ -1290,12 +1290,17 @@ selected in the same stack.
   - **SQL grant (data-plane, automated).** When a SQL target is present, the
     ADF module MUST run a least-privilege T-SQL grant creating the ADF
     managed identity as a contained DB user
-    (`CREATE USER [<adf>] FROM EXTERNAL PROVIDER` +
+    (`CREATE USER [<adf>] FROM EXTERNAL PROVIDER WITH OBJECT_ID='<adf-mi-oid>'`
+    — the explicit object id avoids a Microsoft Graph lookup, so the SQL server
+    identity needs NO Directory Readers role — plus
     `db_datareader`/`db_datawriter`/`db_ddladmin`). It runs from the in-VNet
-    deploy runner via `sqlcmd` with Entra auth as the SQL administrator (the CI
-    principal), reaching the SQL private endpoint over hub↔spoke peering + the
-    shared `sql` DNS zone. Idempotent; re-runs only when the server/db/factory
-    identity changes. Gated by `sql_grant_enabled` (default true).
+    deploy runner via `sqlcmd --authentication-method ActiveDirectoryManagedIdentity`,
+    authenticating as the runner's system-assigned managed identity, which is
+    set as the SQL server's Entra administrator (via `sql_entra_admin_object_id`).
+    It reaches the SQL private endpoint over hub↔spoke peering + the shared `sql`
+    DNS zone (the hub vnet must be linked to that zone). Idempotent; re-runs
+    only when the server/db/factory identity changes. Gated by
+    `sql_grant_enabled` (default true).
 
 ### Out of scope for FR-052
 

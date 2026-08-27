@@ -408,8 +408,8 @@ module "sql_server" {
 
   shared_log_analytics_workspace_id = local.shared_la_workspace_id
 
-  entra_admin_login     = "sql-entra-admin"
-  entra_admin_object_id = data.azurerm_client_config.current.object_id
+  entra_admin_login     = var.sql_entra_admin_login
+  entra_admin_object_id = coalesce(var.sql_entra_admin_object_id, data.azurerm_client_config.current.object_id)
   entra_admin_tenant_id = data.azurerm_client_config.current.tenant_id
 
   private_endpoint_subnet_id = local.sql_pe_subnet_id

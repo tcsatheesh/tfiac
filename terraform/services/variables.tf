@@ -318,3 +318,25 @@ variable "container_apps_subnet_role" {
     error_message = "container_apps_subnet_role must be one of the 13 known network-stack subnet roles (C-032 adds 'agents')."
   }
 }
+
+# FR-052 — Azure SQL Entra administrator. Entra-only auth (no SQL login). Null
+# => the deploying client (data.azurerm_client_config). Set to the deploy
+# runner's managed identity object id so the in-deployment ADF->SQL grant can
+# authenticate as the server administrator (the grant runs on the runner via
+# ActiveDirectoryManagedIdentity).
+variable "sql_entra_admin_object_id" {
+  description = "Object id of the Entra principal set as the Azure SQL server administrator. Null => the deploying client principal."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.sql_entra_admin_object_id == null || can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", coalesce(var.sql_entra_admin_object_id, "00000000-0000-0000-0000-000000000000")))
+    error_message = "sql_entra_admin_object_id must be null or a GUID."
+  }
+}
+
+variable "sql_entra_admin_login" {
+  description = "Display name/login for the Azure SQL Entra administrator."
+  type        = string
+  default     = "sql-entra-admin"
+}
