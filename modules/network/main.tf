@@ -36,8 +36,10 @@ module "nsg" {
 # ----- vnet (creates subnets too via AVM module) -----
 
 module "vnet" {
-  source  = "Azure/avm-res-network-virtualnetwork/azurerm"
-  version = "~> 0.8"
+  source = "Azure/avm-res-network-virtualnetwork/azurerm"
+  # Pinned to the last line that supports `service_endpoints_with_location`;
+  # v0.20.0 removed it (locations are now implicit). See FR-225.
+  version = "~> 0.19.0"
 
   name             = local.vnet_canonical_name
   location         = local.region_full

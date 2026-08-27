@@ -3,7 +3,7 @@
 
 provider "registry.terraform.io/azure/azapi" {
   version     = "2.12.0"
-  constraints = "~> 2.4, ~> 2.12"
+  constraints = "~> 2.0, ~> 2.4, ~> 2.5"
   hashes = [
     "h1:1p1W8aIwWYfTghuZIfdkFI0mP22cXhQ3DXAnMleTx58=",
     "h1:GtViCcDxmRjOh5uaLjDkT9ZifcQLyRqE5rZrt4/qLYY=",
